@@ -21,6 +21,9 @@ info可以查询服务器信息
 
 2.安装插件
 下载插件 CX查询插件，安装到exiled的插件文件夹，并修改配置文件
+
 3.使用中继程序
 SocketServer-GoHttpQQBOT
 打开，并输入服务器端口号，以及群号就可以用了。
+
+如果出现任何问题或者不会的可以与我联系：QQ ：3037240065 邮箱：liseximt@outlook.com
