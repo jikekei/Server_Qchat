@@ -9,6 +9,7 @@ info可以查询服务器信息
 #1，#xx等可以查询服务器玩家列表
 
 玩家输入信息包含"炸了？""服务器炸了？"会发送服务器当前状态以及延迟，
+
 玩家输入信息包含“赞助”会发送赞助的信息详细
 
 本程序包括3部分
@@ -16,7 +17,9 @@ info可以查询服务器信息
 
 推荐使用https://github.com/NapNeko/NapCatQQ QQ机器人框架，当然其他框架也可以
 
-按照 https://github.com/NapNeko/NapCatQQ 提供的方法登录，如何修改配置文件如同，在config目录下onebot11_QQ号配置文件，如下所示修改
+按照 https://github.com/NapNeko/NapCatQQ 提供的方法登录，
+
+如何修改配置文件如同，在config目录下onebot11_QQ号配置文件，如下所示修改
 
 ![image](https://github.com/user-attachments/assets/507a784a-fa30-4824-9ba4-a8ec9d658aa7)
 
