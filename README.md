@@ -26,8 +26,11 @@ info可以查询服务器信息
 2.安装插件
 下载插件 CX查询插件，安装到exiled的插件文件夹，并修改配置文件
 
-3.使用中继程序
-SocketServer-GoHttpQQBOT
+3.使用中继程序 Server_Qchat_exe
+Server_Qchat_exe需要运行库net6.0
+下载地址 https://dotnet.microsoft.com/zh-cn/download/dotnet/6.0
+如果出现打开闪退请下载运行库合集
+https://www.52pojie.cn/thread-1916914-1-1.html
 打开，并输入服务器端口号，以及群号就可以用了。
 
 如果出现任何问题或者不会的可以与我联系：QQ ：3037240065 邮箱：liseximt@outlook.com
