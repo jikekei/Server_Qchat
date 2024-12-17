@@ -35,6 +35,7 @@ info可以查询服务器信息
 
 如何修改配置文件如同，在config目录下“onebot11_QQ号”配置文件，给如下部分做修改
 
+
   "ws": {
   "enable": true,
   "host": "127.0.0.1",
@@ -42,6 +43,7 @@ info可以查询服务器信息
   "reverseWs": {
   "enable": true,
   "urls":
+
 
 也就是打开ws需要端口为6700
 
