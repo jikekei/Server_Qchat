@@ -1,0 +1,21 @@
+这是一个为了简化部署的版本，只保留了核心的人数查询功能
+
+
+
+2.配置文件
+打开app.config文件，格式如下
+  <?xml version="1.0" encoding="utf-8" ?>
+<configuration>
+  <appSettings>
+    <add key="ServerPorts" value="1*2*3" />
+    <add key="ServerName1" value="1服" />
+    <add key="ServerName2" value="2服" />
+    <add key="ServerName3" value="3服" />
+  </appSettings>
+</configuration>
+其中ServerPorts填写对应的serverid以*为隔断如1*2*3
+    <add key="ServerName1" value="1服" />
+为对应服务器名称例如ServerName1对应为id 1
+
+请严格遵守GPL3.0许可协议
+API调用缓存为1分钟
