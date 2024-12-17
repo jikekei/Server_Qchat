@@ -30,7 +30,7 @@
           《/appSettings>
           《/configuration>
 
-其中ServerPorts填写对应的serverid以****号为隔断如1*2*3
+其中ServerPorts填写对应的serverid以***号为隔断如1***2***3
 
           《add key="ServerName1" value="1服" />
           
