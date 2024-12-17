@@ -34,16 +34,14 @@ info可以查询服务器信息
 按照 https://github.com/NapNeko/NapCatQQ 提供的方法登录，
 
 如何修改配置文件如同，在config目录下“onebot11_QQ号”配置文件，给如下部分做修改
-
-
-  "ws": {
-  "enable": true,
-  "host": "127.0.0.1",
-  "port": 6700
-  "reverseWs": {
-  "enable": true,
-  "urls":
-
+ 
+      "ws": {
+      "enable": true,
+      "host": "127.0.0.1",
+      "port": 6700
+      "reverseWs": {
+      "enable": true,
+      "urls":
 
 也就是打开ws需要端口为6700
 
