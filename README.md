@@ -33,9 +33,17 @@ info可以查询服务器信息
 
 按照 https://github.com/NapNeko/NapCatQQ 提供的方法登录，
 
-如何修改配置文件如同，在config目录下“onebot11_QQ号”配置文件，如下所示修改
+如何修改配置文件如同，在config目录下“onebot11_QQ号”配置文件，给如下部分做修改
 
-![image](https://github.com/user-attachments/assets/507a784a-fa30-4824-9ba4-a8ec9d658aa7)
+  "ws": {
+  "enable": true,
+  "host": "127.0.0.1",
+  "port": 6700
+  "reverseWs": {
+  "enable": true,
+  "urls":
+
+也就是打开ws需要端口为6700
 
 2.安装插件
 下载插件 CX查询插件，安装到exiled的插件文件夹，并修改配置文件
