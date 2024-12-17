@@ -18,9 +18,9 @@
           《configuration>
           《appSettings>
           《add key="ServerPorts" value="10*20*30" />
-          《add key="ServerName1" value="1服" />
-          《add key="ServerName2" value="2服" />
-          《add key="ServerName3" value="3服" />
+          《add key="ServerName1" value="1服0" />
+          《add key="ServerName2" value="2服2" />
+          《add key="ServerName3" value="3服4" />
           《/appSettings>
           《/configuration>
 
@@ -31,7 +31,7 @@
 为对应服务器名称例如ServerName1对应为id 10	
 就会返回
 
-1服：id10服务器的对应人数
+1服0：id10服务器的对应人数
 
 请严格遵守GPL3.0许可协议
 API调用缓存为1分钟
