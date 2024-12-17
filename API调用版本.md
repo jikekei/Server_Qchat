@@ -32,12 +32,15 @@
 
 其中ServerPorts填写对应的serverid以*** 号为隔断如1 * 2 * 3 （无需空格）
 
-          《add key="ServerName1" value="1服" />
+          《add key="ServerName1" value="1服0" />
           
-为对应服务器名称例如ServerName1对应为id 10	
+这个参数为对应服务器名称例如ServerName1对应者第一个参数也就是 ID为10的服务器	
+
 就会返回
 
-1服0：id10服务器的对应人数
+          1服0：ID为10服务器的对应人数
+
+如果需要添加或者减少服务器按照格式添加，删除即可
 
 请严格遵守GPL3.0许可协议
 API调用缓存为1分钟
