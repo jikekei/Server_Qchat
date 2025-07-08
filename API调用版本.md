@@ -1,55 +1,62 @@
-这是一个为了简化部署的版本，只保留了核心的人数查询功能
-1.登录QQ
+# 简化版服务器人数查询机器人
 
-推荐使用https://github.com/NapNeko/NapCatQQ QQ机器人框架，当然其他框架也可以
+这是一个 **简化部署版本**，只保留了 **核心的服务器人数查询功能**，方便快速上手。
 
-按照 https://github.com/NapNeko/NapCatQQ 提供的方法登录，
+## ✨ 功能简介
 
-如何修改配置文件如同，在config目录下“onebot11_QQ号”配置文件，修改如下部分
+- 基于 OneBot 协议的 QQ 机器人功能  
+- 支持通过服务器 ID 查询玩家人数  
+- 国内高速低延迟 API 接入  
+- 查询结果自动缓存 1 分钟
 
-          "ws": {
-          "enable": true,
-          "host": "127.0.0.1",
-          "port": 6700
-          "reverseWs": {
-          "enable": true,
-          "urls": [
+---
 
-也就是开启ws功能端口为6700
+## 🚀 快速开始
 
-2.下载程序API版本设置配置文件
-打开app.config文件，格式如下
+### 1. 登录 QQ
 
-          《?xml version="1.0" encoding="utf-8" ?>
-          《configuration>
-          《appSettings>
-          《add key="ServerPorts" value="10*20*30" />
-          《add key="ServerName1" value="1服0" />
-          《add key="ServerName2" value="2服2" />
-          《add key="ServerName3" value="3服4" />
-          《/appSettings>
-          《/configuration>
+推荐使用 [NapCatQQ](https://github.com/NapNeko/NapCatQQ) 框架（支持 OneBot 协议），当然也可使用其他兼容 OneBot 协议的框架。
 
-其中ServerPorts填写对应的serverid以*** 号为隔断如1 * 2 * 3 （无需空格）
+登录方法请参考 NapCatQQ 官方文档：[NapCatQQ 登录教程](https://github.com/NapNeko/NapCatQQ)
 
-          《add key="ServerName1" value="1服0" />
-          
-这个参数为对应服务器名称例如ServerName1对应者第一个参数也就是 ID为10的服务器	
+#### 修改配置文件启用 WebSocket 功能：
 
+编辑 `config/onebot11_你的QQ号` 中的配置项：
 
-返回格式例如
-         
-          1服0：ID为10服务器的对应人数
+```json
+"ws": {
+  "enable": true,
+  "host": "127.0.0.1",
+  "port": 6700,
+  "reverseWs": {
+    "enable": true,
+    "urls": [
+      ...
+    ]
+  }
+}
+```
 
-如果需要添加或者减少服务器按照格式添加，删除即可
+确保 WebSocket 功能已启用，并使用端口 `6700`。
 
-服务器id可以前往[服务器列表](https://scp.manghui.net/list/)查看也就是列表上的srvID
+---
 
-请严格遵守GPL3.0许可协议
+### 2. 启动本项目
 
-API调用缓存为1分钟
+运行 `SocketServer-GoHttpQQBOT` 后，会提示输入服务器 ID，用 `*` 分隔多个 ID，例如：
 
-API由我个人搭建，提供了国内的高速低延迟访问，请各位多多支持我，如果你也想使用可以与我联系
+```
+11*22*33
+```
 
-可以前往[服务器状态监控](https://)查看API状态
+**服务器 ID 可前往 [服务器列表](https://scp.manghui.net/list/) 查看（即 srvID 栏）**
 
+---
+
+## 📡 API 状态监控
+
+---
+
+## 📄 许可证
+
+本项目遵循 **[GNU GPL v3.0 License](https://www.gnu.org/licenses/gpl-3.0.html)** 开源协议。请严格遵守协议条款。
