@@ -1,5 +1,7 @@
 # Server_Qchat
 
+# [English](https://github.com/jikekei/Server_Qchat/blob/main/English)
+
 **Server_Qchat** 是一个桥接工具，可将 [SCP: Secret Laboratory](https://store.steampowered.com/app/700330/SCP_Secret_Laboratory/) 服务器连接至 QQ 群，支持多种实用的管理和互动功能。
 
 ---
