@@ -1,1 +1,183 @@
 English
+# Server_Qchat
+
+**Server_Qchat** is a bridge tool that connects [SCP: Secret Laboratory](https://store.steampowered.com/app/700330/SCP_Secret_Laboratory/) servers to QQ groups, supporting a variety of administrative and interactive features.
+
+---
+
+## ✨ Feature Overview
+
+### 🟢 Online Status Query
+
+- `cx`: Query online players and admins on the server.
+- `info`: Get basic server information.
+- `#1` / `#xx`: Display online player list for the specified server.
+
+### 🤖 Smart Keyword Responses
+
+- Messages containing **“炸了？”** or **“服务器炸了？”** (Is the server down?): Automatically return server status and latency.
+- Messages containing **“赞助”** (donation): Automatically return donation instructions.
+
+### 🛠️ Admin Command Features (In Development)
+
+Send commands via QQ group to remotely manage the server. Requires admin privileges or whitelist access.
+
+#### 🚫 Ban Player: `/ban`
+
+```
+/ban <ServerID> <PlayerID> <DurationInMinutes> <Reason>
+```
+
+Example:
+```
+/ban #1 76561198000000001 60 Cheating
+```
+
+- Temporarily bans the specified player for a given duration (in minutes).
+
+#### 📢 Broadcast Message: `/bc`
+
+```
+/bc <ServerID> <Message>
+```
+
+Example:
+```
+/bc #1 The round is ending soon. Please get ready!
+```
+
+- Sends a system-wide message to all players on the server.
+
+#### 🔁 Restart Round: `/round`
+
+```
+/round <ServerID>
+```
+
+Example:
+```
+/round #1
+```
+
+- Force restarts the current round without shutting down the server.
+
+#### 🧑‍💼 Set Player Role: `/setadmin` (Planned)
+
+```
+/setadmin <ServerID> <PlayerID> <RoleName>
+```
+
+Example:
+```
+/setadmin #1 76561198000000001 Moderator
+```
+
+- Assigns the player to the specified role. Integration with RemoteAdmin or external permission systems is planned.
+
+### 🔎 Preview Features (In Development)
+
+- Console `.ac` command sends logs to QQ group via `SocketServerAsync`.
+- Database support for querying **playtime**, **kill count**, etc.
+- API available via HTTP — plugin deployment not required.
+
+### ✉️ Message Relay (In Development)
+
+- QQ messages can be forwarded to the server console.
+- Server logs or chat triggers can be pushed to QQ group.
+- Customizable keyword triggers for moderation and auditing.
+
+---
+
+## 📦 Usage Instructions
+
+You can use either API mode or local plugin mode.
+
+👉 **Recommended: API Mode**  
+[📖 API Usage Documentation](https://github.com/jikekei/Server_Qchat/blob/main/API%E8%B0%83%E7%94%A8%E7%89%88%E6%9C%AC.md)
+
+---
+
+### 1️⃣ Log into the QQ Bot
+
+We recommend [NapCatQQ](https://github.com/NapNeko/NapCatQQ), which supports the OneBot protocol.
+
+Login per their instructions and edit your configuration:
+
+```
+config/onebot11_<your_qq_id>.json
+```
+
+Make sure this section is set:
+
+```json
+"ws": {
+  "enable": true,
+  "host": "127.0.0.1",
+  "port": 6700,
+  "reverseWs": {
+    "enable": true,
+    "urls": [...]
+  }
+}
+```
+
+---
+
+### 2️⃣ Install CX Query Plugin
+
+- Download the **CX Query Plugin**.
+- Place it into your **Exiled plugins directory**.
+- Configure it according to your server setup.
+
+---
+
+### 3️⃣ Launch the Relay Program: `Server_Qchat_exe`
+
+- This app is built on **.NET 6.0**.
+- Install the [.NET 6.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/6.0/runtime).
+- If it crashes, consider installing a runtime package (like those from 52pojie).
+
+When prompted, input:
+
+```
+Server Port  
+QQ Group ID
+```
+
+---
+
+## ❓ FAQ
+
+> **Q:** App crashes immediately?  
+> **A:** Ensure .NET 6.0 Runtime is installed. Try a full runtime package if issues persist.
+
+> **Q:** Plugin not responding to commands?  
+> **A:** Confirm the plugin is placed correctly, compatible with the server version, and properly configured.
+
+> **Q:** API not working?  
+> **A:** Check for port conflicts, firewall issues, or restart the program.
+
+---
+
+## 📬 Contact
+
+For questions or suggestions, reach out to the author:
+
+- QQ: 3037240065  
+- 📧 Email: [liseximt@outlook.com](mailto:liseximt@outlook.com)
+
+---
+
+## ✅ TODO List
+
+- [ ] Complete database query features  
+- [ ] Improve API compatibility  
+- [ ] Add GUI for console  
+- [ ] Support more plugin integrations  
+- [ ] Add multi-language support (including English)  
+- [ ] Finalize `/setadmin` permission linkage system  
+
+---
+
+Thanks for using **Server_Qchat**!  
+If you found this project useful, feel free to ⭐️ star it!
