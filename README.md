@@ -70,7 +70,7 @@
 
 示例：
 ```
-/setadmin #1 76561198000000001 Moderator
+/setadmin #1 11 Moderator
 ```
 
 - 将玩家添加到指定权限组，未来将支持同步至 RemoteAdmin 权限或其他外部插件。
