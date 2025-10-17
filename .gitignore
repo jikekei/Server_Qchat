@@ -1,0 +1,11 @@
+﻿################################################################################
+# 此 .gitignore 文件已由 Microsoft(R) Visual Studio 自动创建。
+################################################################################
+
+/SocketServer/.vs/SocketServer/FileContentIndex
+/.vs
+/SocketServer/obj
+/SocketServer-GoHttpQQBOT/obj
+/SocketServer-GoHttpQQBOT/.vs/SocketServer-GoHttpQQBOT
+/SocketServer/bin/Debug
+/SocketServer-GoHttpQQBOT/bin/Debug
