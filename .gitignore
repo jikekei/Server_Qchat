@@ -1,0 +1,20 @@
+# Visual Studio / Rider
+.vs/
+.idea/
+
+# Build outputs
+**/bin/
+**/obj/
+
+# Local config / secrets
+appsettings.Local.json
+**/appsettings.Local.json
+.env
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Local leftovers after migration (safe to ignore; not part of a clean clone)
+SocketServer-GoHttpQQBOT/
+

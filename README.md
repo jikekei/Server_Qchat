@@ -1,186 +1,132 @@
-# Server_Qchat
+# Server_Qcha
 
-# [English](https://github.com/jikekei/Server_Qchat/blob/main/English)
+把 QQ 群里的指令转发到你的 **SCP: Secret Laboratory (SCPSL)** 服务器，实现查询在线、广播、封禁、重启回合等联动。
 
-**Server_Qchat** 是一个桥接工具，可将 [SCP: Secret Laboratory](https://store.steampowered.com/app/700330/SCP_Secret_Laboratory/) 服务器连接至 QQ 群，支持多种实用的管理和互动功能。
+仓库结构（已规范化命名）：
 
----
-
-## ✨ 功能概览
-
-### 🟢 在线状态查询
-
-- `cx`：查询服务器在线人数和管理。
-- `info`：查询服务器信息。
-- `#1` / `#xx`：查询服务器在线玩家列表。
-
-### 🤖 智能关键词响应
-
-- 包含 
-- 包含 
-
-### 🛠️ 管理指令功能（开发中）
-
-通过 QQ 群发送指令，可远程控制服务器，需具备权限或白名单身份：
-
-#### 🚫 封禁玩家：`/ban`
-
-```
-/ban 服务器ID 玩家ID 封禁时长(分钟) 封禁原因
-```
-
-示例：
-```
-/ban 1 66 60 使用外挂
-```
-
-- 封禁指定玩家一段时间（单位：分钟）。
-
-#### 📢 发送广播：`/bc`
-
-```
-/bc 服务器ID 内容
-```
-
-示例：
-```
-/bc 1 本轮游戏即将结束，请注意准备！
-```
-
-- 向该服务器内所有玩家发送一条系统广播。
-
-#### 🔁 重启当前轮次：`/round`
-
-```
-/round 服务器ID
-```
-
-示例：
-```
-/round 1
-```
-
-- 重启该服务器当前局游戏，不关闭服务器本体。
-
-#### 🧑‍💼 设置权限组：`/setadmin`（待完善）
-
-```
-/setadmin 服务器ID 玩家ID 权限组名
-```
-
-示例：
-```
-/setadmin #1 11 Moderator
-```
-
-- 将玩家添加到指定权限组，未来将支持同步至 RemoteAdmin 权限或其他外部插件。
-
-### 🔎 预览功能（开发中）
-
-- 控制台输入 `.ac`，通过 `SocketServerAsync` 自动同步消息到 QQ 群。
-- 支持数据库连接，可配合插件查询 **游玩时间**、**击杀数量** 等（功能仍在完善中）。
-- 提供 **API 接口**，可通过 HTTP 查询服务器信息，无需部署插件。
-
-### ✉️ 消息转发功能（开发中）
-
-- QQ 群消息可转发至游戏控制台。
-- 控制台或聊天关键字可转发至 QQ 群，实现远程监控。
-- 支持关键字触发、行为审计等进阶扩展。
+- `server/`：SCPSL 服务器端 EXILED 插件（TCP 命令服务端）
+- `bot/`：QQ 机器人（.NET 8），连接 OneBot 11 的正向 WebSocket，并通过 TCP 控制 `server/` 插件
 
 ---
 
-## 📦 使用说明
+## 小白一键教程（照着做就能跑）
 
-如不希望使用 API，可选择本地插件方式。
+### 0. 你需要准备
 
-👉 **推荐使用 API 接口：**  
-[📖 点击查看 API 使用文档](https://github.com/jikekei/Server_Qchat/blob/main/API%E8%B0%83%E7%94%A8%E7%89%88%E6%9C%AC.md)
+- 一台能跑 **SCPSL Dedicated Server** 的机器
+- 已安装 **EXILED**（服务器端需要）
+- 一个能登录 QQ 的环境（同一台机器也可以）
+- 安装 **.NET 8 SDK**（只给 `bot/` 用）
 
 ---
 
-### 1️⃣ 登录 QQ 机器人
+## 第 1 步：安装 QQ 框架（推荐 NapCatQQ）
 
-推荐使用 [NapCatQQ](https://github.com/NapNeko/NapCatQQ) 框架（兼容 OneBot 协议的其他框架亦可使用）。
+推荐使用 NapCatQQ（OneBot 11）：
 
-按照 NapCatQQ 的说明进行登录，并修改配置文件路径：
-
-```
-config/onebot11_你的QQ号.json
-```
-
-确保配置如下：
-
-```json
-"ws": {
-  "enable": true,
-  "host": "127.0.0.1",
-  "port": 6700,
-  "reverseWs": {
-    "enable": true,
-    "urls": [...]
-  }
-}
+```text
+https://github.com/NapNeko/NapCatQQ
 ```
 
-确保 `ws` 功能开启，监听端口为 **6700**。
+你要做的事情只有两件：
+
+1. 按 NapCatQQ 官方文档安装并登录 QQ
+2. 在 OneBot 11 配置里开启 **WebSocket 服务端（正向 WS）**，例如开在 `127.0.0.1:6700`
+
+配置字段名通常叫 `websocketServers`，里面会有 `host/port/token`。 citeturn0open2
 
 ---
 
-### 2️⃣ 安装 CX 查询插件
+## 第 2 步：安装服务器端插件（server）
 
-- 下载 **CX 查询插件**。
-- 将插件放入 **Exiled 插件目录**。
-- 根据说明修改插件配置文件以适配服务器环境。
+### 2.1 编译插件
 
----
+插件工程在 `server/`，输出 DLL 的名字是 `Server_Qcha.dll`。
 
-### 3️⃣ 启动中继程序：`Server_Qchat_exe`
+你可以用 `dotnet build` 编译：
 
-- 本程序基于 **.NET 6.0** 框架开发。
-- 请先下载并安装 [.NET 6.0 运行时](https://dotnet.microsoft.com/en-us/download/dotnet/6.0/runtime)。
-- 若程序闪退，可尝试安装运行库合集（例如 52pojie 论坛发布的版本）。
-
-程序启动后输入以下信息即可完成接入：
-
-```
-服务器端口号  
-QQ群号
+```powershell
+dotnet build server/Server_Qcha.csproj -c Release
 ```
 
----
+编译产物位置：
 
-## ❓ 常见问题
+- `server/bin/Release/Server_Qcha.dll`
 
-> **Q:** 程序闪退怎么办？  
-> **A:** 请确认已安装 .NET 6.0 运行库，如仍失败，请尝试安装运行库合集。
+### 2.2 放到 EXILED 插件目录
 
-> **Q:** 插件未响应指令？  
-> **A:** 检查插件是否正确放置、是否与服务器版本兼容，并确认配置文件是否正确。
+把 `Server_Qcha.dll` 放进 EXILED 插件目录（示例）：
 
-> **Q:** API 不工作？  
-> **A:** 检查端口是否被占用、是否被防火墙拦截，并尝试重启程序。
+- Windows：`...\EXILED\Plugins\`
+- Linux：`~/.config/EXILED/Plugins/`
 
----
+重启服务器，让插件加载一次并生成配置。
 
-## 📬 联系方式
+### 2.3 配置插件监听端口
 
-如在使用过程中遇到问题或有建议，欢迎联系作者：
+在 EXILED 的插件配置里找到本插件配置项，设置：
 
-- QQ : 3037240065  
-- 📧 邮箱：[liseximt@outlook.com](mailto:liseximt@outlook.com)
-
----
-
-## ✅ TODO 清单
-
-- [ ] 完善数据库查询功能  
-- [ ] 优化 API 兼容性  
-- [ ] 增加控制台图形界面  
-- [ ] 支持更多插件扩展  
-- [ ] 提供多语言支持（含英文国际化）  
-- [ ] 完善管理指令 `/setadmin` 权限联动功能  
+- `TcpPort`：默认 `10087`
+- `IP`：同机一般用 `127.0.0.1`
+- `ServerName`：显示用名字，比如 `1服`
 
 ---
 
-感谢使用 **Server_Qchat**！  
-如果你觉得这个项目对你有帮助，欢迎点个 ⭐️Star 支持一下！
+## 第 3 步：运行 QQ 机器人（bot）
+
+### 3.1 创建本地配置文件
+
+复制示例配置：
+
+- 从：`bot/src/Server_Qcha.Bot/appsettings.Example.json`
+- 到：`bot/src/Server_Qcha.Bot/appsettings.Local.json`
+
+然后编辑 `appsettings.Local.json`：
+
+1. NapCatQQ 的正向 WS 地址：
+   - `GoCqHttp:WsBaseUri` = `ws://127.0.0.1:6700`
+2. 服务器端插件 TCP 地址/端口：
+   - `SocketServer:Host` = `127.0.0.1`
+   - `SocketServer:Ports` = `[10087]`
+
+> `appsettings.Local.json` 已在 `.gitignore` 中忽略，不会提交到 GitHub。
+
+### 3.2 启动机器人
+
+```powershell
+dotnet run --project bot/src/Server_Qcha.Bot -c Release
+```
+
+保持窗口不要关闭。
+
+---
+
+## 第 4 步：在 QQ 群里怎么用
+
+把 NapCatQQ 登录的 QQ 号拉进群，然后在群里发送：
+
+- `help`：显示帮助
+- `cx`：查询所有服务器在线人数
+- `info`：查询服务器信息
+- `#1`：查看第 1 个服务器玩家列表（`#2`、`#3` 同理）
+
+管理指令（需要群管理员/群主权限）：
+
+- `/bc 1 内容`：向第 1 个服务器广播
+- `/round 1`：重启第 1 个服务器回合
+- `/ban 1 <ID> <时间> <原因>`：封禁
+
+---
+
+## 常见问题（小白排错）
+
+1. 机器人没反应
+   - NapCatQQ 是否成功登录
+   - NapCatQQ 的正向 WS 是否开启，端口是否是 6700
+2. 机器人连接 WS 失败
+   - `GoCqHttp:WsBaseUri` 写错
+   - 端口被占用/防火墙拦截
+3. 服务器不执行命令
+   - `server/` 插件是否加载成功
+   - 插件 `TcpPort` 是否和 `bot` 的 `SocketServer:Ports` 对得上
+
