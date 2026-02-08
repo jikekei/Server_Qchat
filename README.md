@@ -9,7 +9,13 @@
 
 ---
 
-## 小白一键教程（照着做就能跑）
+## 🚀 小白一键教程（照着做就能跑）
+
+👉 **推荐优先使用 API 接口版本：**  
+[📖 点击查看 API 使用文档](https://github.com/jikekei/Server_Qchat/blob/main/API%E8%B0%83%E7%94%A8%E7%89%88%E6%9C%AC.md)  
+不希望使用 API 的话，再选择本 README 的「本地插件方式」。
+
+---
 
 ### 0. 你需要准备
 
