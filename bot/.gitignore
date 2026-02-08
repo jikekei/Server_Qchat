@@ -1,0 +1,17 @@
+# Visual Studio / Rider
+.vs/
+.idea/
+
+# Build outputs
+**/bin/
+**/obj/
+
+# User secrets / local config
+appsettings.Local.json
+**/appsettings.Local.json
+.env
+
+# OS files
+Thumbs.db
+Desktop.ini
+

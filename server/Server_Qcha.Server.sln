@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server_Qcha", "Server_Qcha.csproj", "{FFD59672-73F0-4932-8636-42414C8162BF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FFD59672-73F0-4932-8636-42414C8162BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FFD59672-73F0-4932-8636-42414C8162BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FFD59672-73F0-4932-8636-42414C8162BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FFD59672-73F0-4932-8636-42414C8162BF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D5FB76E5-FBB3-4E81-A0BE-9281DE98CFC3}
+	EndGlobalSection
+EndGlobal
