@@ -6,7 +6,7 @@
 **/bin/
 **/obj/
 
-# Local config / secrets
+# User secrets / local config
 appsettings.Local.json
 **/appsettings.Local.json
 .env
@@ -14,7 +14,4 @@ appsettings.Local.json
 # OS files
 Thumbs.db
 Desktop.ini
-
-# Local leftovers after migration (safe to ignore; not part of a clean clone)
-SocketServer-GoHttpQQBOT/
 
