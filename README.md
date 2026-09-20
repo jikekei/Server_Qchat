@@ -161,7 +161,7 @@ flowchart TD
         end
 
         subgraph DataLayer["数据层"]
-            Database[(SQLite / MySQL)]
+            Database[("SQLite / MySQL 数据库")]
             Tracker["历史在线与峰值采样器"]
         end
     end
@@ -185,7 +185,7 @@ flowchart TD
     ConsoleIo <-->|内部控制台通信端口| Server2
     HeartbeatFsm <-->|心跳检测通道| Server1
 
-    Plugin <-->|TCP 命令与推送 (AuthToken)| Apis
+    Plugin <-->|TCP 命令通道 / AuthToken 鉴权| Apis
     Plugin -->|推送 .ac 消息| NotificationListener
     NotificationListener --> BotModule
 
