@@ -24,7 +24,7 @@ public enum PanelPermission : long
     /// <summary>回合控制（开始 / 重启回合）</summary>
     RoundControl = 1L << 4,
 
-    /// <summary>服务器进程控制（预留：接入 LocalAdmin 后启用）</summary>
+    /// <summary>服务器进程控制（LocalAdmin：启动/停止/重启进程、收发控制台命令）</summary>
     ServerControl = 1L << 5,
 
     /// <summary>Web 账号管理</summary>
@@ -32,6 +32,15 @@ public enum PanelPermission : long
 
     /// <summary>查看操作审计日志</summary>
     AuditView = 1L << 7,
+
+    /// <summary>查看与调整机器人日志级别（影响日志详细程度）</summary>
+    LoggingManage = 1L << 8,
+
+    /// <summary>QQ 机器人管理（查看状态、配置群白名单与通知、NapCat 接口与重连）</summary>
+    BotManage = 1L << 9,
+
+    /// <summary>数据库管理（查看与编辑玩家统计、封禁记录、配置连接串与初始化表）</summary>
+    DatabaseManage = 1L << 10,
 
     // ---- 预设组合（前端"快速选择"用）----
 
@@ -41,11 +50,11 @@ public enum PanelPermission : long
     /// <summary>运营：只读 + 广播 + 踢人 + 回合控制</summary>
     Operator = ServersView | BroadcastSend | PlayersKick | RoundControl,
 
-    /// <summary>管理员：运营 + 封禁 + 服务器控制 + 审计</summary>
-    Admin = ServersView | BroadcastSend | PlayersKick | PlayersBan | RoundControl | ServerControl | AuditView,
+    /// <summary>管理员：运营 + 封禁 + 服务器控制 + 审计 + 日志级别 + 机器人管理 + 数据库管理</summary>
+    Admin = ServersView | BroadcastSend | PlayersKick | PlayersBan | RoundControl | ServerControl | AuditView | LoggingManage | BotManage | DatabaseManage,
 
     /// <summary>所有者：全部权限</summary>
-    Owner = ServersView | BroadcastSend | PlayersKick | PlayersBan | RoundControl | ServerControl | AccountsManage | AuditView,
+    Owner = ServersView | BroadcastSend | PlayersKick | PlayersBan | RoundControl | ServerControl | AccountsManage | AuditView | LoggingManage | BotManage | DatabaseManage,
 }
 
 /// <summary>权限元数据，用于前端渲染与权限清单接口。</summary>
@@ -60,9 +69,12 @@ public static class PanelPermissions
         new Descriptor("players.kick", PanelPermission.PlayersKick, "踢出玩家", "将玩家踢出服务器"),
         new Descriptor("players.ban", PanelPermission.PlayersBan, "封禁玩家", "封禁玩家（可设时长与原因）"),
         new Descriptor("round.control", PanelPermission.RoundControl, "回合控制", "强制开始回合、重启回合"),
-        new Descriptor("server.control", PanelPermission.ServerControl, "服务器控制", "启动/停止/重启服务器进程（预留 LocalAdmin 能力）"),
+        new Descriptor("server.control", PanelPermission.ServerControl, "服务器控制", "启动/停止/重启服务器进程、下发控制台命令（LocalAdmin 能力）"),
         new Descriptor("accounts.manage", PanelPermission.AccountsManage, "账号管理", "创建、修改、禁用 Web 登录账号及其权限"),
         new Descriptor("audit.view", PanelPermission.AuditView, "审计日志", "查看管理操作审计记录"),
+        new Descriptor("logging.manage", PanelPermission.LoggingManage, "日志级别", "查看与调整机器人日志级别（影响日志详细程度）"),
+        new Descriptor("bot.manage", PanelPermission.BotManage, "机器人管理", "查看 QQ 机器人状态、配置群白名单、通知目标与 OneBot 连接"),
+        new Descriptor("database.manage", PanelPermission.DatabaseManage, "数据库管理", "查看与编辑玩家统计、封禁记录、配置连接串与初始化表"),
     };
 
     /// <summary>将权限位展开为 Key 列表，便于前端勾选。</summary>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    假游戏服务端：复刻 SCPSL 的 ServerOutput.TcpConsole 行为，
+    用于在不启动真实游戏的前提下端到端验证 LocalAdmin 面板实现。
+    不属于生产代码，不加入 Server_Qcha.Bot.sln，CI 不会构建它。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>FakeGame</AssemblyName>
+    <RootNamespace>FakeGame</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

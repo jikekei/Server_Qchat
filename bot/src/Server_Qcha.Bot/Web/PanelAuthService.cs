@@ -21,6 +21,87 @@ public sealed class PanelAuthService
     private readonly ILogger<PanelAuthService> _log;
     private readonly ConcurrentDictionary<string, PanelSession> _sessions = new(StringComparer.Ordinal);
 
+    // ---- IP 维度登录防暴破限流 ----
+    private sealed class IpAttemptState
+    {
+        public int FailedCount;
+        public DateTime FirstFailedAt;
+        public DateTime? LockedUntil;
+    }
+
+    private const int MaxFailedAttempts = 5;
+    private static readonly TimeSpan AttemptWindow = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(5);
+    private readonly ConcurrentDictionary<string, IpAttemptState> _ipAttempts = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>检查指定 IP 当前是否处于锁定状态。</summary>
+    public bool IsIpLocked(string ip, out TimeSpan remaining)
+    {
+        remaining = TimeSpan.Zero;
+        if (string.IsNullOrWhiteSpace(ip))
+            return false;
+
+        if (_ipAttempts.TryGetValue(ip, out var state))
+        {
+            lock (state)
+            {
+                if (state.LockedUntil.HasValue)
+                {
+                    var diff = state.LockedUntil.Value - DateTime.UtcNow;
+                    if (diff > TimeSpan.Zero)
+                    {
+                        remaining = diff;
+                        return true;
+                    }
+                    // 锁定期满，自动解除
+                    state.LockedUntil = null;
+                    state.FailedCount = 0;
+                }
+            }
+        }
+        return false;
+    }
+
+    /// <summary>记录一次失败尝试，若达到上限则返回 true 并触发锁定。</summary>
+    public bool RecordFailedAttempt(string ip, out TimeSpan remaining)
+    {
+        remaining = TimeSpan.Zero;
+        if (string.IsNullOrWhiteSpace(ip))
+            return false;
+
+        var state = _ipAttempts.GetOrAdd(ip, _ => new IpAttemptState { FirstFailedAt = DateTime.UtcNow });
+        lock (state)
+        {
+            var now = DateTime.UtcNow;
+            if (now - state.FirstFailedAt > AttemptWindow)
+            {
+                // 超出滑动窗口，重新计数
+                state.FailedCount = 1;
+                state.FirstFailedAt = now;
+                state.LockedUntil = null;
+                return false;
+            }
+
+            state.FailedCount++;
+            if (state.FailedCount >= MaxFailedAttempts)
+            {
+                state.LockedUntil = now.Add(LockoutDuration);
+                remaining = LockoutDuration;
+                _log.LogWarning("IP [{Ip}] 连续登录失败 {Count} 次，已被暂时锁定 {Minutes} 分钟", ip, state.FailedCount, LockoutDuration.TotalMinutes);
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>登录成功后重置该 IP 的失败记录。</summary>
+    public void ResetFailedAttempts(string ip)
+    {
+        if (!string.IsNullOrWhiteSpace(ip))
+            _ipAttempts.TryRemove(ip, out _);
+    }
+
     public PanelAuthService(IOptions<WebPanelOptions> options, PanelDatabase db, ILogger<PanelAuthService> log)
     {
         _options = options.Value;
@@ -57,6 +138,11 @@ public sealed class PanelAuthService
             return;
         }
 
+        // 内置管理员必须始终拥有**当前版本**的全部权限。
+        // 权限位会随版本新增（例如 logging.manage），而账号权限是落在库里的旧值 ——
+        // 不同步的话，管理员会在升级后被自己新加的功能挡在门外（403）。
+        await SyncBuiltInAccountAsync(existing, username, ct);
+
         if (!_options.ResetBuiltInPasswordOnStartup)
         {
             _log.LogInformation("内置管理员 [{Username}] 已存在，按配置未重置密码", username);
@@ -66,6 +152,26 @@ public sealed class PanelAuthService
         string password = GeneratePassword();
         await _db.UpdatePasswordAsync(existing.Id, HashPassword(password), ct);
         LogCredentials("已随机重置内置管理员密码", username, password);
+    }
+
+    /// <summary>把内置管理员的权限补齐到当前版本的全部权限，并确保其处于启用状态。</summary>
+    private async Task SyncBuiltInAccountAsync(PanelAccount existing, string username, CancellationToken ct)
+    {
+        if (existing.Permissions == PanelPermission.Owner && existing.IsEnabled)
+            return;
+
+        PanelPermission before = existing.Permissions;
+
+        await _db.UpdateAccountAsync(
+            existing.Id,
+            string.IsNullOrWhiteSpace(existing.DisplayName) ? "内置管理员" : existing.DisplayName,
+            PanelPermission.Owner,
+            isEnabled: true,
+            ct: ct);
+
+        _log.LogInformation(
+            "已同步内置管理员 [{Username}] 权限：{Before} → {After}（补齐新版本新增的权限位）",
+            username, (long)before, (long)PanelPermission.Owner);
     }
 
     private void LogCredentials(string title, string username, string password)

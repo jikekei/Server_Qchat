@@ -71,7 +71,7 @@ namespace SocketServer
 
         private string HandleCx()
         {
-            var players = Player.List.ToList();
+            var players = Player.List.Where(p => !p.Nickname.Equals("Dedicated Server", StringComparison.OrdinalIgnoreCase) && !p.Nickname.StartsWith("Dedicated Server@", StringComparison.OrdinalIgnoreCase)).ToList();
             int online = players.Count;
             int admins = players.Count(p => p.RemoteAdminAccess);
 
@@ -155,6 +155,8 @@ namespace SocketServer
             var sb = new StringBuilder();
             foreach (var p in Player.List)
             {
+                if (p.Nickname.Equals("Dedicated Server", StringComparison.OrdinalIgnoreCase) || p.Nickname.StartsWith("Dedicated Server@", StringComparison.OrdinalIgnoreCase))
+                    continue;
                 sb.Append("\r\n").Append(p.Nickname).Append("-").Append(p.Id);
             }
             return sb.ToString();

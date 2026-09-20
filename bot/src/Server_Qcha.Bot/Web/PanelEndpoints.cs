@@ -1,4 +1,8 @@
 using System.Text.RegularExpressions;
+using Server.Qcat.Bot;
+using Server.Qcat.Configuration;
+using Server.Qcat.Data;
+using Server.Qcat.Services;
 using Server.Qcat.Socket;
 
 namespace Server.Qcat.Web;
@@ -23,6 +27,10 @@ public static class PanelEndpoints
     public static void MapPanelApi(this WebApplication app)
     {
         var api = app.MapGroup("/api");
+
+        // ---- 首页总览与玩家统计 ----
+        api.MapGet("/overview", GetOverviewAsync);
+        api.MapGet("/stats/player-history", GetPlayerHistoryAsync);
 
         // ---- 认证 ----
         api.MapPost("/auth/login", LoginAsync);
@@ -56,20 +64,159 @@ public static class PanelEndpoints
         api.MapGet("/audit", GetAuditAsync);
     }
 
+    // ==================== 首页总览与统计 ====================
+
+    private static async Task<IResult> GetOverviewAsync(
+        HttpContext ctx,
+        PanelAuthService auth,
+        ServerRegistry registry,
+        PlayerHistoryTracker historyTracker,
+        GoCqHttpBotService botService,
+        BotSettingsStore botStore,
+        GameDbRepository dbRepo,
+        CancellationToken ct)
+    {
+        var (_, error) = await AuthorizeAsync(ctx, auth, PanelPermission.ServersView);
+        if (error is not null)
+            return error;
+
+        var sorted = registry.GetSorted();
+        int totalServers = sorted.Count;
+        int onlineServers = sorted.Count(s => s.IsOnline);
+
+        var serverList = sorted.Select((s, i) =>
+        {
+            var (online, max) = historyTracker.GetServerOnline(s.ConnectHost, s.Port);
+            return new
+            {
+                index = i + 1,
+                name = s.Name,
+                connectHost = s.ConnectHost,
+                port = s.Port,
+                gamePort = s.GamePort,
+                sortOrder = s.SortOrder,
+                isStatic = s.IsStatic,
+                isOnline = s.IsOnline,
+                onlinePlayers = online,
+                maxPlayers = max,
+                lastHeartbeat = s.LastHeartbeat,
+            };
+        }).ToList();
+
+        int totalOnlinePlayers = serverList.Where(s => s.isOnline).Sum(s => s.onlinePlayers);
+        int peakToday = Math.Max(totalOnlinePlayers, historyTracker.PeakToday);
+
+        object? dbSummary = null;
+        if (!string.IsNullOrWhiteSpace(dbRepo.CurrentConnectionString))
+        {
+            try
+            {
+                dbSummary = await dbRepo.GetSummaryAsync(ct);
+            }
+            catch { }
+        }
+
+        var botSettings = botStore.LoadCurrent();
+
+        var history = historyTracker.GetHistory(60).Select(h => new
+        {
+            timestamp = h.Timestamp,
+            timeLabel = h.TimeLabel,
+            totalOnline = h.TotalOnline,
+            perServer = h.PerServer
+        }).ToList();
+
+        return Results.Json(new
+        {
+            stats = new
+            {
+                totalServers,
+                onlineServers,
+                totalOnlinePlayers,
+                peakToday,
+                botConnected = botService.IsConnected,
+                botUserId = botService.ConnectedUserId,
+                botNickname = botService.ConnectedNickname,
+                botAllowedGroups = botSettings.Bot.AllowedGroupIds?.Length ?? 0,
+                dbConfigured = !string.IsNullOrWhiteSpace(dbRepo.CurrentConnectionString),
+                dbSummary
+            },
+            servers = serverList,
+            history
+        });
+    }
+
+    private static async Task<IResult> GetPlayerHistoryAsync(
+        int? points,
+        HttpContext ctx,
+        PanelAuthService auth,
+        PlayerHistoryTracker historyTracker,
+        CancellationToken ct)
+    {
+        var (_, error) = await AuthorizeAsync(ctx, auth, PanelPermission.ServersView);
+        if (error is not null)
+            return error;
+
+        int count = Math.Clamp(points ?? 60, 10, 1440);
+        var history = historyTracker.GetHistory(count).Select(h => new
+        {
+            timestamp = h.Timestamp,
+            timeLabel = h.TimeLabel,
+            totalOnline = h.TotalOnline,
+            perServer = h.PerServer
+        }).ToList();
+
+        return Results.Json(new
+        {
+            total = history.Count,
+            peakToday = historyTracker.PeakToday,
+            history
+        });
+    }
+
     // ==================== 认证 ====================
 
-    private static async Task<IResult> LoginAsync(LoginRequest request, PanelAuthService auth, PanelDatabase db, CancellationToken ct)
+    private static async Task<IResult> LoginAsync(LoginRequest request, HttpContext ctx, PanelAuthService auth, PanelDatabase db, CancellationToken ct)
     {
+        string clientIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        if (auth.IsIpLocked(clientIp, out var remaining))
+        {
+            return Results.Json(new { error = $"登录失败次数过多，该 IP 已被暂时锁定，请在 {(int)Math.Ceiling(remaining.TotalMinutes)} 分钟后再试" },
+                statusCode: StatusCodes.Status429TooManyRequests);
+        }
+
         var (session, error) = await auth.LoginAsync(request.Username, request.Password, ct);
         if (session is null)
+        {
+            bool lockedNow = auth.RecordFailedAttempt(clientIp, out var lockRemaining);
+
+            await db.AddAuditAsync(new PanelAuditEntry
+            {
+                Username = string.IsNullOrWhiteSpace(request.Username) ? "unknown" : request.Username.Trim(),
+                Action = "login.failed",
+                Target = "web-panel",
+                Detail = $"登录失败: {error} (IP: {clientIp})",
+                Success = false,
+            }, ct);
+
+            if (lockedNow)
+            {
+                return Results.Json(new { error = $"登录失败次数过多，该 IP 已被暂时锁定，请在 {(int)Math.Ceiling(lockRemaining.TotalMinutes)} 分钟后再试" },
+                    statusCode: StatusCodes.Status429TooManyRequests);
+            }
+
             return Results.Json(new { error }, statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        auth.ResetFailedAttempts(clientIp);
 
         await db.AddAuditAsync(new PanelAuditEntry
         {
             Username = session.Username,
             Action = "login",
             Target = "web-panel",
-            Detail = "登录成功",
+            Detail = $"登录成功 (IP: {clientIp})",
             Success = true,
         }, ct);
 
@@ -132,7 +279,7 @@ public static class PanelEndpoints
 
     // ==================== 元数据 ====================
 
-    private static IResult GetMeta(IServerCommandGateway gateway)
+    private static IResult GetMeta(IServerCommandGateway gateway, LocalAdmin.LocalAdminManager localAdmin)
     {
         return Results.Json(new
         {
@@ -153,9 +300,10 @@ public static class PanelEndpoints
             },
             capabilities = new
             {
-                // 预留：接入 LocalAdmin 网关后置为 true
-                localAdminGateway = false,
-                serverControl = false,
+                // LocalAdmin 能力是否可用（配置开启后前端才显示「服务器进程」页）
+                localAdminGateway = localAdmin.Enabled,
+                serverControl = localAdmin.Enabled,
+                localServerCount = localAdmin.Instances.Count,
             },
         });
     }
@@ -512,7 +660,7 @@ public static class PanelEndpoints
 
     // ==================== 辅助 ====================
 
-    private static async Task<(PanelSession? Session, IResult? Error)> AuthorizeAsync(HttpContext ctx, PanelAuthService auth, PanelPermission required)
+    internal static async Task<(PanelSession? Session, IResult? Error)> AuthorizeAsync(HttpContext ctx, PanelAuthService auth, PanelPermission required)
     {
         var session = auth.Validate(ExtractToken(ctx));
         if (session is null)
@@ -524,7 +672,7 @@ public static class PanelEndpoints
         return await Task.FromResult<(PanelSession?, IResult?)>((session, null));
     }
 
-    private static string? ExtractToken(HttpContext ctx)
+    internal static string? ExtractToken(HttpContext ctx)
     {
         string header = ctx.Request.Headers.Authorization.ToString();
         const string prefix = "Bearer ";
@@ -579,7 +727,7 @@ public static class PanelEndpoints
         a.LastLoginAt);
 
     /// <summary>解析插件 list 命令返回的 "昵称-ID" 列表（昵称可能含 "-"，故从末尾切分）。</summary>
-    private static List<object> ParsePlayerList(string raw)
+    public static List<object> ParsePlayerList(string raw)
     {
         var players = new List<object>();
         foreach (var line in raw.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
@@ -589,10 +737,23 @@ public static class PanelEndpoints
                 continue;
 
             int sep = trimmed.LastIndexOf('-');
-            if (sep > 0 && int.TryParse(trimmed[(sep + 1)..].Trim(), out int id))
-                players.Add(new { name = trimmed[..sep].Trim(), id });
+            string name;
+            int id = -1;
+            if (sep > 0 && int.TryParse(trimmed[(sep + 1)..].Trim(), out int parsedId))
+            {
+                name = trimmed[..sep].Trim();
+                id = parsedId;
+            }
             else
-                players.Add(new { name = trimmed, id = -1 });
+            {
+                name = trimmed;
+            }
+
+            if (name.Equals("Dedicated Server", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("Dedicated Server@", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            players.Add(new { name, id });
         }
         return players;
     }

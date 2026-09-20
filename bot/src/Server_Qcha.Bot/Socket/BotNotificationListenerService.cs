@@ -35,7 +35,7 @@ public class NotificationData
 public sealed class BotNotificationListenerService : BackgroundService
 {
     private readonly SocketServerOptions _socketOpts;
-    private readonly BotOptions _botOpts;
+    private readonly IOptionsMonitor<BotOptions> _botOptsMonitor;
     private readonly BotSessionAccessor _sessionAccessor;
     private readonly ServerRegistry _registry;
     private readonly ILogger<BotNotificationListenerService> _log;
@@ -43,13 +43,13 @@ public sealed class BotNotificationListenerService : BackgroundService
 
     public BotNotificationListenerService(
         IOptions<SocketServerOptions> socketOpts,
-        IOptions<BotOptions> botOpts,
+        IOptionsMonitor<BotOptions> botOptsMonitor,
         BotSessionAccessor sessionAccessor,
         ServerRegistry registry,
         ILogger<BotNotificationListenerService> log)
     {
         _socketOpts = socketOpts.Value;
-        _botOpts = botOpts.Value;
+        _botOptsMonitor = botOptsMonitor;
         _sessionAccessor = sessionAccessor;
         _registry = registry;
         _log = log;
@@ -96,6 +96,9 @@ public sealed class BotNotificationListenerService : BackgroundService
         }
     }
 
+    private const int MaxPayloadBytes = 64 * 1024; // 64 KB 上限，防范内存耗尽攻击
+    private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5); // 5 秒读取超时，防范连接挂起
+
     private async Task HandleClientAsync(TcpClient client, CancellationToken ct)
     {
         var remoteEndpoint = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
@@ -104,12 +107,19 @@ public sealed class BotNotificationListenerService : BackgroundService
             try
             {
                 using var stream = client.GetStream();
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(ReadTimeout);
+
                 var buffer = new byte[4096];
-                
                 var ms = new MemoryStream();
                 int read;
-                while ((read = await stream.ReadAsync(buffer, ct)) > 0)
+                while ((read = await stream.ReadAsync(buffer, timeoutCts.Token)) > 0)
                 {
+                    if (ms.Length + read > MaxPayloadBytes)
+                    {
+                        _log.LogWarning("拒绝来自 {RemoteEndpoint} 的通知请求：数据量超出上限（>{Max} 字节）", remoteEndpoint, MaxPayloadBytes);
+                        return;
+                    }
                     ms.Write(buffer, 0, read);
                 }
 
@@ -234,10 +244,11 @@ public sealed class BotNotificationListenerService : BackgroundService
                     string truncatedMsg = data.Message.Length > 80 ? data.Message.Substring(0, 80) : data.Message;
                     _log.LogInformation("收到 AC 推送: {Message}...", truncatedMsg);
 
-                    long targetGroupId = _botOpts.AcTargetGroupId;
-                    if (targetGroupId <= 0 && _botOpts.NotifyGroupIds != null && _botOpts.NotifyGroupIds.Length > 0)
+                    var botOpts = _botOptsMonitor.CurrentValue;
+                    long targetGroupId = botOpts.AcTargetGroupId;
+                    if (targetGroupId <= 0 && botOpts.NotifyGroupIds != null && botOpts.NotifyGroupIds.Length > 0)
                     {
-                        targetGroupId = _botOpts.NotifyGroupIds[0];
+                        targetGroupId = botOpts.NotifyGroupIds[0];
                     }
 
                     if (targetGroupId <= 0)
@@ -272,6 +283,10 @@ public sealed class BotNotificationListenerService : BackgroundService
                 // 所有成功处理的包回复 "OK"
                 byte[] okBytes = Encoding.UTF8.GetBytes("OK");
                 await stream.WriteAsync(okBytes, ct);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                _log.LogWarning("处理来自 {RemoteEndpoint} 的通知请求超时（超过 {Timeout}s 未完成传输）", remoteEndpoint, ReadTimeout.TotalSeconds);
             }
             catch (Exception ex)
             {
