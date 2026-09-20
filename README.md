@@ -1,6 +1,8 @@
+<div align="center">
+
 # Server_Qcha (Qridge)
 
-## SCP: Secret Laboratory 现代化 Web 运维控制面板与集群管理系统
+### SCP: Secret Laboratory 现代化 Web 运维控制面板与集群管理系统
 
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![SCPSL](https://img.shields.io/badge/Game-SCPSL-red?logo=steam&logoColor=white)](https://scpslgame.com/)
@@ -10,6 +12,8 @@
 [![Element Plus](https://img.shields.io/badge/UI-Element%20Plus-409EFF?logo=element&logoColor=white)](https://element-plus.org/)
 [![OneBot 11](https://img.shields.io/badge/Protocol-OneBot%2011-orange)](https://github.com/botuniverse/onebot-11)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+</div>
 
 ---
 
