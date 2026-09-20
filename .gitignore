@@ -1,14 +1,32 @@
 # Visual Studio / Rider
 .vs/
 .idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
 # Build outputs
 **/bin/
 **/obj/
+publish/
+**/publish/
 
-# Local config / secrets
+# Local config / secrets / runtime data
 appsettings.Local.json
 **/appsettings.Local.json
+bot-settings.json
+**/bot-settings.json
+localadmin-servers.json
+**/localadmin-servers.json
+localadmin-logs/
+**/localadmin-logs/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
 .env
 
 # OS files
@@ -17,4 +35,5 @@ Desktop.ini
 
 # Local leftovers after migration (safe to ignore; not part of a clean clone)
 SocketServer-GoHttpQQBOT/
-
+scratch/
+**/scratch/

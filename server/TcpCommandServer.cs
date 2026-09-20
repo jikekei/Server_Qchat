@@ -13,18 +13,20 @@ namespace SocketServer
         private readonly IPAddress _ip;
         private readonly int _port;
         private readonly Func<string, string> _dispatch;
+        private readonly Func<string> _authToken;
 
         private TcpListener _listener;
         private CancellationTokenSource _cts;
         private Task _acceptLoop;
 
-        public TcpCommandServer(string ip, int port, Func<string, string> dispatch)
+        public TcpCommandServer(string ip, int port, Func<string, string> dispatch, Func<string> authToken)
         {
             if (string.IsNullOrWhiteSpace(ip))
                 throw new ArgumentException("ip is required", nameof(ip));
             if (port <= 0 || port > 65535)
                 throw new ArgumentOutOfRangeException(nameof(port));
             _dispatch = dispatch ?? throw new ArgumentNullException(nameof(dispatch));
+            _authToken = authToken ?? (() => string.Empty);
 
             _ip = IPAddress.Parse(ip);
             _port = port;
@@ -112,7 +114,7 @@ namespace SocketServer
 
                     using (var stream = client.GetStream())
                     {
-                        // Read a single command frame. The client always closes after sending one command.
+                        var remoteIP = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
                         var buffer = new byte[4096];
 
                         string request = await ReadOnceWithTimeout(stream, buffer, 2000, ct).ConfigureAwait(false);
@@ -122,10 +124,34 @@ namespace SocketServer
                             return;
                         }
 
+                        string commandToDispatch = request;
+                        string token = _authToken();
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            int splitIdx = request.IndexOf("||", StringComparison.Ordinal);
+                            if (splitIdx < 0)
+                            {
+                                Log.Warn($"[Server_Qcha] 拒绝来自 {remoteIP} 的未授权连接：缺少 Token");
+                                await WriteUtf8Async(stream, "Unauthorized", ct).ConfigureAwait(false);
+                                return;
+                            }
+
+                            string reqToken = request.Substring(0, splitIdx);
+                            if (reqToken != token)
+                            {
+                                Log.Warn($"[Server_Qcha] 拒绝来自 {remoteIP} 的未授权连接：Token 不匹配");
+                                await WriteUtf8Async(stream, "Unauthorized", ct).ConfigureAwait(false);
+                                return;
+                            }
+                            commandToDispatch = request.Substring(splitIdx + 2);
+                        }
+
+                        Log.Debug($"[Server_Qcha] 收到命令 [{commandToDispatch}] 来自 {remoteIP}");
+
                         string response;
                         try
                         {
-                            response = _dispatch(request);
+                            response = _dispatch(commandToDispatch);
                         }
                         catch (Exception ex)
                         {
@@ -136,7 +162,9 @@ namespace SocketServer
                         if (string.IsNullOrEmpty(response))
                             response = "ok";
 
-                        await WriteUtf8Async(stream, response, ct).ConfigureAwait(false);
+                        byte[] responseBytes = Encoding.UTF8.GetBytes(response);
+                        Log.Debug($"[Server_Qcha] 命令 [{commandToDispatch}] 执行完成，响应长度 {responseBytes.Length} 字节");
+                        await stream.WriteAsync(responseBytes, 0, responseBytes.Length, ct).ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex)

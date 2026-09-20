@@ -1,0 +1,159 @@
+/* ==================== 服务器总览 ==================== */
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.kpi-card {
+  border-radius: var(--qb-radius);
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card .el-card__body {
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.kpi-info { display: flex; flex-direction: column; gap: 4px; }
+.kpi-title { font-size: 13px; color: var(--qb-text-2); font-weight: 500; }
+.kpi-value { font-size: 26px; font-weight: 700; color: var(--qb-text); font-family: var(--qb-mono); line-height: 1.2; }
+.kpi-sub { font-size: 12px; color: var(--qb-text-3); display: flex; align-items: center; gap: 6px; }
+.kpi-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.kpi-icon-box svg { width: 24px; height: 24px; }
+.kpi-icon-servers { background: rgba(14, 139, 168, .12); color: var(--qb-accent); }
+.kpi-icon-players { background: rgba(16, 185, 129, .12); color: #10b981; }
+.kpi-icon-bot { background: rgba(139, 92, 246, .12); color: #8b5cf6; }
+.kpi-icon-mysql { background: rgba(245, 158, 11, .12); color: #f59e0b; }
+
+/* 折线图卡片 */
+.chart-card {
+  border-radius: var(--qb-radius);
+  margin-bottom: 20px;
+}
+.chart-card .el-card__header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--qb-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.chart-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--qb-text); }
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  user-select: none;
+}
+.line-chart-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.chart-empty {
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--qb-text-3);
+  font-size: 13px;
+}
+.chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--qb-surface);
+  border: 1px solid var(--qb-border-strong);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: var(--qb-shadow);
+  font-size: 12px;
+  z-index: 10;
+  transform: translate(-50%, -100%);
+  margin-top: -12px;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+.tooltip-time { color: var(--qb-text-3); margin-bottom: 4px; font-family: var(--qb-mono); font-size: 11px; }
+.tooltip-val { font-weight: 700; color: var(--qb-accent); font-size: 14px; font-family: var(--qb-mono); }
+.tooltip-servers { margin-top: 4px; border-top: 1px dashed var(--qb-border); padding-top: 4px; font-size: 11px; color: var(--qb-text-2); }
+
+/* 状态指示与脉冲 */
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10b981;
+  display: inline-block;
+  box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse 2s infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.pulse-dot.offline {
+  background-color: #ef4444;
+  box-shadow: none;
+  animation: none;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* ==================== 移动端适配 ==================== */
+@media (max-width: 768px) {
+  .overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .kpi-card .el-card__body {
+    padding: 12px 14px;
+  }
+  .kpi-title {
+    font-size: 12px;
+  }
+  .kpi-value {
+    font-size: 20px;
+  }
+  .kpi-sub {
+    font-size: 11px;
+  }
+  .kpi-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+  .kpi-icon-box svg {
+    width: 18px;
+    height: 18px;
+  }
+  .chart-card .el-card__header {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .chart-container {
+    height: 220px;
+  }
+  .chart-empty {
+    height: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

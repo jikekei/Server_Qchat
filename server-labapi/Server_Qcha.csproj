@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- LabAPI 插件统一目标框架：net48（游戏进程内 Mono 运行时） -->
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <LangVersion>12.0</LangVersion>
+    <Platforms>AnyCPU</Platforms>
+    <Nullable>disable</Nullable>
+
+    <!-- 插件版本：LabAPI 默认用 Assembly.GetName().Version 作为插件版本，
+         这里显式声明，需与 Main.cs 中的 Version 属性保持一致。 -->
+    <Version>1.4.0</Version>
+    <AssemblyVersion>1.4.0.0</AssemblyVersion>
+    <FileVersion>1.4.0.0</FileVersion>
+
+    <AssemblyName>Server_Qcha</AssemblyName>
+    <RootNamespace>SocketServer</RootNamespace>
+
+    <!-- 引用全部由游戏进程提供；禁止把 DLL 复制到输出目录，避免污染 LabAPI/plugins -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!--
+      不生成 PDB。
+      LabAPI 的加载器在 DLL 旁边发现 .pdb 时会走
+      Assembly.Load(dllBytes, pdbBytes) 这条路径，而游戏内的 Mono 运行时
+      对符号流支持很差，容易导致插件加载失败。
+      需要调试时请单独打开此开关，并且只把 DLL 拷进 plugins 目录。
+    -->
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Refs/ 中的程序集取自 SCPSL 客户端目录 SCPSL_Data/Managed，
+      与游戏运行时加载的是同一份版本。
+      仓库约定：不要引用本地 Steam 安装路径（见 README）。
+    -->
+    <Reference Include="LabApi">
+      <HintPath>Refs\LabApi.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>Refs\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="CommandSystem.Core">
+      <HintPath>Refs\CommandSystem.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Mirror">
+      <HintPath>Refs\Mirror.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="NorthwoodLib">
+      <HintPath>Refs\NorthwoodLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>Refs\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>Refs\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>Refs\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.Physics2DModule">
+      <HintPath>Refs\UnityEngine.Physics2DModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,50 @@
+/* ==================== LocalAdmin / 服务器进程 ==================== */
+.terminal {
+  background: var(--qb-terminal-bg);
+  border: 1px solid var(--qb-terminal-border);
+  border-radius: var(--qb-radius);
+  padding: 10px 12px;
+  height: 420px;
+  overflow: auto;
+  font-family: var(--qb-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+html[data-theme="dark"] .terminal {
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, .5), 0 0 18px rgba(0, 240, 255, .04);
+}
+.terminal-empty { color: #6b7280; }
+.term-line { display: block; }
+.term-time { color: #4b5563; margin-right: 8px; user-select: none; }
+.term-badge { color: #9ca3af; margin-right: 6px; user-select: none; }
+.console-input { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.console-input .el-input { flex: 1; }
+
+.pre-box {
+  background: var(--qb-surface-2);
+  border: 1px solid var(--qb-border);
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 420px;
+  overflow: auto;
+}
+.perm-list { display: flex; flex-direction: column; gap: 8px; }
+.perm-item { display: flex; flex-direction: column; }
+.perm-desc { color: var(--qb-text-3); font-size: 12px; margin-left: 24px; }
+
+.license-block {
+  white-space: pre-wrap;
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 260px;
+  overflow: auto;
+  font-family: var(--qb-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--qb-text);
+  background: var(--qb-surface-2);
+  border: 1px solid var(--qb-border);
+  border-radius: 6px;
+}

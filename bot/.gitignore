@@ -2,14 +2,25 @@
 .vs/
 .idea/
 
-# Build outputs
+# 构建输出
 **/bin/
 **/obj/
+
+# IDE 自动生成的启动配置（写死随机端口，会干扰 appsettings 中的监听配置）
+**/Properties/launchSettings.json
 
 # User secrets / local config
 appsettings.Local.json
 **/appsettings.Local.json
 .env
+
+# Web 面板本地账号数据库（含密码哈希，绝不提交）
+panel.db
+panel.db-shm
+panel.db-wal
+**/panel.db
+**/panel.db-shm
+**/panel.db-wal
 
 # OS files
 Thumbs.db

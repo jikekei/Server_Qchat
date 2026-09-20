@@ -5,6 +5,8 @@ VisualStudioVersion = 17.13.35931.197 d17.13
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server_Qcha", "Server_Qcha.csproj", "{FFD59672-73F0-4932-8636-42414C8162BF}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Server_Qcha.LabAPI", "..\server-labapi\Server_Qcha.csproj", "{7C1A9E4B-2D63-4F18-9A57-6B0E3C8D5A21}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{FFD59672-73F0-4932-8636-42414C8162BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FFD59672-73F0-4932-8636-42414C8162BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FFD59672-73F0-4932-8636-42414C8162BF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7C1A9E4B-2D63-4F18-9A57-6B0E3C8D5A21}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7C1A9E4B-2D63-4F18-9A57-6B0E3C8D5A21}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7C1A9E4B-2D63-4F18-9A57-6B0E3C8D5A21}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7C1A9E4B-2D63-4F18-9A57-6B0E3C8D5A21}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

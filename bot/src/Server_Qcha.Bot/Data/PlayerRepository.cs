@@ -19,16 +19,16 @@ public sealed record PlayerStats(
 
 public sealed class PlayerRepository
 {
-    private readonly MySqlOptions _opts;
+    private readonly IOptionsMonitor<MySqlOptions> _optsMonitor;
     private readonly ILogger<PlayerRepository> _log;
 
-    public PlayerRepository(IOptions<MySqlOptions> opts, ILogger<PlayerRepository> log)
+    public PlayerRepository(IOptionsMonitor<MySqlOptions> optsMonitor, ILogger<PlayerRepository> log)
     {
-        _opts = opts.Value;
+        _optsMonitor = optsMonitor;
         _log = log;
     }
 
-    private MySqlConnection CreateConnection() => new MySqlConnection(_opts.ConnectionString);
+    private MySqlConnection CreateConnection() => new MySqlConnection(_optsMonitor.CurrentValue.ConnectionString);
 
     public async Task<bool> BindQqAsync(string playerId, long qqId, CancellationToken ct)
     {
@@ -65,7 +65,7 @@ WHERE QQ_ID = @qq
 LIMIT 1;";
 
         await using var cmd = new MySqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@qq", qqId);
+        cmd.Parameters.AddWithValue("@qq", qqId.ToString());
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -73,15 +73,54 @@ LIMIT 1;";
 
         try
         {
-            string id = reader.GetString("Id");
-            string name = reader.GetString("PlayerName");
-            int scpsKilled = reader.GetInt32("ScpsKilled");
-            int playersKilled = reader.GetInt32("PlayersKilled");
-            int playTime = reader.GetInt32("PlayTime");
-            int deaths = reader.GetInt32("Deaths");
-            string? admin = reader.IsDBNull(reader.GetOrdinal("Admin")) ? null : reader.GetString("Admin");
-            bool isAdmin = reader.GetBoolean("IsAdmin");
-            long? qq = reader.IsDBNull(reader.GetOrdinal("QQ_ID")) ? null : reader.GetInt64("QQ_ID");
+            int idOrd = reader.GetOrdinal("Id");
+            string id = reader.IsDBNull(idOrd) ? "" : reader.GetString(idOrd);
+
+            int nameOrd = reader.GetOrdinal("PlayerName");
+            string name = reader.IsDBNull(nameOrd) ? "" : reader.GetString(nameOrd);
+
+            int scpsOrd = reader.GetOrdinal("ScpsKilled");
+            int scpsKilled = reader.IsDBNull(scpsOrd) ? 0 : Convert.ToInt32(reader.GetValue(scpsOrd));
+
+            int playersOrd = reader.GetOrdinal("PlayersKilled");
+            int playersKilled = reader.IsDBNull(playersOrd) ? 0 : Convert.ToInt32(reader.GetValue(playersOrd));
+
+            int timeOrd = reader.GetOrdinal("PlayTime");
+            int playTime = reader.IsDBNull(timeOrd) ? 0 : Convert.ToInt32(reader.GetValue(timeOrd));
+
+            int deathsOrd = reader.GetOrdinal("Deaths");
+            int deaths = reader.IsDBNull(deathsOrd) ? 0 : Convert.ToInt32(reader.GetValue(deathsOrd));
+
+            int adminOrd = reader.GetOrdinal("Admin");
+            string? admin = reader.IsDBNull(adminOrd) ? null : reader.GetString(adminOrd);
+
+            int isAdminOrd = reader.GetOrdinal("IsAdmin");
+            bool isAdmin = false;
+            if (!reader.IsDBNull(isAdminOrd))
+            {
+                object val = reader.GetValue(isAdminOrd);
+                if (val is bool b)
+                    isAdmin = b;
+                else if (val is sbyte or byte or int or long or short)
+                    isAdmin = Convert.ToInt64(val) != 0;
+                else if (bool.TryParse(val.ToString(), out bool pb))
+                    isAdmin = pb;
+                else if (long.TryParse(val.ToString(), out long pl))
+                    isAdmin = pl != 0;
+            }
+
+            int qqOrd = reader.GetOrdinal("QQ_ID");
+            long? qq = null;
+            if (!reader.IsDBNull(qqOrd))
+            {
+                object val = reader.GetValue(qqOrd);
+                if (val is long l)
+                    qq = l;
+                else if (val is int i)
+                    qq = i;
+                else if (long.TryParse(val.ToString(), out long parsed))
+                    qq = parsed;
+            }
 
             return new PlayerStats(id, name, scpsKilled, playersKilled, playTime, deaths, admin, isAdmin, qq);
         }
