@@ -371,3 +371,4 @@ http://<服务器IP>:8080/
 ## 开源协议
 
 本项目基于 [MIT License](LICENSE) 协议开源。
+Copyright (c) <2025> <yiming>
