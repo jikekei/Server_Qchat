@@ -35,3 +35,5 @@ Desktop.ini
 
 # Local leftovers after migration (safe to ignore; not part of a clean clone)
 SocketServer-GoHttpQQBOT/
+scratch/
+**/scratch/
