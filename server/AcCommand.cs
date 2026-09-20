@@ -28,8 +28,11 @@ namespace SocketServer
             var config = Main.Instance?.Config;
             if (config != null)
             {
+                string truncatedContent = content.Length > 50 ? content.Substring(0, 50) : content;
+                Log.Info($"[Server_Qcha] .ac 指令 → 玩家 [{name}] 发送: {truncatedContent}...");
+
                 string message = $"来自服务器 [{config.ServerName}]:\n玩家 [{name}] 发送了：{content}";
-                BotNotificationClient.SendNotification(config.BotIP, config.BotPort, config.AuthToken, message);
+                BotNotificationClient.SendNotification(config.BotIP, config.BotPort, config.AuthToken, "ac", message);
 
                 // 向在线的管理员广播该消息
                 foreach (var p in Player.List)

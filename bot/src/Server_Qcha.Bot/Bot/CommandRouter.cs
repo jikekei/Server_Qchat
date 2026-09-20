@@ -18,17 +18,20 @@ public sealed class CommandRouter
     private readonly SocketServerOptions _socketOpts;
     private readonly SocketCommandClient _socket;
     private readonly PlayerRepository _players;
+    private readonly ServerRegistry _registry;
     private readonly ILogger<CommandRouter> _log;
 
     public CommandRouter(
         IOptions<SocketServerOptions> socketOpts,
         SocketCommandClient socket,
         PlayerRepository players,
+        ServerRegistry registry,
         ILogger<CommandRouter> log)
     {
         _socketOpts = socketOpts.Value;
         _socket = socket;
         _players = players;
+        _registry = registry;
         _log = log;
     }
 
@@ -39,7 +42,7 @@ public sealed class CommandRouter
             return;
 
         text = text.Trim();
-        _log.LogInformation("Group {GroupId} {UserId}: {Text}", context.GroupId, context.Sender.UserId, text);
+        _log.LogInformation("群 {GroupId} 用户 {UserId}: {Text}", context.GroupId, context.Sender.UserId, text);
 
         if (text.Equals("help", StringComparison.OrdinalIgnoreCase) || text.Equals("/help", StringComparison.OrdinalIgnoreCase))
         {
@@ -110,9 +113,25 @@ public sealed class CommandRouter
                 return;
             }
 
-            var port = GetPortByIndex(idx);
-            var resp = await _socket.SendAsync(port, "rest", ct);
-            await session.SendGroupMessageAsync(context.GroupId, new CqMessage(resp ?? "服务器不在线"));
+            var server = GetServerByIndex(idx);
+            if (server == null)
+            {
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器不在线"));
+                return;
+            }
+
+            var resp = await _socket.SendAsync(server.ConnectHost, server.Port, "rest", ct);
+            if (resp == null)
+            {
+                _registry.MarkOffline(server.ConnectHost, server.Port);
+                _log.LogWarning("命令 [round] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）", server.Name, server.ConnectHost, server.Port);
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器不在线"));
+            }
+            else
+            {
+                _log.LogInformation("命令 [round] → [{ServerName}] {ConnectHost}:{Port} 执行成功", server.Name, server.ConnectHost, server.Port);
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage(resp));
+            }
             return;
         }
 
@@ -125,15 +144,31 @@ public sealed class CommandRouter
                 return;
             }
 
-            if (!int.TryParse(parts[1], out int idx) || idx < 1 || idx > _socketOpts.Ports.Length)
+            if (!int.TryParse(parts[1], out int idx))
             {
                 await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器索引无效"));
                 return;
             }
 
-            var port = GetPortByIndex(idx);
-            var resp = await _socket.SendAsync(port, $"bc&{parts[2]}", ct);
-            await session.SendGroupMessageAsync(context.GroupId, new CqMessage(resp ?? "服务器不在线"));
+            var server = GetServerByIndex(idx);
+            if (server == null)
+            {
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器不在线"));
+                return;
+            }
+
+            var resp = await _socket.SendAsync(server.ConnectHost, server.Port, $"bc&{parts[2]}", ct);
+            if (resp == null)
+            {
+                _registry.MarkOffline(server.ConnectHost, server.Port);
+                _log.LogWarning("命令 [bc] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）", server.Name, server.ConnectHost, server.Port);
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器不在线"));
+            }
+            else
+            {
+                _log.LogInformation("命令 [bc] → [{ServerName}] {ConnectHost}:{Port} 执行成功", server.Name, server.ConnectHost, server.Port);
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage(resp));
+            }
             return;
         }
 
@@ -145,15 +180,25 @@ public sealed class CommandRouter
                 return;
             }
 
-            if (idx < 1 || idx > _socketOpts.Ports.Length)
+            var server = GetServerByIndex(idx);
+            if (server == null)
             {
-                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器索引无效"));
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器不在线"));
                 return;
             }
 
-            var port = GetPortByIndex(idx);
-            var resp = await _socket.SendAsync(port, $"kick&{id}&{reason}&{time}", ct);
-            await session.SendGroupMessageAsync(context.GroupId, new CqMessage(resp ?? "服务器不在线"));
+            var resp = await _socket.SendAsync(server.ConnectHost, server.Port, $"kick&{id}&{reason}&{time}", ct);
+            if (resp == null)
+            {
+                _registry.MarkOffline(server.ConnectHost, server.Port);
+                _log.LogWarning("命令 [ban] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）", server.Name, server.ConnectHost, server.Port);
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器不在线"));
+            }
+            else
+            {
+                _log.LogInformation("命令 [ban] → [{ServerName}] {ConnectHost}:{Port} 执行成功", server.Name, server.ConnectHost, server.Port);
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage(resp));
+            }
             return;
         }
 
@@ -166,37 +211,57 @@ public sealed class CommandRouter
                 return;
             }
 
-            if (!int.TryParse(parts[1], out int idx) || idx < 1 || idx > _socketOpts.Ports.Length)
+            if (!int.TryParse(parts[1], out int idx))
             {
                 await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器索引无效"));
                 return;
             }
 
-            var port = GetPortByIndex(idx);
-            var resp = await _socket.SendAsync(port, $"bc&{parts[2]}&{parts[3]}", ct);
-            await session.SendGroupMessageAsync(context.GroupId, new CqMessage(resp ?? "服务器不在线"));
+            var server = GetServerByIndex(idx);
+            if (server == null)
+            {
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器不在线"));
+                return;
+            }
+
+            var resp = await _socket.SendAsync(server.ConnectHost, server.Port, $"bc&{parts[2]}&{parts[3]}", ct);
+            if (resp == null)
+            {
+                _registry.MarkOffline(server.ConnectHost, server.Port);
+                _log.LogWarning("命令 [setadmin] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）", server.Name, server.ConnectHost, server.Port);
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage("服务器不在线"));
+            }
+            else
+            {
+                _log.LogInformation("命令 [setadmin] → [{ServerName}] {ConnectHost}:{Port} 执行成功", server.Name, server.ConnectHost, server.Port);
+                await session.SendGroupMessageAsync(context.GroupId, new CqMessage(resp));
+            }
         }
     }
 
     private async Task<string> HandleCxAsync(CancellationToken ct)
     {
-        if (_socketOpts.Ports.Length == 0)
-            return "没有配置任何服务器端口 (SocketServer:Ports)";
+        var servers = _registry.GetSorted();
+        if (servers.Count == 0)
+        {
+            _log.LogInformation("指令 [cx] 执行失败：当前没有服务器在线（注册表为空）");
+            return "当前没有服务器在线";
+        }
 
         int totalOnline = 0;
         var sb = new StringBuilder();
 
-        var tasks = _socketOpts.Ports.Select(async port =>
+        var tasks = servers.Select(async server =>
         {
-            var resp = await _socket.SendAsync(port, "cx", ct);
+            var resp = await _socket.SendAsync(server.ConnectHost, server.Port, "cx", ct);
             if (string.IsNullOrWhiteSpace(resp))
-                return "";
-
-            if (resp.Contains("在线人数:0/45", StringComparison.OrdinalIgnoreCase) ||
-                resp.Contains("在线人数:0/40", StringComparison.OrdinalIgnoreCase))
             {
+                _registry.MarkOffline(server.ConnectHost, server.Port);
+                _log.LogWarning("命令 [cx] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）", server.Name, server.ConnectHost, server.Port);
                 return "";
             }
+
+            _log.LogInformation("命令 [cx] → [{ServerName}] {ConnectHost}:{Port} 执行成功", server.Name, server.ConnectHost, server.Port);
 
             var m = Regex.Match(resp, @"在线人数:(\d+)");
             if (m.Success && int.TryParse(m.Groups[1].Value, out int n))
@@ -215,13 +280,25 @@ public sealed class CommandRouter
 
     private async Task<string> HandleInfoAsync(CancellationToken ct)
     {
-        if (_socketOpts.Ports.Length == 0)
-            return "没有配置任何服务器端口 (SocketServer:Ports)";
-
-        var tasks = _socketOpts.Ports.Select(async (port, index) =>
+        var servers = _registry.GetSorted();
+        if (servers.Count == 0)
         {
-            var resp = await _socket.SendAsync(port, "info", ct);
-            return resp ?? $"#{index + 1} 服不在线\r\n";
+            _log.LogInformation("指令 [info] 执行失败：当前没有服务器在线（注册表为空）");
+            return "当前没有服务器在线";
+        }
+
+        var tasks = servers.Select(async (server, index) =>
+        {
+            var resp = await _socket.SendAsync(server.ConnectHost, server.Port, "info", ct);
+            if (resp == null)
+            {
+                _registry.MarkOffline(server.ConnectHost, server.Port);
+                _log.LogWarning("命令 [info] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）", server.Name, server.ConnectHost, server.Port);
+                return $"#{index + 1} 服不在线\r\n";
+            }
+
+            _log.LogInformation("命令 [info] → [{ServerName}] {ConnectHost}:{Port} 执行成功", server.Name, server.ConnectHost, server.Port);
+            return resp;
         });
 
         return string.Concat(await Task.WhenAll(tasks));
@@ -229,15 +306,33 @@ public sealed class CommandRouter
 
     private async Task<string> HandleListAsync(int serverIndex, CancellationToken ct)
     {
-        if (_socketOpts.Ports.Length == 0)
-            return "没有配置任何服务器端口 (SocketServer:Ports)";
+        int onlineCount = _registry.Count;
+        if (onlineCount == 0)
+        {
+            _log.LogInformation("指令 [list] 执行失败：当前没有服务器在线（注册表为空）");
+            return "当前没有服务器在线";
+        }
 
-        if (serverIndex < 1 || serverIndex > _socketOpts.Ports.Length)
+        if (serverIndex < 1 || serverIndex > onlineCount)
+        {
+            _log.LogWarning("指令 [list] 服务器索引 #{Index} 无效，当前在线 {Count} 台", serverIndex, onlineCount);
             return "服务器索引无效";
+        }
 
-        int port = GetPortByIndex(serverIndex);
-        var resp = await _socket.SendAsync(port, "list", ct);
-        return resp is null ? "服务器不在线" : $"服务器 #{serverIndex} 玩家列表\r\n{resp}";
+        var server = GetServerByIndex(serverIndex);
+        if (server == null)
+            return "服务器不在线";
+
+        var resp = await _socket.SendAsync(server.ConnectHost, server.Port, "list", ct);
+        if (resp == null)
+        {
+            _registry.MarkOffline(server.ConnectHost, server.Port);
+            _log.LogWarning("命令 [list] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）", server.Name, server.ConnectHost, server.Port);
+            return "服务器不在线";
+        }
+
+        _log.LogInformation("命令 [list] → [{ServerName}] {ConnectHost}:{Port} 执行成功", server.Name, server.ConnectHost, server.Port);
+        return $"服务器 #{serverIndex} 玩家列表\r\n{resp}";
     }
 
     private bool TryParseServerIndex(string text, out int idx, out string error)
@@ -248,12 +343,14 @@ public sealed class CommandRouter
         var parts = text.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2 || !int.TryParse(parts[1], out idx))
         {
-            error = "用法: /round <服务器索引>";
+            error = "用法错误，需要指定服务器索引";
             return false;
         }
 
-        if (idx < 1 || idx > _socketOpts.Ports.Length)
+        int onlineCount = _registry.Count;
+        if (idx < 1 || idx > onlineCount)
         {
+            _log.LogWarning("指令服务器索引 #{Index} 无效，当前在线 {Count} 台", idx, onlineCount);
             error = "服务器索引无效";
             return false;
         }
@@ -261,7 +358,13 @@ public sealed class CommandRouter
         return true;
     }
 
-    private int GetPortByIndex(int idx) => _socketOpts.Ports[idx - 1];
+    private ServerInfo? GetServerByIndex(int idx)
+    {
+        var list = _registry.GetSorted();
+        if (idx < 1 || idx > list.Count)
+            return null;
+        return list[idx - 1];
+    }
 
     private static bool IsAdmin(CqGroupMessagePostContext context)
     {

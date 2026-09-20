@@ -17,7 +17,7 @@ public sealed class SocketCommandClient
         _log = log;
     }
 
-    public async Task<string?> SendAsync(int port, string text, CancellationToken ct)
+    public async Task<string?> SendAsync(string host, int port, string text, CancellationToken ct)
     {
         for (int attempt = 1; attempt <= Math.Max(1, _opts.Retries); attempt++)
         {
@@ -25,11 +25,11 @@ public sealed class SocketCommandClient
             {
                 using var client = new TcpClient();
 
-                var connectTask = client.ConnectAsync(_opts.Host, port);
+                var connectTask = client.ConnectAsync(host, port);
                 var connectWinner = await Task.WhenAny(connectTask, Task.Delay(_opts.ConnectTimeoutMs, ct));
                 if (connectWinner != connectTask)
                 {
-                    _log.LogWarning("TCP connect timeout to {Host}:{Port} (attempt {Attempt}/{Retries})", _opts.Host, port, attempt, _opts.Retries);
+                    _log.LogWarning("TCP connect timeout to {Host}:{Port} (attempt {Attempt}/{Retries})", host, port, attempt, _opts.Retries);
                     continue;
                 }
 
@@ -37,7 +37,7 @@ public sealed class SocketCommandClient
                 string payload = string.IsNullOrEmpty(_opts.AuthToken) ? text : $"{_opts.AuthToken}||{text}";
                 byte[] bytes = Encoding.UTF8.GetBytes(payload);
 
-                _log.LogInformation("TCP send to {Host}:{Port}: {Text}", _opts.Host, port, text);
+                _log.LogInformation("TCP send to {Host}:{Port}: {Text}", host, port, text);
                 await stream.WriteAsync(bytes, ct);
 
                 var buffer = new byte[4096];
@@ -45,7 +45,7 @@ public sealed class SocketCommandClient
                 var readWinner = await Task.WhenAny(readTask, Task.Delay(_opts.ReadTimeoutMs, ct));
                 if (readWinner != readTask)
                 {
-                    _log.LogWarning("TCP read timeout from {Host}:{Port}", _opts.Host, port);
+                    _log.LogWarning("TCP read timeout from {Host}:{Port}", host, port);
                     return null;
                 }
 
@@ -61,7 +61,7 @@ public sealed class SocketCommandClient
             }
             catch (Exception ex)
             {
-                _log.LogWarning(ex, "TCP send failed to {Host}:{Port} (attempt {Attempt}/{Retries})", _opts.Host, port, attempt, _opts.Retries);
+                _log.LogWarning(ex, "TCP send failed to {Host}:{Port} (attempt {Attempt}/{Retries})", host, port, attempt, _opts.Retries);
             }
 
             if (attempt < _opts.Retries)

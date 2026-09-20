@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SCPSL 管理面板</title>
+  <link rel="stylesheet" href="./vendor/element-plus.css" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body, #app { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: #f5f7fa;
+      color: #303133;
+    }
+    .login-wrap {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1f2a44 0%, #2b3a5c 50%, #16213e 100%);
+    }
+    .login-card { width: 360px; }
+    .login-card h2 { margin: 0 0 4px; font-size: 20px; }
+    .login-sub { color: #909399; font-size: 12px; margin: 0 0 20px; }
+    .hint { color: #909399; font-size: 12px; margin: 12px 0 0; line-height: 1.6; }
+    .layout { height: 100%; }
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #1f2a44; color: #fff; padding: 0 20px;
+    }
+    .brand { font-size: 16px; font-weight: 600; letter-spacing: .5px; }
+    .user { display: flex; align-items: center; gap: 12px; }
+    .user .el-button { color: #c0c4cc; }
+    .aside { background: #fff; border-right: 1px solid #e4e7ed; }
+    .main { padding: 20px; overflow: auto; }
+    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .muted { color: #909399; font-size: 13px; }
+    .server-grid {
+      display: grid; gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    }
+    .server-card { border-radius: 8px; }
+    .server-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .server-name { font-weight: 600; font-size: 15px; }
+    .server-meta { color: #909399; font-size: 12px; margin-bottom: 12px; }
+    .server-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .server-actions .el-button { margin-left: 0; }
+    .mono { font-family: Consolas, Monaco, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+    .pre-box { background: #fafafa; border: 1px solid #ebeef5; border-radius: 6px; padding: 12px; max-height: 420px; overflow: auto; }
+    .perm-list { display: flex; flex-direction: column; gap: 8px; }
+    .perm-item { display: flex; flex-direction: column; }
+    .perm-desc { color: #909399; font-size: 12px; margin-left: 24px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- ==================== 登录 ==================== -->
+  <div v-if="!session" class="login-wrap">
+    <el-card class="login-card">
+      <h2>SCPSL 管理面板</h2>
+      <p class="login-sub">SCP: Secret Laboratory 服务器管理</p>
+      <el-form @submit.prevent>
+        <el-form-item>
+          <el-input v-model="loginForm.username" placeholder="用户名" size="large" @keyup.enter="doLogin"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="loginForm.password" type="password" placeholder="密码" size="large" show-password @keyup.enter="doLogin"></el-input>
+        </el-form-item>
+        <el-button type="primary" size="large" style="width:100%" :loading="logging" @click="doLogin">登 录</el-button>
+      </el-form>
+      <p class="hint">
+        默认账号见程序启动日志。<br />
+        密码每次启动随机生成。
+      </p>
+    </el-card>
+  </div>
+
+  <!-- ==================== 主界面 ==================== -->
+  <el-container v-else class="layout">
+    <el-header class="header" height="56px">
+      <div class="brand">SCPSL 管理面板</div>
+      <div class="user">
+        <el-tag size="small" effect="dark" type="info">{{ session.displayName || session.username }}</el-tag>
+        <el-button link @click="passwordDialog.visible = true">修改密码</el-button>
+        <el-button link type="danger" @click="doLogout">退出</el-button>
+      </div>
+    </el-header>
+
+    <el-container>
+      <el-aside class="aside" width="170px">
+        <el-menu :default-active="page" @select="onMenuSelect">
+          <el-menu-item index="servers">服务器</el-menu-item>
+          <el-menu-item v-if="can('accounts.manage')" index="accounts">账号管理</el-menu-item>
+          <el-menu-item v-if="can('audit.view')" index="audit">审计日志</el-menu-item>
+        </el-menu>
+      </el-aside>
+
+      <el-main class="main">
+        <!-- ---------- 服务器 ---------- -->
+        <div v-if="page === 'servers'">
+          <div class="toolbar">
+            <el-button :loading="loadingServers" @click="loadServers">刷新</el-button>
+            <span class="muted">在线服务器 {{ servers.length }} 台</span>
+            <span class="muted">命令网关：{{ meta.gateway || '-' }}</span>
+          </div>
+
+          <el-empty v-if="servers.length === 0" description="当前没有服务器在线（等待游戏服插件注册）"></el-empty>
+
+          <div class="server-grid">
+            <el-card v-for="s in servers" :key="s.index" class="server-card" shadow="hover">
+              <div class="server-head">
+                <span class="server-name">#{{ s.index }} {{ s.name }}</span>
+                <el-tag size="small" type="success" effect="dark">在线</el-tag>
+              </div>
+              <div class="server-meta">
+                {{ s.connectHost }}:{{ s.port }}
+                <span v-if="s.gamePort"> · 游戏端口 {{ s.gamePort }}</span>
+                <span v-if="s.isStatic"> · 静态配置</span>
+              </div>
+              <div class="server-actions">
+                <el-button size="small" @click="openPlayers(s)">玩家列表</el-button>
+                <el-button size="small" @click="openInfo(s)">服务器详情</el-button>
+                <el-button size="small" type="primary" v-if="can('broadcast.send')" @click="openBroadcast(s)">广播</el-button>
+                <el-button size="small" v-if="can('round.control')" @click="doRound(s, 'start')">开始回合</el-button>
+                <el-button size="small" v-if="can('round.control')" @click="doRound(s, 'restart')">重启回合</el-button>
+              </div>
+            </el-card>
+          </div>
+        </div>
+
+        <!-- ---------- 账号管理 ---------- -->
+        <div v-if="page === 'accounts'">
+          <div class="toolbar">
+            <el-button type="primary" @click="openAccountDialog(null)">新建账号</el-button>
+            <el-button :loading="loadingAccounts" @click="loadAccounts">刷新</el-button>
+          </div>
+          <el-table :data="accounts" border stripe>
+            <el-table-column prop="id" label="ID" width="60"></el-table-column>
+            <el-table-column prop="username" label="用户名" width="140"></el-table-column>
+            <el-table-column prop="displayName" label="显示名" width="140"></el-table-column>
+            <el-table-column label="权限">
+              <template #default="{ row }">
+                <template v-if="row.permissionKeys.length">
+                  <el-tag v-for="k in row.permissionKeys" :key="k" size="small" style="margin:2px 4px 2px 0">
+                    {{ permissionName(k) }}
+                  </el-tag>
+                </template>
+                <span v-else class="muted">无</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="120">
+              <template #default="{ row }">
+                <el-tag size="small" :type="row.isEnabled ? 'success' : 'info'">{{ row.isEnabled ? '启用' : '禁用' }}</el-tag>
+                <el-tag v-if="row.isBuiltIn" size="small" type="warning" style="margin-left:4px">内置</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="最后登录" width="170">
+              <template #default="{ row }">{{ fmtTime(row.lastLoginAt) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="230">
+              <template #default="{ row }">
+                <el-button link size="small" @click="openAccountDialog(row)">编辑</el-button>
+                <el-button link size="small" @click="resetAccountPassword(row)">重置密码</el-button>
+                <el-button link size="small" type="danger" :disabled="row.isBuiltIn" @click="deleteAccount(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- ---------- 审计日志 ---------- -->
+        <div v-if="page === 'audit'">
+          <div class="toolbar">
+            <el-button :loading="loadingAudit" @click="loadAudit">刷新</el-button>
+            <span class="muted">最近 {{ audit.length }} 条</span>
+          </div>
+          <el-table :data="audit" border stripe>
+            <el-table-column label="时间" width="170">
+              <template #default="{ row }">{{ fmtTime(row.createdAt) }}</template>
+            </el-table-column>
+            <el-table-column prop="username" label="操作者" width="130"></el-table-column>
+            <el-table-column prop="action" label="操作" width="190"></el-table-column>
+            <el-table-column prop="target" label="对象" width="220"></el-table-column>
+            <el-table-column prop="detail" label="详情" show-overflow-tooltip></el-table-column>
+            <el-table-column label="结果" width="80">
+              <template #default="{ row }">
+                <el-tag size="small" :type="row.success ? 'success' : 'danger'">{{ row.success ? '成功' : '失败' }}</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-main>
+    </el-container>
+  </el-container>
+
+  <!-- ==================== 玩家列表 ==================== -->
+  <el-dialog v-model="playersDialog.visible" :title="playersDialog.title" width="640px">
+    <div class="toolbar">
+      <el-button size="small" :loading="playersDialog.loading" @click="reloadPlayers">刷新</el-button>
+      <span class="muted">共 {{ playersDialog.players.length }} 名玩家</span>
+    </div>
+    <el-table :data="playersDialog.players" border stripe max-height="380">
+      <el-table-column prop="id" label="游戏内 ID" width="110"></el-table-column>
+      <el-table-column prop="name" label="昵称"></el-table-column>
+      <el-table-column label="操作" width="150">
+        <template #default="{ row }">
+          <el-button link size="small" v-if="can('players.kick')" @click="openPunish('kick', row)">踢出</el-button>
+          <el-button link size="small" type="danger" v-if="can('players.ban')" @click="openPunish('ban', row)">封禁</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    <el-alert
+      v-if="!can('players.kick') && !can('players.ban')"
+      type="info" :closable="false" show-icon
+      title="当前账号没有踢出/封禁权限" style="margin-top:12px"></el-alert>
+  </el-dialog>
+
+  <!-- ==================== 服务器详情 ==================== -->
+  <el-dialog v-model="infoDialog.visible" :title="infoDialog.title" width="620px">
+    <div class="pre-box"><div class="mono">{{ infoDialog.text || '（无返回）' }}</div></div>
+  </el-dialog>
+
+  <!-- ==================== 广播 ==================== -->
+  <el-dialog v-model="broadcastDialog.visible" :title="broadcastDialog.title" width="520px">
+    <el-form label-width="70px">
+      <el-form-item label="内容">
+        <el-input v-model="broadcastDialog.message" type="textarea" :rows="4" maxlength="200" show-word-limit
+                  placeholder="将显示在所有玩家屏幕上（15 秒）"></el-input>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="broadcastDialog.visible = false">取消</el-button>
+      <el-button type="primary" :loading="broadcastDialog.loading" @click="submitBroadcast">发送</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- ==================== 踢出 / 封禁 ==================== -->
+  <el-dialog v-model="punishDialog.visible" :title="punishDialog.title" width="520px">
+    <el-form label-width="90px">
+      <el-form-item label="玩家">
+        <el-input :model-value="punishDialog.playerName + ' (ID ' + punishDialog.playerId + ')'" disabled></el-input>
+      </el-form-item>
+      <el-form-item label="时长">
+        <el-select v-model="punishDialog.duration" style="width:100%">
+          <el-option v-for="opt in durationOptions" :key="opt.value" :label="opt.label" :value="opt.value"></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="原因">
+        <el-input v-model="punishDialog.reason" placeholder="填写原因" maxlength="80" show-word-limit></el-input>
+      </el-form-item>
+    </el-form>
+    <el-alert
+      type="warning" :closable="false" show-icon
+      title="服务端以封禁实现，'踢出' 也会产生短期封禁记录"
+      style="margin-bottom:4px"></el-alert>
+    <template #footer>
+      <el-button @click="punishDialog.visible = false">取消</el-button>
+      <el-button type="primary" :loading="punishDialog.loading" @click="submitPunish">确认</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- ==================== 账号编辑 ==================== -->
+  <el-dialog v-model="accountDialog.visible" :title="accountDialog.id ? '编辑账号' : '新建账号'" width="620px">
+    <el-form label-width="90px">
+      <el-form-item label="用户名" v-if="!accountDialog.id">
+        <el-input v-model="accountDialog.username" placeholder="3-32 个字符"></el-input>
+      </el-form-item>
+      <el-form-item label="显示名">
+        <el-input v-model="accountDialog.displayName" placeholder="留空则与用户名相同"></el-input>
+      </el-form-item>
+      <el-form-item label="初始密码" v-if="!accountDialog.id">
+        <div style="display:flex;gap:8px;width:100%">
+          <el-input v-model="accountDialog.password" placeholder="至少 8 位" style="flex:1"></el-input>
+          <el-button @click="accountDialog.password = randomPassword()">随机</el-button>
+        </div>
+      </el-form-item>
+      <el-form-item label="快速预设">
+        <el-button v-for="p in meta.presets" :key="p.key" size="small" @click="applyPreset(p)">{{ p.name }}</el-button>
+        <el-button size="small" @click="accountDialog.permissionKeys = []">清空</el-button>
+      </el-form-item>
+      <el-form-item label="权限">
+        <el-checkbox-group v-model="accountDialog.permissionKeys">
+          <div class="perm-list">
+            <div class="perm-item" v-for="p in meta.permissions" :key="p.key">
+              <el-checkbox :value="p.key">{{ p.name }}</el-checkbox>
+              <span class="perm-desc">{{ p.description }}</span>
+            </div>
+          </div>
+        </el-checkbox-group>
+      </el-form-item>
+      <el-form-item label="启用">
+        <el-switch v-model="accountDialog.isEnabled" :disabled="accountDialog.isBuiltIn"></el-switch>
+        <span v-if="accountDialog.isBuiltIn" class="muted" style="margin-left:12px">内置账号不可禁用</span>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="accountDialog.visible = false">取消</el-button>
+      <el-button type="primary" :loading="accountDialog.loading" @click="saveAccount">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- ==================== 修改自己密码 ==================== -->
+  <el-dialog v-model="passwordDialog.visible" title="修改密码" width="460px">
+    <el-form label-width="90px">
+      <el-form-item label="当前密码">
+        <el-input v-model="passwordDialog.current" type="password" show-password></el-input>
+      </el-form-item>
+      <el-form-item label="新密码">
+        <el-input v-model="passwordDialog.next" type="password" show-password placeholder="至少 8 位"></el-input>
+      </el-form-item>
+    </el-form>
+    <el-alert
+      type="info" :closable="false" show-icon
+      title="若开启了启动重置密码，下次重启后仍会随机生成新密码"
+      style="margin-bottom:4px"></el-alert>
+    <template #footer>
+      <el-button @click="passwordDialog.visible = false">取消</el-button>
+      <el-button type="primary" :loading="passwordDialog.loading" @click="submitPassword">保存</el-button>
+    </template>
+  </el-dialog>
+</div>
+
+<script src="./vendor/vue.global.prod.js"></script>
+<script src="./vendor/element-plus.full.min.js"></script>
+<script>
+const { createApp, ref, reactive } = Vue;
+const { ElMessage, ElMessageBox } = ElementPlus;
+
+const TOKEN_KEY = 'scpsl_panel_token';
+
+createApp({
+  setup() {
+    const token = ref(localStorage.getItem(TOKEN_KEY) || '');
+    const session = ref(null);
+    const page = ref('servers');
+    const meta = reactive({ permissions: [], presets: [], gateway: '' });
+
+    // ---- 通用请求 ----
+    async function api(path, options = {}) {
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+      if (token.value) headers['Authorization'] = 'Bearer ' + token.value;
+
+      const res = await fetch('/api' + path, Object.assign({}, options, { headers }));
+
+      if (res.status === 401) {
+        clearSession();
+        throw new Error('登录状态已失效，请重新登录');
+      }
+
+      const text = await res.text();
+      let data = null;
+      if (text) { try { data = JSON.parse(text); } catch (e) { data = { raw: text }; } }
+
+      if (!res.ok) {
+        throw new Error((data && (data.error || data.message)) || ('请求失败 (' + res.status + ')'));
+      }
+      return data;
+    }
+
+    function clearSession() {
+      token.value = '';
+      session.value = null;
+      localStorage.removeItem(TOKEN_KEY);
+    }
+
+    function can(key) {
+      if (!key) return true;
+      return !!(session.value && session.value.permissionKeys && session.value.permissionKeys.includes(key));
+    }
+
+    function fmtTime(v) {
+      if (!v) return '-';
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? '-' : d.toLocaleString('zh-CN', { hour12: false });
+    }
+
+    function permissionName(key) {
+      const p = meta.permissions.find(x => x.key === key);
+      return p ? p.name : key;
+    }
+
+    function randomPassword(len) {
+      len = len || 12;
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+      const buf = new Uint32Array(len);
+      crypto.getRandomValues(buf);
+      let out = '';
+      for (let i = 0; i < len; i++) out += chars[buf[i] % chars.length];
+      return out;
+    }
+
+    // ---- 登录 ----
+    const loginForm = reactive({ username: '', password: '' });
+    const logging = ref(false);
+
+    async function doLogin() {
+      if (!loginForm.username || !loginForm.password) {
+        ElMessage.warning('请输入用户名和密码');
+        return;
+      }
+      logging.value = true;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: loginForm.username, password: loginForm.password })
+        });
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
+        if (!res.ok) throw new Error(data.error || '登录失败');
+
+        token.value = data.token;
+        session.value = data;
+        localStorage.setItem(TOKEN_KEY, data.token);
+        loginForm.password = '';
+
+        await loadMeta();
+        await loadServers();
+        ElMessage.success('欢迎回来，' + (data.displayName || data.username));
+      } catch (e) {
+        ElMessage.error(e.message);
+      } finally {
+        logging.value = false;
+      }
+    }
+
+    async function doLogout() {
+      try { await api('/auth/logout', { method: 'POST' }); } catch (e) { /* 忽略 */ }
+      clearSession();
+      ElMessage.success('已退出登录');
+    }
+
+    async function loadMeta() {
+      const data = await api('/meta');
+      meta.permissions = data.permissions || [];
+      meta.presets = data.presets || [];
+      meta.gateway = data.gateway || '';
+    }
+
+    // ---- 服务器 ----
+    const servers = ref([]);
+    const loadingServers = ref(false);
+
+    async function loadServers() {
+      loadingServers.value = true;
+      try {
+        const data = await api('/servers');
+        servers.value = data.servers || [];
+      } catch (e) {
+        ElMessage.error(e.message);
+      } finally {
+        loadingServers.value = false;
+      }
+    }
+
+    // ---- 玩家列表 ----
+    const playersDialog = reactive({ visible: false, loading: false, title: '', server: null, players: [] });
+
+    async function openPlayers(server) {
+      playersDialog.server = server;
+      playersDialog.title = '玩家列表 · ' + server.name;
+      playersDialog.players = [];
+      playersDialog.visible = true;
+      await reloadPlayers();
+    }
+
+    async function reloadPlayers() {
+      if (!playersDialog.server) return;
+      playersDialog.loading = true;
+      try {
+        const data = await api('/servers/' + playersDialog.server.index + '/players');
+        playersDialog.players = data.players || [];
+      } catch (e) {
+        ElMessage.error(e.message);
+        playersDialog.players = [];
+      } finally {
+        playersDialog.loading = false;
+      }
+    }
+
+    // ---- 服务器详情 ----
+    const infoDialog = reactive({ visible: false, title: '', text: '' });
+
+    async function openInfo(server) {
+      infoDialog.title = '服务器详情 · ' + server.name;
+      infoDialog.text = '';
+      infoDialog.visible = true;
+      try {
+        const data = await api('/servers/' + server.index + '/info');
+        infoDialog.text = data.raw || '';
+      } catch (e) {
+        infoDialog.text = '获取失败：' + e.message;
+      }
+    }
+
+    // ---- 回合控制 ----
+    async function doRound(server, mode) {
+      const action = mode === 'start' ? '强制开始回合' : '重启回合';
+      try {
+        await ElMessageBox.confirm(
+          '确定要在【' + server.name + '】' + action + '吗？',
+          '操作确认',
+          { type: 'warning', confirmButtonText: '确定', cancelButtonText: '取消' }
+        );
+      } catch (e) {
+        return;
+      }
+
+      try {
+        const path = mode === 'start' ? '/round/start' : '/round/restart';
+        const res = await api('/servers/' + server.index + path, { method: 'POST' });
+        if (res.success) ElMessage.success(res.response || '操作已下发');
+        else ElMessage.error(res.error || res.response || '操作失败');
+      } catch (e) {
+        ElMessage.error(e.message);
+      }
+    }
+
+    // ---- 广播 ----
+    const broadcastDialog = reactive({ visible: false, loading: false, title: '', server: null, message: '' });
+
+    function openBroadcast(server) {
+      broadcastDialog.server = server;
+      broadcastDialog.title = '发送广播 · ' + server.name;
+      broadcastDialog.message = '';
+      broadcastDialog.visible = true;
+    }
+
+    async function submitBroadcast() {
+      if (!broadcastDialog.message.trim()) {
+        ElMessage.warning('广播内容不能为空');
+        return;
+      }
+      broadcastDialog.loading = true;
+      try {
+        const res = await api('/servers/' + broadcastDialog.server.index + '/broadcast', {
+          method: 'POST',
+          body: JSON.stringify({ message: broadcastDialog.message.trim() })
+        });
+        if (res.success) {
+          ElMessage.success(res.response || '广播已发送');
+          broadcastDialog.visible = false;
+        } else {
+          ElMessage.error(res.error || res.response || '发送失败');
+        }
+      } catch (e) {
+        ElMessage.error(e.message);
+      } finally {
+        broadcastDialog.loading = false;
+      }
+    }
+
+    // ---- 踢出 / 封禁 ----
+    const durationOptions = [
+      { label: '5 分钟', value: 300 },
+      { label: '30 分钟', value: 1800 },
+      { label: '1 小时', value: 3600 },
+      { label: '6 小时', value: 21600 },
+      { label: '1 天', value: 86400 },
+      { label: '7 天', value: 604800 },
+      { label: '30 天', value: 2592000 },
+      { label: '永久（10 年）', value: 315360000 },
+    ];
+
+    const punishDialog = reactive({
+      visible: false, loading: false, title: '', mode: 'kick',
+      server: null, playerId: '', playerName: '', duration: 3600, reason: ''
+    });
+
+    function openPunish(mode, player) {
+      punishDialog.mode = mode;
+      punishDialog.playerId = player.id;
+      punishDialog.playerName = player.name;
+      punishDialog.duration = mode === 'kick' ? 300 : 3600;
+      punishDialog.reason = mode === 'kick' ? '被管理员踢出' : '违反服务器规则';
+      punishDialog.title = (mode === 'kick' ? '踢出玩家' : '封禁玩家') + ' · ' + playersDialog.server.name;
+      punishDialog.visible = true;
+    }
+
+    async function submitPunish() {
+      punishDialog.loading = true;
+      try {
+        const res = await api('/servers/' + playersDialog.server.index + '/' + punishDialog.mode, {
+          method: 'POST',
+          body: JSON.stringify({
+            playerId: punishDialog.playerId,
+            duration: punishDialog.duration,
+            reason: punishDialog.reason
+          })
+        });
+        if (res.success) {
+          ElMessage.success(res.response || '操作成功');
+          punishDialog.visible = false;
+          await reloadPlayers();
+        } else {
+          ElMessage.error(res.error || res.response || '操作失败');
+        }
+      } catch (e) {
+        ElMessage.error(e.message);
+      } finally {
+        punishDialog.loading = false;
+      }
+    }
+
+    // ---- 账号管理 ----
+    const accounts = ref([]);
+    const loadingAccounts = ref(false);
+
+    const accountDialog = reactive({
+      visible: false, loading: false, id: null, username: '', displayName: '',
+      password: '', permissionKeys: [], isEnabled: true, isBuiltIn: false
+    });
+
+    async function loadAccounts() {
+      loadingAccounts.value = true;
+      try {
+        accounts.value = await api('/accounts');
+      } catch (e) {
+        ElMessage.error(e.message);
+      } finally {
+        loadingAccounts.value = false;
+      }
+    }
+
+    function openAccountDialog(row) {
+      accountDialog.id = row ? row.id : null;
+      accountDialog.username = row ? row.username : '';
+      accountDialog.displayName = row ? row.displayName : '';
+      accountDialog.password = row ? '' : randomPassword();
+      accountDialog.permissionKeys = row ? row.permissionKeys.slice() : ['servers.view'];
+      accountDialog.isEnabled = row ? row.isEnabled : true;
+      accountDialog.isBuiltIn = row ? !!row.isBuiltIn : false;
+      accountDialog.visible = true;
+    }
+
+    function applyPreset(preset) {
+      accountDialog.permissionKeys = meta.permissions
+        .filter(p => p.value !== 0 && (preset.value & p.value) === p.value)
+        .map(p => p.key);
+    }
+
+    async function saveAccount() {
+      if (!accountDialog.id && (!accountDialog.username || accountDialog.username.length < 3)) {
+        ElMessage.warning('用户名至少 3 个字符');
+        return;
+      }
+      if (!accountDialog.id && (!accountDialog.password || accountDialog.password.length < 8)) {
+        ElMessage.warning('密码至少 8 位');
+        return;
+      }
+
+      accountDialog.loading = true;
+      try {
+        if (accountDialog.id) {
+          await api('/accounts/' + accountDialog.id, {
+            method: 'PUT',
+            body: JSON.stringify({
+              displayName: accountDialog.displayName,
+              permissionKeys: accountDialog.permissionKeys,
+              isEnabled: accountDialog.isEnabled
+            })
+          });
+          ElMessage.success('账号已更新');
+        } else {
+          await api('/accounts', {
+            method: 'POST',
+            body: JSON.stringify({
+              username: accountDialog.username,
+              password: accountDialog.password,
+              displayName: accountDialog.displayName,
+              permissionKeys: accountDialog.permissionKeys,
+              isEnabled: accountDialog.isEnabled
+            })
+          });
+          ElMessage.success('账号已创建');
+        }
+        accountDialog.visible = false;
+        await loadAccounts();
+      } catch (e) {
+        ElMessage.error(e.message);
+      } finally {
+        accountDialog.loading = false;
+      }
+    }
+
+    async function resetAccountPassword(row) {
+      let generated = false;
+      try {
+        await ElMessageBox.confirm(
+          '将随机生成新密码并强制该账号下线，确定继续吗？',
+          '重置密码 · ' + row.username,
+          { type: 'warning', confirmButtonText: '确定', cancelButtonText: '取消' }
+        );
+      } catch (e) {
+        return;
+      }
+
+      try {
+        const res = await api('/accounts/' + row.id + '/password', { method: 'POST', body: JSON.stringify({}) });
+        generated = true;
+        await ElMessageBox.alert(
+          '新密码（请立即保存）：' + res.password,
+          '重置成功',
+          { confirmButtonText: '我已保存' }
+        );
+        await loadAccounts();
+      } catch (e) {
+        if (!generated) ElMessage.error(e.message);
+      }
+    }
+
+    async function deleteAccount(row) {
+      try {
+        await ElMessageBox.confirm(
+          '确定删除账号【' + row.username + '】吗？此操作不可恢复。',
+          '删除账号',
+          { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' }
+        );
+      } catch (e) {
+        return;
+      }
+
+      try {
+        await api('/accounts/' + row.id, { method: 'DELETE' });
+        ElMessage.success('账号已删除');
+        await loadAccounts();
+      } catch (e) {
+        ElMessage.error(e.message);
+      }
+    }
+
+    // ---- 修改自己密码 ----
+    const passwordDialog = reactive({ visible: false, loading: false, current: '', next: '' });
+
+    async function submitPassword() {
+      if (!passwordDialog.next || passwordDialog.next.length < 8) {
+        ElMessage.warning('新密码至少 8 位');
+        return;
+      }
+      passwordDialog.loading = true;
+      try {
+        await api('/auth/password', {
+          method: 'POST',
+          body: JSON.stringify({ currentPassword: passwordDialog.current, newPassword: passwordDialog.next })
+        });
+        ElMessage.success('密码已修改');
+        passwordDialog.visible = false;
+        passwordDialog.current = '';
+        passwordDialog.next = '';
+      } catch (e) {
+        ElMessage.error(e.message);
+      } finally {
+        passwordDialog.loading = false;
+      }
+    }
+
+    // ---- 审计 ----
+    const audit = ref([]);
+    const loadingAudit = ref(false);
+
+    async function loadAudit() {
+      loadingAudit.value = true;
+      try {
+        audit.value = await api('/audit?limit=300');
+      } catch (e) {
+        ElMessage.error(e.message);
+      } finally {
+        loadingAudit.value = false;
+      }
+    }
+
+    function onMenuSelect(index) {
+      page.value = index;
+      if (index === 'servers') loadServers();
+      else if (index === 'accounts') loadAccounts();
+      else if (index === 'audit') loadAudit();
+    }
+
+    // ---- 启动：尝试用已保存的 token 恢复会话 ----
+    (async function bootstrap() {
+      try { await loadMeta(); } catch (e) { /* 元数据失败不阻塞 */ }
+
+      if (!token.value) return;
+      try {
+        const me = await api('/auth/me');
+        session.value = me;
+        await loadServers();
+      } catch (e) {
+        clearSession();
+      }
+    })();
+
+    return {
+      token, session, page, meta,
+      loginForm, logging, doLogin, doLogout,
+      servers, loadingServers, loadServers,
+      playersDialog, openPlayers, reloadPlayers,
+      infoDialog, openInfo,
+      doRound,
+      broadcastDialog, openBroadcast, submitBroadcast,
+      durationOptions, punishDialog, openPunish, submitPunish,
+      accounts, loadingAccounts, loadAccounts, accountDialog, openAccountDialog, applyPreset, saveAccount,
+      resetAccountPassword, deleteAccount,
+      passwordDialog, submitPassword,
+      audit, loadingAudit, loadAudit,
+      onMenuSelect, can, fmtTime, permissionName, randomPassword,
+    };
+  }
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>

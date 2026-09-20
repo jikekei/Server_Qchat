@@ -114,7 +114,7 @@ namespace SocketServer
 
                     using (var stream = client.GetStream())
                     {
-                        // Read a single command frame. The client always closes after sending one command.
+                        var remoteIP = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
                         var buffer = new byte[4096];
 
                         string request = await ReadOnceWithTimeout(stream, buffer, 2000, ct).ConfigureAwait(false);
@@ -131,6 +131,7 @@ namespace SocketServer
                             int splitIdx = request.IndexOf("||", StringComparison.Ordinal);
                             if (splitIdx < 0)
                             {
+                                Log.Warn($"[Server_Qcha] 拒绝来自 {remoteIP} 的未授权连接：缺少 Token");
                                 await WriteUtf8Async(stream, "Unauthorized", ct).ConfigureAwait(false);
                                 return;
                             }
@@ -138,11 +139,14 @@ namespace SocketServer
                             string reqToken = request.Substring(0, splitIdx);
                             if (reqToken != token)
                             {
+                                Log.Warn($"[Server_Qcha] 拒绝来自 {remoteIP} 的未授权连接：Token 不匹配");
                                 await WriteUtf8Async(stream, "Unauthorized", ct).ConfigureAwait(false);
                                 return;
                             }
                             commandToDispatch = request.Substring(splitIdx + 2);
                         }
+
+                        Log.Debug($"[Server_Qcha] 收到命令 [{commandToDispatch}] 来自 {remoteIP}");
 
                         string response;
                         try
@@ -158,7 +162,9 @@ namespace SocketServer
                         if (string.IsNullOrEmpty(response))
                             response = "ok";
 
-                        await WriteUtf8Async(stream, response, ct).ConfigureAwait(false);
+                        byte[] responseBytes = Encoding.UTF8.GetBytes(response);
+                        Log.Debug($"[Server_Qcha] 命令 [{commandToDispatch}] 执行完成，响应长度 {responseBytes.Length} 字节");
+                        await stream.WriteAsync(responseBytes, 0, responseBytes.Length, ct).ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex)
