@@ -77,3 +77,9 @@ dotnet build server-labapi/Server_Qcha.csproj -c Release
 - **通知通道**：本插件连出 `bot_ip:bot_port`（默认 `127.0.0.1:10088`），发送 `register` / `heartbeat` / `unregister` / `ac`。
 
 由插件主动外连，所以游戏服**不需要放开入站端口**，内网 / NAT 环境可直接用。
+
+---
+
+## 许可证
+
+保留所有权  liseximt@outlook.com

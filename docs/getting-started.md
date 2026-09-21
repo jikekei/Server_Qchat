@@ -193,3 +193,7 @@
 - 各游戏服插件配置中的 `bot_ip` 指向管理机 IP，`bot_port` 指向管理机的 `NotificationPort`（默认 10088）；
 - 管理机防火墙开放 `10088` 端口入站权限，游戏宿主机防火墙开放对应 `tcp_port`；
 - 双方强制使用相同的 `AuthToken` 进行端到端加密鉴权。
+
+---
+
+保留所有权  liseximt@outlook.com

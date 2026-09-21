@@ -172,3 +172,7 @@
 | `bot_port` | int | `10088` | 主程序的 `NotificationPort` 监听端口 |
 | `auth_token` | string | `"QchaSecret_123"` | 通信鉴权密钥，**必须与主程序 AuthToken 保持一致** |
 | `debug` | bool | `false` | 是否在游戏服务端控制台输出调试日志 |
+
+---
+
+保留所有权  liseximt@outlook.com
