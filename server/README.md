@@ -114,4 +114,4 @@ $cmd = "bc&服务器将于5分钟后重启"
 
 ## 许可证
 
-Copyright © 2025 hmyhserver.top Lab. All rights reserved.
+Copyright 2025 hmyhserver.top

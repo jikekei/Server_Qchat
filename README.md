@@ -169,6 +169,6 @@ graph TD
 
 本项目基于 [MIT License](LICENSE) 协议开源。
 
-Copyright © 2025 hmyhserver.top Lab. All rights reserved.
+Copyright 2025 hmyhserver.top
 
 欢迎提交 Issue 与 Pull Request 共同完善 SCP: Secret Laboratory 中文生态。

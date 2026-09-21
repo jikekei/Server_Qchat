@@ -196,4 +196,4 @@
 
 ---
 
-Copyright © 2025 hmyhserver.top Lab. All rights reserved.
+Copyright 2025 hmyhserver.top

@@ -181,4 +181,4 @@ QQ 官方机器人支持在聊天框直接展示结构化的指令选项。系�
 
 ---
 
-Copyright © 2025 hmyhserver.top Lab. All rights reserved.
+Copyright 2025 hmyhserver.top
