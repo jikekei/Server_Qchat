@@ -11,8 +11,14 @@
 **/obj/
 publish/
 **/publish/
+dist/
+**/dist/
 
 # Local config / secrets / runtime data
+data/
+**/data/
+logging-level.json
+**/logging-level.json
 appsettings.Local.json
 **/appsettings.Local.json
 bot-settings.json

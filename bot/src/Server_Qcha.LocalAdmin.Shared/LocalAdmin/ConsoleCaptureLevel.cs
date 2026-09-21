@@ -1,3 +1,5 @@
+using Server.Qcat.LocalAdmin.Models;
+
 namespace Server.Qcat.LocalAdmin;
 
 /// <summary>
@@ -82,11 +84,13 @@ public static class ConsoleCaptureLevels
     };
 
     /// <summary>面板下拉用：键 + 中文名。</summary>
-    public static object[] Describe() =>
+    public static object[] Describe() => DescribeTyped();
+
+    public static ConsoleLevelDescription[] DescribeTyped() =>
         Keys.Select(k =>
         {
             TryParseKey(k, out var level);
-            return (object)new { key = k, label = Label(level) };
+            return new ConsoleLevelDescription(k, Label(level));
         }).ToArray();
 
     /// <summary>行严重度：0=调试 1=信息 2=警告 3=错误。</summary>

@@ -19,7 +19,7 @@ public sealed class PanelDatabase
 
         string path = options.Value.DatabasePath;
         if (string.IsNullOrWhiteSpace(path))
-            path = "panel.db";
+            path = "data/panel.db";
         if (!Path.IsPathRooted(path))
             path = Path.Combine(env.ContentRootPath, path);
 
@@ -36,6 +36,12 @@ public sealed class PanelDatabase
 
         _log.LogInformation("Web 面板账号库路径: {Path}", path);
     }
+
+    /// <summary>
+    /// 面板 SQLite 库的连接串。供其它需要复用同一文件的功能使用
+    /// （例如官方 QQ 模式下用 OpenID 建立的玩家绑定表）。
+    /// </summary>
+    public string ConnectionString => _connectionString;
 
     /// <summary>建表（幂等）。</summary>
     public void EnsureCreated()

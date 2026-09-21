@@ -1,16 +1,16 @@
 using Microsoft.Extensions.Logging;
+using Server.Qcat.Configuration;
 
 namespace Server.Qcat.Logging;
 
 /// <summary>
-/// 日志级别的持久化与读取 —— 落在 ContentRoot 下的 <c>logging-level.json</c>。
+/// 面板可调的日志级别存储器。
 ///
-/// <para><b>为什么这样做就能"改了立刻生效、又不用重启"：</b></para>
-/// 该文件在 <c>Program.cs</c> 里被注册为**带 <c>reloadOnChange</c> 的配置源**，
-/// 且位于 appsettings 之后（因此能覆盖它）。.NET 默认主机已把
-/// <c>Logging:LogLevel</c> 绑定到 <c>LoggerFilterOptions</c>（通过 <c>IOptionsMonitor</c>），
-/// 文件一变 → 配置重载 → 选项重绑 → <c>LoggerFactory</c> 刷新过滤器。
-/// 于是**不需要任何自定义 ILoggerProvider**，控制台输出与所有分类的过滤都会同步变化。
+/// 机制说明：
+/// 1. 独立于 appsettings.json，使用专用的 <c>data/logging-level.json</c> 存放；
+/// 2. 在 <c>Program.cs</c> 里以 <c>reloadOnChange: true</c> 注册进配置构建器；
+/// 3. 当面板通过 API 修改时，原地覆盖写回文件；ASP.NET Core 的文件监视器在写入完成后
+///    自动触发配置重载，无需重启进程即刻生效。
 ///
 /// <para><b>优先级：</b>环境变量（<c>Logging__LogLevel__Default</c>）在同一配置源列表里排在
 /// 本文件之后，所以环境变量优先级更高 —— 部署时用环境变量锁定的级别不会被面板覆盖。</para>
@@ -24,8 +24,9 @@ namespace Server.Qcat.Logging;
 /// </summary>
 public sealed class LogLevelStore
 {
-    /// <summary>文件名（相对 ContentRoot）。</summary>
+    /// <summary>文件名（相对 data/ 目录）。</summary>
     public const string FileName = "logging-level.json";
+    public const string RelativePath = "data/logging-level.json";
 
     /// <summary>可供选择的级别名（顺序由宽到严）。</summary>
     public static readonly string[] LevelNames =
@@ -51,7 +52,7 @@ public sealed class LogLevelStore
 
     public LogLevelStore(string contentRootPath, IConfiguration configuration, ILogger log)
     {
-        _path = Path.Combine(contentRootPath, FileName);
+        _path = DataDirectoryManager.GetDataFilePath(contentRootPath, FileName);
         _configuration = configuration;
         _log = log;
     }
@@ -121,6 +122,10 @@ public sealed class LogLevelStore
             WriteIndented = true,
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         });
+
+        string? dir = Path.GetDirectoryName(_path);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
 
         // 原地整写：文件监视器在句柄关闭后触发重载
         File.WriteAllText(_path, json);

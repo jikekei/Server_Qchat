@@ -49,6 +49,128 @@ async function localSetConsoleLevel(level) {
   }
 }
 
+// ---- 守护进程 (Server_Qcha.Daemon) 状态与管理 ----
+const daemon = reactive({
+  loading: false,
+  online: false,
+  status: 'offline',
+  pid: null,
+  uptimeSeconds: 0,
+  memoryWorkingSetMb: 0,
+  memoryPrivateMb: 0,
+  threadCount: 0,
+  serverCount: 0,
+  runningServerCount: 0,
+  listenUri: '',
+  version: '',
+  message: '',
+});
+
+async function fetchDaemonStatus() {
+  try {
+    const res = await api('/local/daemon/status');
+    if (res) {
+      daemon.online = !!res.online;
+      daemon.status = res.status || (res.online ? 'running' : 'offline');
+      daemon.pid = res.pid;
+      daemon.uptimeSeconds = res.uptimeSeconds || 0;
+      daemon.memoryWorkingSetMb = res.memoryWorkingSetMb || 0;
+      daemon.memoryPrivateMb = res.memoryPrivateMb || 0;
+      daemon.threadCount = res.threadCount || 0;
+      daemon.serverCount = res.serverCount || 0;
+      daemon.runningServerCount = res.runningServerCount || 0;
+      daemon.listenUri = res.listenUri || '';
+      daemon.version = res.version || '';
+      daemon.message = res.message || '';
+    }
+  } catch (e) {
+    daemon.online = false;
+    daemon.status = 'offline';
+  }
+}
+
+async function startDaemon() {
+  daemon.loading = true;
+  try {
+    const r = await api('/local/daemon/start', { method: 'POST' });
+    if (r.success) {
+      ElMessage.success(r.response || '守护进程已成功拉起');
+      await fetchDaemonStatus();
+      await refreshLocal();
+    } else {
+      ElMessage.error(r.error || '拉起守护进程失败');
+    }
+  } catch (e) {
+    ElMessage.error('拉起守护进程异常：' + e.message);
+  } finally {
+    daemon.loading = false;
+  }
+}
+
+async function stopDaemon() {
+  try {
+    await ElMessageBox.confirm(
+      '确定要停止 Server_Qcha.Daemon 独立守护进程吗？\n\n【高危警示】：守护进程停止会导致其托管的全部 SCPSL 游戏服务器一并退出，在线玩家将断开连接！',
+      '停止守护进程确认',
+      {
+        confirmButtonText: '确认停止',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    );
+  } catch {
+    return;
+  }
+
+  daemon.loading = true;
+  try {
+    const r = await api('/local/daemon/stop', { method: 'POST' });
+    if (r.success) {
+      ElMessage.success(r.response || '守护进程已停止');
+      await fetchDaemonStatus();
+      await refreshLocal();
+    } else {
+      ElMessage.error(r.error || '停止守护进程失败');
+    }
+  } catch (e) {
+    ElMessage.error('操作失败：' + e.message);
+  } finally {
+    daemon.loading = false;
+  }
+}
+
+async function restartDaemon() {
+  try {
+    await ElMessageBox.confirm(
+      '确定要重启 Server_Qcha.Daemon 独立守护进程吗？\n\n【高危警示】：重启守护进程会导致受其托管的游戏服一同关闭并按设置重新拉起，在线玩家可能断开连接！',
+      '重启守护进程确认',
+      {
+        confirmButtonText: '确认重启',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    );
+  } catch {
+    return;
+  }
+
+  daemon.loading = true;
+  try {
+    const r = await api('/local/daemon/restart', { method: 'POST' });
+    if (r.success) {
+      ElMessage.success(r.response || '守护进程已成功重启');
+      await fetchDaemonStatus();
+      await refreshLocal();
+    } else {
+      ElMessage.error(r.error || '重启守护进程失败');
+    }
+  } catch (e) {
+    ElMessage.error('重启守护进程异常：' + e.message);
+  } finally {
+    daemon.loading = false;
+  }
+}
+
 // ---- 服务器配置弹窗（增 / 改 / 删） ----
 function defaultServerForm() {
   return {
@@ -319,6 +441,7 @@ async function loadLocalServers() {
       syncHeartbeatSwitch();
       syncConsoleLevel();
     }
+    await fetchDaemonStatus();
   } catch (e) {
     ElMessage.error(e.message);
   } finally {
@@ -361,16 +484,25 @@ function stopLocalPolling() {
   if (localTimer) { clearInterval(localTimer); localTimer = null; }
 }
 
+let daemonPollCount = 0;
 function startLocalPolling() {
   stopLocalPolling();
   loadLocalServers().then(() => {
+    fetchDaemonStatus();
     pollLocal();
-    localTimer = setInterval(pollLocal, 1000);
+    localTimer = setInterval(async () => {
+      await pollLocal();
+      daemonPollCount++;
+      if (daemonPollCount % 2 === 0) {
+        await fetchDaemonStatus();
+      }
+    }, 1000);
   });
 }
 
 async function refreshLocal() {
   await loadLocalServers();
+  await fetchDaemonStatus();
   await pollLocal();
   ElMessage.success('已刷新');
 }
@@ -624,5 +756,10 @@ export function useLocalAdmin() {
     formatUptime,
     timeOnly,
     lineLabel,
+    daemon,
+    fetchDaemonStatus,
+    startDaemon,
+    stopDaemon,
+    restartDaemon,
   };
 }

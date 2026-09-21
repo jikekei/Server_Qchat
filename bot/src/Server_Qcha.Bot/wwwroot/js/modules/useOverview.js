@@ -7,12 +7,22 @@ const overview = reactive({
   lastUpdated: null,
   stats: {
     serverCount: 0,
+    onlineServers: 0,
+    totalServers: 0,
+    localServerCount: 0,
+    localRunningCount: 0,
+    localAdminEnabled: false,
     totalOnline: 0,
     totalMax: 0,
     peakToday: 0,
     botConnected: false,
+    botPlatform: '',
+    botUserId: '',
+    botNickname: '',
     botLatencyMs: -1,
-    mysqlConnected: false
+    mysqlConnected: false,
+    dbConfigured: false,
+    dbSummary: null
   },
   servers: [],
   history: [],
@@ -25,8 +35,38 @@ async function loadOverview() {
   try {
     const data = await api('/overview');
     if (data) {
-      overview.stats = Object.assign(overview.stats, data.stats || {});
-      overview.servers = data.servers || [];
+      const s = data.stats || {};
+      const servers = data.servers || [];
+
+      // 服务器数量：优先 localServerCount / serverCount / totalServers / servers.length
+      const sc = s.serverCount ?? s.localServerCount ?? s.totalServers ?? servers.length;
+      overview.stats.serverCount = sc;
+      overview.stats.onlineServers = s.onlineServers ?? servers.filter(x => x.isOnline).length;
+      overview.stats.totalServers = s.totalServers ?? servers.length;
+      overview.stats.localServerCount = s.localServerCount ?? 0;
+      overview.stats.localRunningCount = s.localRunningCount ?? 0;
+      overview.stats.localAdminEnabled = !!s.localAdminEnabled;
+
+      // 实时玩家与承载上限
+      overview.stats.totalOnline = s.totalOnline ?? s.totalOnlinePlayers ?? servers.filter(x => x.isOnline).reduce((sum, x) => sum + (x.onlinePlayers || 0), 0);
+      overview.stats.totalMax = s.totalMax ?? s.totalMaxPlayers ?? servers.reduce((sum, x) => sum + (x.maxPlayers || 0), 0);
+      overview.stats.peakToday = s.peakToday ?? overview.stats.totalOnline;
+
+      // QQ 机器人状态
+      overview.stats.botConnected = !!s.botConnected;
+      overview.stats.botPlatform = s.botPlatform || 'Unknown';
+      overview.stats.botUserId = s.botUserId || '';
+      overview.stats.botNickname = s.botNickname || '';
+      overview.stats.botLatencyMs = s.botLatencyMs ?? -1;
+
+      // MySQL 状态：兼容直接布尔值与 dbSummary.isConnected
+      overview.stats.mysqlConnected = typeof s.mysqlConnected === 'boolean'
+        ? s.mysqlConnected
+        : !!(s.dbSummary && (s.dbSummary.isConnected || s.dbSummary.connected || (!s.dbSummary.error && s.dbConfigured)));
+      overview.stats.dbConfigured = !!s.dbConfigured;
+      overview.stats.dbSummary = s.dbSummary || null;
+
+      overview.servers = servers;
       overview.history = data.history || [];
       overview.lastUpdated = new Date();
     }

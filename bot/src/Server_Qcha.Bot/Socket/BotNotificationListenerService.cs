@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -11,8 +12,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Server.Qcat.Bot;
 using Server.Qcat.Configuration;
-using EleCho.GoCqHttpSdk;
-using EleCho.GoCqHttpSdk.Message;
 
 namespace Server.Qcat.Socket;
 
@@ -36,7 +35,9 @@ public sealed class BotNotificationListenerService : BackgroundService
 {
     private readonly SocketServerOptions _socketOpts;
     private readonly IOptionsMonitor<BotOptions> _botOptsMonitor;
-    private readonly BotSessionAccessor _sessionAccessor;
+    private readonly IOptionsMonitor<OfficialQqOptions> _officialOptsMonitor;
+    private readonly BotClientAccessor _botAccessor;
+    private readonly OfficialQqBotClient _officialClient;
     private readonly ServerRegistry _registry;
     private readonly ILogger<BotNotificationListenerService> _log;
     private TcpListener? _listener;
@@ -44,13 +45,17 @@ public sealed class BotNotificationListenerService : BackgroundService
     public BotNotificationListenerService(
         IOptions<SocketServerOptions> socketOpts,
         IOptionsMonitor<BotOptions> botOptsMonitor,
-        BotSessionAccessor sessionAccessor,
+        IOptionsMonitor<OfficialQqOptions> officialOptsMonitor,
+        BotClientAccessor botAccessor,
+        OfficialQqBotClient officialClient,
         ServerRegistry registry,
         ILogger<BotNotificationListenerService> log)
     {
         _socketOpts = socketOpts.Value;
         _botOptsMonitor = botOptsMonitor;
-        _sessionAccessor = sessionAccessor;
+        _officialOptsMonitor = officialOptsMonitor;
+        _botAccessor = botAccessor;
+        _officialClient = officialClient;
         _registry = registry;
         _log = log;
     }
@@ -70,9 +75,17 @@ public sealed class BotNotificationListenerService : BackgroundService
             ip = IPAddress.Any;
         }
 
-        _log.LogInformation("通知监听服务已启动 → {Host}:{Port}", ip, _socketOpts.NotificationPort);
-        _listener = new TcpListener(ip, _socketOpts.NotificationPort);
-        _listener.Start();
+        try
+        {
+            _listener = new TcpListener(ip, _socketOpts.NotificationPort);
+            _listener.Start();
+            _log.LogInformation("通知监听服务已启动 → {Host}:{Port}", ip, _socketOpts.NotificationPort);
+        }
+        catch (SocketException ex)
+        {
+            _log.LogError(ex, "通知监听服务启动失败：端口 {Port} 无法绑定或已被占用（{Message}）。若已有机器人实例在运行，请先将其关闭。", _socketOpts.NotificationPort, ex.Message);
+            return;
+        }
 
         try
         {
@@ -244,35 +257,7 @@ public sealed class BotNotificationListenerService : BackgroundService
                     string truncatedMsg = data.Message.Length > 80 ? data.Message.Substring(0, 80) : data.Message;
                     _log.LogInformation("收到 AC 推送: {Message}...", truncatedMsg);
 
-                    var botOpts = _botOptsMonitor.CurrentValue;
-                    long targetGroupId = botOpts.AcTargetGroupId;
-                    if (targetGroupId <= 0 && botOpts.NotifyGroupIds != null && botOpts.NotifyGroupIds.Length > 0)
-                    {
-                        targetGroupId = botOpts.NotifyGroupIds[0];
-                    }
-
-                    if (targetGroupId <= 0)
-                    {
-                        _log.LogWarning("AC 推送丢弃：未配置目标群号（AcTargetGroupId 和 NotifyGroupIds 均为空）");
-                        return;
-                    }
-
-                    var session = _sessionAccessor.Session;
-                    if (session == null)
-                    {
-                        _log.LogWarning("AC 推送丢弃：QQ Bot 会话未激活");
-                        return;
-                    }
-
-                    try
-                    {
-                        await session.SendGroupMessageAsync(targetGroupId, new CqMessage(data.Message));
-                        _log.LogInformation("AC 推送已转发到群 {TargetGroupId}", targetGroupId);
-                    }
-                    catch (Exception qqEx)
-                    {
-                        _log.LogError(qqEx, "AC 推送转发到群 {TargetGroupId} 失败: {Error}", targetGroupId, qqEx.Message);
-                    }
+                    await ForwardAcMessageAsync(data.Message, ct);
                 }
                 else
                 {
@@ -293,5 +278,70 @@ public sealed class BotNotificationListenerService : BackgroundService
                 _log.LogError(ex, "处理客户端连接时发生错误 (来自 {RemoteEndpoint})", remoteEndpoint);
             }
         }
+    }
+
+    /// <summary>
+    /// 把游戏内 <c>.ac</c> 消息转发到 QQ。
+    /// 按当前接入平台选择目标：NapCat 用群号，官方平台用 group_openid。
+    /// </summary>
+    private async Task ForwardAcMessageAsync(string message, CancellationToken ct)
+    {
+        var client = _botAccessor.Current;
+        if (client is null || !client.IsConnected)
+        {
+            _log.LogWarning("AC 推送丢弃：QQ Bot 会话未激活");
+            return;
+        }
+
+        string target;
+        string platformTag;
+
+        if (client.Platform == BotPlatform.OfficialQq)
+        {
+            var officialOpts = _officialOptsMonitor.CurrentValue;
+
+            target = !string.IsNullOrWhiteSpace(officialOpts.AcTargetGroupOpenId)
+                ? officialOpts.AcTargetGroupOpenId
+                : officialOpts.NotifyGroupOpenIds.FirstOrDefault() ?? "";
+
+            if (string.IsNullOrWhiteSpace(target))
+                target = _officialClient.MostRecentGroupOpenId ?? "";
+
+            platformTag = "官方模式";
+
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                _log.LogWarning("AC 推送丢弃：官方模式未配置 AcTargetGroupOpenId / NotifyGroupOpenIds，且尚未收到过任何群消息");
+                return;
+            }
+
+            if (!client.SupportsActivePush)
+            {
+                _log.LogWarning("AC 推送丢弃：官方平台需显式开启「允许主动推送」后才能发送非被动回复消息（目标群 {Target}）", target);
+                return;
+            }
+        }
+        else
+        {
+            var botOpts = _botOptsMonitor.CurrentValue;
+            long targetGroupId = botOpts.AcTargetGroupId;
+            if (targetGroupId <= 0 && botOpts.NotifyGroupIds is { Length: > 0 })
+                targetGroupId = botOpts.NotifyGroupIds[0];
+
+            if (targetGroupId <= 0)
+            {
+                _log.LogWarning("AC 推送丢弃：未配置目标群号（AcTargetGroupId 和 NotifyGroupIds 均为空）");
+                return;
+            }
+
+            target = targetGroupId.ToString();
+            platformTag = "NapCat 模式";
+        }
+
+        var result = await client.SendGroupMessageAsync(target, message, BotReplyContext.None, ct);
+        if (result.Success)
+            _log.LogInformation("AC 推送已转发到群 {Target}（{Platform}）", target, platformTag);
+        else
+            _log.LogError("AC 推送转发到群 {Target} 失败（{Platform}）：{Error}", target, platformTag, result.Error);
     }
 }

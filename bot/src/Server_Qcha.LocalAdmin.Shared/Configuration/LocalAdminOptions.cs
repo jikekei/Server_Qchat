@@ -1,17 +1,33 @@
 namespace Server.Qcat.Configuration;
 
 /// <summary>
-/// LocalAdmin 能力配置 —— 让机器人进程扮演官方 LocalAdmin 的角色，
+/// LocalAdmin 能力配置 —— 让程序（独立守护进程或内嵌在机器人中）扮演官方 LocalAdmin 的角色，
 /// 负责拉起/停止 SCPSL 专用服务器进程，并通过官方控制台协议与之双向通信。
 ///
-/// 注意：该能力**要求游戏服务端与机器人进程在同一台机器上**，
-/// 因为控制台通道只绑定 127.0.0.1（官方设计如此，无鉴权）。
-/// 默认关闭；开启后配置项才生效。
+/// 运行架构：
+/// - "Daemon"（推荐默认）：连接独立的 Server_Qcha.Daemon 守护进程，升级/重启面板不会断开游戏服；
+/// - "Embedded"：内嵌单进程模式，管理逻辑运行在 Bot 主进程内（关闭 Bot 则游戏服退出）。
 /// </summary>
 public sealed class LocalAdminOptions
 {
     /// <summary>是否启用 LocalAdmin 能力（默认关闭）。</summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// 运行模式：
+    /// "Daemon"（默认）：连接独立守护进程（Server_Qcha.Daemon.exe），升级或关闭面板不影响游戏服；
+    /// "Embedded"：单进程内嵌模式，随面板主进程一同退出。
+    /// </summary>
+    public string Mode { get; set; } = "Daemon";
+
+    /// <summary>独立守护节点的 HTTP 监听地址（仅在 Mode = "Daemon" 时生效）。默认 http://127.0.0.1:10090</summary>
+    public string DaemonUri { get; set; } = "http://127.0.0.1:10090";
+
+    /// <summary>与守护节点通信的共享凭证 Token（防止未授权调用）。</summary>
+    public string DaemonToken { get; set; } = "QchaSecret_123";
+
+    /// <summary>当守护节点未运行时，是否由 Bot 尝试自动后台拉起 Server_Qcha.Daemon.exe。</summary>
+    public bool AutoStartDaemon { get; set; } = true;
 
     /// <summary>
     /// 「添加服务器」时预填/优先推荐的可执行文件路径（可留空）。
@@ -38,7 +54,7 @@ public sealed class LocalAdminOptions
     public List<LocalServerDefinition> Servers { get; set; } = new();
 }
 
-/// <summary>一台由机器人托管（启动/停止/监控）的 SCPSL 服务端进程定义。</summary>
+/// <summary>一台由 LocalAdmin 托管（启动/停止/监控）的 SCPSL 服务端进程定义。</summary>
 public sealed class LocalServerDefinition
 {
     /// <summary>实例唯一标识，用于 API 路径。留空则由 Name 推导。</summary>
@@ -59,7 +75,7 @@ public sealed class LocalServerDefinition
     /// <summary>透传给游戏的额外参数（对应官方 <c>--</c> 之后的内容）。</summary>
     public string ExtraArguments { get; set; } = "";
 
-    /// <summary>机器人启动时是否自动拉起该服务器。</summary>
+    /// <summary>进程管理器启动时是否自动拉起该服务器。</summary>
     public bool AutoStart { get; set; }
 
     // ---------- 心跳 / 静默崩溃检测 ----------
@@ -89,10 +105,10 @@ public sealed class LocalServerDefinition
 
     // ---------- 协议缓冲 ----------
 
-    /// <summary>机器人 → 游戏 方向缓冲区字节数（对应 <c>la_to_sl_buffer_size</c>）。</summary>
+    /// <summary>LocalAdmin → 游戏 方向缓冲区字节数（对应 <c>la_to_sl_buffer_size</c>）。</summary>
     public int LaToSlBufferSize { get; set; } = 25000;
 
-    /// <summary>游戏 → 机器人 方向缓冲区字节数（对应 <c>sl_to_la_buffer_size</c>）。</summary>
+    /// <summary>游戏 → LocalAdmin 方向缓冲区字节数（对应 <c>sl_to_la_buffer_size</c>）。</summary>
     public int SlToLaBufferSize { get; set; } = 200000;
 
     /// <summary>
@@ -115,7 +131,7 @@ public sealed class LocalServerDefinition
     public string ConsoleLevel { get; set; } = "all";
 
     /// <summary>规范化并回填由 Name 推导的 Id。</summary>
-    internal void Normalize(int index)
+    public void Normalize(int index)
     {
         if (string.IsNullOrWhiteSpace(Name))
             Name = string.IsNullOrWhiteSpace(Id) ? $"本地服-{index + 1}" : Id;

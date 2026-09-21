@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.10.12210.168 stable
+VisualStudioVersion = 18.10.12210.168
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "server", "server", "{DAD03CFC-D5FA-AC94-41C7-9ABAB326F09E}"
 EndProject
@@ -18,6 +18,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server_Qcha.Bot.Tests", "bot\tests\Server_Qcha.Bot.Tests\Server_Qcha.Bot.Tests.csproj", "{CF2666C4-5A68-4B1E-8423-5054E87F5B56}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server_Qcha", "server-labapi\Server_Qcha.csproj", "{7B7FD473-A398-4781-2330-C90CC0BE3BD9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server_Qcha.LocalAdmin.Shared", "bot\src\Server_Qcha.LocalAdmin.Shared\Server_Qcha.LocalAdmin.Shared.csproj", "{87D89EEA-B1A9-49A2-B360-9B7B3E082300}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server_Qcha.Daemon", "bot\src\Server_Qcha.Daemon\Server_Qcha.Daemon.csproj", "{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -77,6 +81,30 @@ Global
 		{7B7FD473-A398-4781-2330-C90CC0BE3BD9}.Release|x64.Build.0 = Release|Any CPU
 		{7B7FD473-A398-4781-2330-C90CC0BE3BD9}.Release|x86.ActiveCfg = Release|Any CPU
 		{7B7FD473-A398-4781-2330-C90CC0BE3BD9}.Release|x86.Build.0 = Release|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Debug|x64.Build.0 = Debug|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Debug|x86.Build.0 = Debug|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Release|x64.ActiveCfg = Release|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Release|x64.Build.0 = Release|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Release|x86.ActiveCfg = Release|Any CPU
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300}.Release|x86.Build.0 = Release|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Debug|x64.Build.0 = Debug|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Debug|x86.Build.0 = Debug|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Release|x64.ActiveCfg = Release|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Release|x64.Build.0 = Release|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Release|x86.ActiveCfg = Release|Any CPU
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -87,5 +115,7 @@ Global
 		{9529AE97-356B-4760-BD13-AFEAD0FEE7A5} = {7FB1AD83-7B29-0312-71C4-03211182B5A9}
 		{EFDAB9F0-C9F0-FA24-A4F0-73BD8D3FB397} = {D3E09356-6418-F4F5-DDE9-09D519799B74}
 		{CF2666C4-5A68-4B1E-8423-5054E87F5B56} = {EFDAB9F0-C9F0-FA24-A4F0-73BD8D3FB397}
+		{87D89EEA-B1A9-49A2-B360-9B7B3E082300} = {7FB1AD83-7B29-0312-71C4-03211182B5A9}
+		{CE72151B-FE6E-4DAA-B726-96CE1F7A7574} = {7FB1AD83-7B29-0312-71C4-03211182B5A9}
 	EndGlobalSection
 EndGlobal

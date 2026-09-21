@@ -17,8 +17,8 @@ public sealed class WebPanelOptions
     /// <summary>会话有效期（分钟）。</summary>
     public int SessionMinutes { get; set; } = 480;
 
-    /// <summary>本地账号数据库文件路径（相对 ContentRoot 或绝对路径）。</summary>
-    public string DatabasePath { get; set; } = "panel.db";
+    /// <summary>本地账号数据库文件路径（默认保存在 data/panel.db，相对 ContentRoot 或绝对路径）。</summary>
+    public string DatabasePath { get; set; } = "data/panel.db";
 
     /// <summary>内置管理员账号的用户名。</summary>
     public string DefaultAdminUsername { get; set; } = "admin";

@@ -46,7 +46,8 @@ export async function api(path, options = {}) {
   }
 
   if (!res.ok) {
-    throw new Error((data && (data.error || data.message)) || ('请求失败 (' + res.status + ')'));
+    const errMsg = data && (data.error || data.message || data.detail || data.title);
+    throw new Error(errMsg || ('请求失败 (' + res.status + ')'));
   }
   return data;
 }

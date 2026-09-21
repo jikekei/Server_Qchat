@@ -90,4 +90,40 @@ public class BotSettingsTests : IDisposable
         var parsed = PanelPermissions.FromKeys(new[] { "bot.manage" });
         Assert.Equal(PanelPermission.BotManage, parsed);
     }
+
+    [Fact]
+    public void DataDirectoryManager_AutoMigration_Works()
+    {
+        string dummyDb = Path.Combine(_tempDir, "panel.db");
+        string dummyWal = Path.Combine(_tempDir, "panel.db-wal");
+        string dummyBot = Path.Combine(_tempDir, "bot-settings.json");
+        string dummyLa = Path.Combine(_tempDir, "localadmin-servers.json");
+        string dummyLog = Path.Combine(_tempDir, "logging-level.json");
+
+        File.WriteAllText(dummyDb, "sqlite_db_content");
+        File.WriteAllText(dummyWal, "sqlite_wal_content");
+        File.WriteAllText(dummyBot, "bot_content");
+        File.WriteAllText(dummyLa, "la_content");
+        File.WriteAllText(dummyLog, "log_content");
+
+        DataDirectoryManager.EnsureDataDirectoryAndMigrate(_tempDir);
+
+        string targetDb = Path.Combine(_tempDir, "data", "panel.db");
+        string targetWal = Path.Combine(_tempDir, "data", "panel.db-wal");
+        string targetBot = Path.Combine(_tempDir, "data", "bot-settings.json");
+        string targetLa = Path.Combine(_tempDir, "data", "localadmin-servers.json");
+        string targetLog = Path.Combine(_tempDir, "data", "logging-level.json");
+
+        Assert.True(File.Exists(targetDb));
+        Assert.True(File.Exists(targetWal));
+        Assert.True(File.Exists(targetBot));
+        Assert.True(File.Exists(targetLa));
+        Assert.True(File.Exists(targetLog));
+
+        Assert.False(File.Exists(dummyDb));
+        Assert.False(File.Exists(dummyWal));
+        Assert.False(File.Exists(dummyBot));
+        Assert.False(File.Exists(dummyLa));
+        Assert.False(File.Exists(dummyLog));
+    }
 }

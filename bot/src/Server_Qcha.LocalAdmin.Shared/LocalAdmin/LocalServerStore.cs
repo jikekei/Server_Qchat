@@ -1,5 +1,6 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Server.Qcat.Configuration;
 
 namespace Server.Qcat.LocalAdmin;
@@ -18,8 +19,9 @@ namespace Server.Qcat.LocalAdmin;
 /// </summary>
 public sealed class LocalServerStore
 {
-    /// <summary>存储文件名（相对 ContentRoot）。</summary>
+    /// <summary>存储文件名（相对 data/ 目录）。</summary>
     public const string FileName = "localadmin-servers.json";
+    public const string RelativePath = "data/localadmin-servers.json";
 
     private readonly string _path;
     private readonly ILogger _log;
@@ -35,7 +37,7 @@ public sealed class LocalServerStore
 
     public LocalServerStore(string contentRootPath, ILogger log)
     {
-        _path = Path.Combine(contentRootPath, FileName);
+        _path = DataDirectoryManager.GetDataFilePath(contentRootPath, FileName);
         _log = log;
     }
 

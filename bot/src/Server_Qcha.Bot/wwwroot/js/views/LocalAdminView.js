@@ -16,6 +16,62 @@ export const LocalAdminView = {
           </el-alert>
 
           <template v-if="capabilities.localAdmin">
+          <!-- 守护进程 (Server_Qcha.Daemon) 监控与控制面板 -->
+          <el-card shadow="hover" style="margin-bottom:14px; border-radius:8px">
+            <template #header>
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
+                <div style="display:flex; align-items:center; gap:10px">
+                  <span style="font-weight:bold; font-size:15px">🛡️ LocalAdmin 独立守护进程 (Server_Qcha.Daemon)</span>
+                  <el-tag :type="daemon.online ? 'success' : 'danger'" effect="dark" size="small">
+                    {{ daemon.online ? ('运行中 (PID: ' + (daemon.pid || '-') + ')') : '已停止 / 未运行' }}
+                  </el-tag>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px">
+                  <el-button v-if="!daemon.online" type="success" size="small" :loading="daemon.loading" @click="startDaemon">
+                    启动守护进程
+                  </el-button>
+                  <el-button v-if="daemon.online" type="warning" size="small" :loading="daemon.loading" @click="restartDaemon">
+                    重启守护进程
+                  </el-button>
+                  <el-button v-if="daemon.online" type="danger" size="small" :loading="daemon.loading" @click="stopDaemon">
+                    停止守护进程
+                  </el-button>
+                  <el-button size="small" :loading="daemon.loading" @click="fetchDaemonStatus">
+                    刷新状态
+                  </el-button>
+                </div>
+              </div>
+            </template>
+            <el-descriptions :column="4" border size="small">
+              <el-descriptions-item label="物理内存 (工作集)">
+                {{ daemon.online ? (daemon.memoryWorkingSetMb + ' MB') : '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="专用内存">
+                {{ daemon.online ? (daemon.memoryPrivateMb + ' MB') : '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="运行时长">
+                {{ daemon.online ? formatUptime(daemon.uptimeSeconds) : '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="活动线程">
+                {{ daemon.online ? daemon.threadCount : '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="托管服务器">
+                {{ daemon.online ? (daemon.runningServerCount + ' 运行中 / 共 ' + daemon.serverCount + ' 台') : '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="内部通信端口">
+                <code>{{ daemon.listenUri || 'http://127.0.0.1:10090' }}</code>
+              </el-descriptions-item>
+              <el-descriptions-item label="守护版本">
+                {{ daemon.online ? daemon.version : '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="状态说明">
+                <span :style="{ color: daemon.online ? '#67C23A' : '#F56C6C', fontWeight: 500 }">
+                  {{ daemon.message || (daemon.online ? '守护正常，关闭或升级面板游戏服不断线' : '守护进程未运行') }}
+                </span>
+              </el-descriptions-item>
+            </el-descriptions>
+          </el-card>
+
           <div class="toolbar">
             <el-select v-model="local.selectedId" style="width:260px" placeholder="选择服务器" @change="onLocalServerChange">
               <el-option v-for="s in local.servers" :key="s.id" :label="s.name" :value="s.id"></el-option>

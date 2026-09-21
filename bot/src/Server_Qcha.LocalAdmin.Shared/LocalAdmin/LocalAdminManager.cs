@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Server.Qcat.Configuration;
+using Server.Qcat.LocalAdmin.Models;
 
 namespace Server.Qcat.LocalAdmin;
 
@@ -398,35 +400,29 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
     /// <summary>
     /// 对应官方指令 <c>lacfg</c>：打印当前生效的配置与配置文件路径。
     /// </summary>
-    public object GetConfigInfo()
+    public LocalConfigInfo GetConfigInfo()
     {
         lock (_gate)
         {
-            return new
-            {
-                enabled = Enabled,
-                contentRoot = _contentRootPath,
-                serversConfigPath = _store.ConfigPath,
-                serversConfigExists = _store.Exists,
-                source = _store.Exists ? "config-file" : "appsettings",
-                serverCount = _definitions.Count,
-                global = new
-                {
-                    consoleBufferLines = _options.ConsoleBufferLines,
-                    logDirectory = _options.LogDirectory,
-                    writeLogFiles = _options.WriteLogFiles,
-                    logExpirationDays = _options.LogExpirationDays,
-                    defaultExecutablePath = _options.DefaultExecutablePath,
-                },
-                servers = _definitions.Select(d => new
-                {
+            return new LocalConfigInfo(
+                Enabled,
+                _contentRootPath,
+                _store.ConfigPath,
+                _store.Exists,
+                _store.Exists ? "config-file" : "appsettings",
+                _definitions.Count,
+                new LocalGlobalConfigDto(
+                    _options.ConsoleBufferLines,
+                    _options.LogDirectory,
+                    _options.WriteLogFiles,
+                    _options.LogExpirationDays,
+                    _options.DefaultExecutablePath),
+                _definitions.Select(d => new LocalServerConfigSummaryDto(
                     d.Id,
                     d.Name,
                     d.GamePort,
                     d.ConsoleLevel,
-                    d.AutoStart,
-                }).ToList(),
-            };
+                    d.AutoStart)).ToList());
         }
     }
 

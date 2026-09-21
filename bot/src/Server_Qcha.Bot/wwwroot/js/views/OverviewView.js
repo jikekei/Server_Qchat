@@ -19,8 +19,13 @@ export const OverviewView = {
                 <span class="kpi-title">托管服务器</span>
                 <span class="kpi-value">{{ overview.stats.serverCount }} <span style="font-size:14px;font-weight:400;color:var(--qb-text-2)">台</span></span>
                 <span class="kpi-sub">
-                  <span class="pulse-dot" :class="{ offline: overview.stats.serverCount === 0 }"></span>
-                  {{ overview.stats.serverCount > 0 ? '网关运行中' : '等待服务器注册' }}
+                  <span class="pulse-dot" :class="{ offline: overview.stats.serverCount === 0 || (overview.stats.localAdminEnabled && overview.stats.localRunningCount === 0 && overview.stats.onlineServers === 0) }"></span>
+                  <template v-if="overview.stats.localAdminEnabled">
+                    {{ overview.stats.localRunningCount > 0 ? (overview.stats.localRunningCount + ' 台运行中') : (overview.stats.serverCount > 0 ? '已配置待启动' : '等待添加服务器') }}
+                  </template>
+                  <template v-else>
+                    {{ overview.stats.onlineServers > 0 ? (overview.stats.onlineServers + ' 台在线') : (overview.stats.serverCount > 0 ? '网关运行中' : '等待服务器注册') }}
+                  </template>
                 </span>
               </div>
               <div class="kpi-icon-box kpi-icon-servers">
@@ -59,8 +64,12 @@ export const OverviewView = {
                 </span>
                 <span class="kpi-sub">
                   <span class="pulse-dot" :class="{ offline: !overview.stats.botConnected }"></span>
-                  <span v-if="overview.stats.botLatencyMs >= 0">延迟 {{ overview.stats.botLatencyMs }}ms</span>
-                  <span v-else>{{ overview.stats.botConnected ? '在线' : '离线待连' }}</span>
+                  <span v-if="overview.stats.botConnected">
+                    {{ overview.stats.botNickname ? (overview.stats.botNickname + ' 在线') : '在线' }}
+                  </span>
+                  <span v-else>
+                    {{ overview.stats.botPlatform === 'OfficialQq' ? '官方 API 待连接' : 'NapCat 离线待连' }}
+                  </span>
                 </span>
               </div>
               <div class="kpi-icon-box kpi-icon-bot">
@@ -82,7 +91,7 @@ export const OverviewView = {
                 </span>
                 <span class="kpi-sub">
                   <span class="pulse-dot" :class="{ offline: !overview.stats.mysqlConnected }"></span>
-                  {{ overview.stats.mysqlConnected ? '数据持久化正常' : '请检查数据库配置' }}
+                  {{ overview.stats.mysqlConnected ? '数据持久化正常' : (overview.stats.dbConfigured ? '连接异常请排查' : '请检查数据库配置') }}
                 </span>
               </div>
               <div class="kpi-icon-box kpi-icon-mysql">

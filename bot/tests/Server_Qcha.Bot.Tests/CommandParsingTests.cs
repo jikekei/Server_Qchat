@@ -33,5 +33,15 @@ public class CommandParsingTests
         Assert.Equal("60", time);
         Assert.Equal("reason with spaces", reason);
     }
+
+    [Fact]
+    public void GetVersionDetails_ContainsExpectedInformation()
+    {
+        string details = CommandRouter.GetVersionDetails();
+        Assert.Contains("Qcha QQ Bot 版本详情", details);
+        Assert.Contains("机器人版本: v2.0.0", details);
+        Assert.Contains("核心特性:", details);
+        Assert.Contains("运行时环境: .NET", details);
+    }
 }
 

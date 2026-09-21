@@ -17,6 +17,7 @@ namespace Server.Qcat.Configuration;
 public sealed class BotSettingsStore
 {
     public const string FileName = "bot-settings.json";
+    public const string RelativePath = "data/bot-settings.json";
 
     private readonly string _path;
     private readonly IConfiguration _configuration;
@@ -27,11 +28,13 @@ public sealed class BotSettingsStore
         WriteIndented = true,
         PropertyNamingPolicy = null, // 保持 PascalCase 与 appsettings 一致
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        // 枚举按名称写出（Mode: "NapCat" / "OfficialQq"），便于人工阅读与手工编辑
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
     };
 
     public BotSettingsStore(string contentRootPath, IConfiguration configuration, ILogger<BotSettingsStore> log)
     {
-        _path = Path.Combine(contentRootPath, FileName);
+        _path = DataDirectoryManager.GetDataFilePath(contentRootPath, FileName);
         _configuration = configuration;
         _log = log;
     }
@@ -41,8 +44,9 @@ public sealed class BotSettingsStore
 
     public sealed class BotSettingsModel
     {
-        public GoCqHttpOptions GoCqHttp { get; set; } = new();
         public BotOptions Bot { get; set; } = new();
+        public GoCqHttpOptions GoCqHttp { get; set; } = new();
+        public OfficialQqOptions OfficialQq { get; set; } = new();
         public MySqlOptions MySql { get; set; } = new();
     }
 
@@ -53,14 +57,20 @@ public sealed class BotSettingsStore
     public BotSettingsModel LoadCurrent()
     {
         var model = new BotSettingsModel();
-        _configuration.GetSection("GoCqHttp").Bind(model.GoCqHttp);
         _configuration.GetSection("Bot").Bind(model.Bot);
+        _configuration.GetSection("GoCqHttp").Bind(model.GoCqHttp);
+        _configuration.GetSection("OfficialQq").Bind(model.OfficialQq);
         _configuration.GetSection("MySql").Bind(model.MySql);
 
         // 规范化，确保数组不为 null
         model.Bot.AllowedGroupIds ??= Array.Empty<long>();
         model.Bot.NotifyGroupIds ??= Array.Empty<long>();
         model.Bot.NotifyPrivateUserIds ??= Array.Empty<long>();
+
+        model.OfficialQq.AdminOpenIds ??= Array.Empty<string>();
+        model.OfficialQq.AllowedGroupOpenIds ??= Array.Empty<string>();
+        model.OfficialQq.NotifyGroupOpenIds ??= Array.Empty<string>();
+        model.OfficialQq.NotifyPrivateOpenIds ??= Array.Empty<string>();
 
         return model;
     }
@@ -73,6 +83,11 @@ public sealed class BotSettingsStore
         model.Bot.AllowedGroupIds ??= Array.Empty<long>();
         model.Bot.NotifyGroupIds ??= Array.Empty<long>();
         model.Bot.NotifyPrivateUserIds ??= Array.Empty<long>();
+
+        model.OfficialQq.AdminOpenIds ??= Array.Empty<string>();
+        model.OfficialQq.AllowedGroupOpenIds ??= Array.Empty<string>();
+        model.OfficialQq.NotifyGroupOpenIds ??= Array.Empty<string>();
+        model.OfficialQq.NotifyPrivateOpenIds ??= Array.Empty<string>();
 
         string json = JsonSerializer.Serialize(model, JsonOptions);
 

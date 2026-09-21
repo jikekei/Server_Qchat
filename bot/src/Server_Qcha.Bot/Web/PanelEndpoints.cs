@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Server.Qcat.Bot;
 using Server.Qcat.Configuration;
 using Server.Qcat.Data;
+using Server.Qcat.LocalAdmin;
 using Server.Qcat.Services;
 using Server.Qcat.Socket;
 
@@ -71,9 +72,10 @@ public static class PanelEndpoints
         PanelAuthService auth,
         ServerRegistry registry,
         PlayerHistoryTracker historyTracker,
-        GoCqHttpBotService botService,
+        BotClientAccessor botAccessor,
         BotSettingsStore botStore,
         GameDbRepository dbRepo,
+        ILocalAdminProvider localAdmin,
         CancellationToken ct)
     {
         var (_, error) = await AuthorizeAsync(ctx, auth, PanelPermission.ServersView);
@@ -104,19 +106,29 @@ public static class PanelEndpoints
         }).ToList();
 
         int totalOnlinePlayers = serverList.Where(s => s.isOnline).Sum(s => s.onlinePlayers);
+        int totalMaxPlayers = serverList.Where(s => s.isOnline).Sum(s => s.maxPlayers);
+        if (totalMaxPlayers == 0 && serverList.Count > 0)
+            totalMaxPlayers = serverList.Sum(s => s.maxPlayers);
         int peakToday = Math.Max(totalOnlinePlayers, historyTracker.PeakToday);
 
         object? dbSummary = null;
+        bool mysqlConnected = false;
         if (!string.IsNullOrWhiteSpace(dbRepo.CurrentConnectionString))
         {
             try
             {
-                dbSummary = await dbRepo.GetSummaryAsync(ct);
+                var summary = await dbRepo.GetSummaryAsync(ct);
+                dbSummary = summary;
+                mysqlConnected = summary.IsConnected;
             }
             catch { }
         }
 
         var botSettings = botStore.LoadCurrent();
+
+        var localList = await localAdmin.ListServersAsync(ct);
+        int localServerCount = localList.Enabled ? localList.Total : 0;
+        int localRunningCount = localList.Enabled ? localList.Servers.Count(s => s.Running) : 0;
 
         var history = historyTracker.GetHistory(60).Select(h => new
         {
@@ -130,14 +142,30 @@ public static class PanelEndpoints
         {
             stats = new
             {
+                // 服务器数量统计（兼容前端 serverCount / totalServers / onlineServers）
+                serverCount = localList.Enabled ? (localServerCount > 0 ? localServerCount : totalServers) : totalServers,
                 totalServers,
                 onlineServers,
+                localServerCount,
+                localRunningCount,
+                localAdminEnabled = localList.Enabled,
+
+                // 玩家统计（同时输出 totalOnline / totalOnlinePlayers 与 totalMax）
+                totalOnline = totalOnlinePlayers,
                 totalOnlinePlayers,
+                totalMax = totalMaxPlayers,
+                totalMaxPlayers,
                 peakToday,
-                botConnected = botService.IsConnected,
-                botUserId = botService.ConnectedUserId,
-                botNickname = botService.ConnectedNickname,
+
+                // QQ 机器人状态
+                botConnected = botAccessor.Current?.IsConnected ?? false,
+                botPlatform = botAccessor.Current?.Platform.ToString() ?? botSettings.Bot.Mode.ToString(),
+                botUserId = botAccessor.Current?.ConnectedUserId,
+                botNickname = botAccessor.Current?.ConnectedNickname,
                 botAllowedGroups = botSettings.Bot.AllowedGroupIds?.Length ?? 0,
+
+                // MySQL 数据库状态（提供直接布尔值与完整 summary）
+                mysqlConnected,
                 dbConfigured = !string.IsNullOrWhiteSpace(dbRepo.CurrentConnectionString),
                 dbSummary
             },
@@ -279,8 +307,9 @@ public static class PanelEndpoints
 
     // ==================== 元数据 ====================
 
-    private static IResult GetMeta(IServerCommandGateway gateway, LocalAdmin.LocalAdminManager localAdmin)
+    private static async Task<IResult> GetMeta(IServerCommandGateway gateway, ILocalAdminProvider localAdmin, CancellationToken ct)
     {
+        var localList = await localAdmin.ListServersAsync(ct);
         return Results.Json(new
         {
             gateway = gateway.Name,
@@ -301,9 +330,9 @@ public static class PanelEndpoints
             capabilities = new
             {
                 // LocalAdmin 能力是否可用（配置开启后前端才显示「服务器进程」页）
-                localAdminGateway = localAdmin.Enabled,
-                serverControl = localAdmin.Enabled,
-                localServerCount = localAdmin.Instances.Count,
+                localAdminGateway = localList.Enabled,
+                serverControl = localList.Enabled,
+                localServerCount = localList.Total,
             },
         });
     }

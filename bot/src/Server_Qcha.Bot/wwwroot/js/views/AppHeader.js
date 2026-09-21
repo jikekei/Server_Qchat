@@ -24,7 +24,7 @@ export const AppHeader = {
             <line x1="4.5" y1="15" x2="4.5" y2="19"/>
             <line x1="19.5" y1="15" x2="19.5" y2="19"/>
           </svg>
-          Qridge
+          Qridge <span style="font-size:12px;opacity:0.65;font-weight:normal;margin-left:6px">v2.0.0</span>
         </div>
       </div>
       <div class="user">

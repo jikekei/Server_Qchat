@@ -30,6 +30,7 @@ public static class ConsoleExitHandler
     private const uint MB_YESNO = 0x00000004;
     private const uint MB_ICONWARNING = 0x00000030;
     private const uint MB_ICONERROR = 0x00000010;
+    private const uint MB_ICONINFORMATION = 0x00000040;
     private const uint MB_DEFBUTTON2 = 0x00000100;
     private const uint MB_SYSTEMMODAL = 0x00001000;
     private const int IDYES = 6;
@@ -37,6 +38,7 @@ public static class ConsoleExitHandler
     private static ConsoleCtrlDelegate? _ctrlHandler;
     private static IHostApplicationLifetime? _lifetime;
     private static ILogger? _logger;
+    private static bool _isDaemonMode = true;
     private static bool _isExitingConfirmed = false;
     private static readonly object _exitLock = new();
 
@@ -57,10 +59,11 @@ public static class ConsoleExitHandler
     private const uint MF_GRAYED = 0x00000001;
     private const uint MF_DISABLED = 0x00000002;
 
-    public static void Initialize(IHostApplicationLifetime lifetime, ILogger logger)
+    public static void Initialize(IHostApplicationLifetime lifetime, ILogger logger, bool isDaemonMode = true)
     {
         _lifetime = lifetime;
         _logger = logger;
+        _isDaemonMode = isDaemonMode;
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -108,6 +111,52 @@ public static class ConsoleExitHandler
         {
             if (_isExitingConfirmed)
                 return;
+
+            if (_isDaemonMode)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("================================================================================");
+                Console.WriteLine("【退出提示】检测到正在尝试关闭 Server_Qcha.Bot.exe 控制台！");
+                Console.WriteLine("【运行状态说明】：");
+                Console.ResetColor();
+
+                Console.BackgroundColor = ConsoleColor.DarkGreen;
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine("  1. 当前处于独立守护模式 (Daemon 架构)：");
+                Console.WriteLine("     SCPSL 游戏服务器进程由独立守护进程 (Server_Qcha.Daemon.exe) 持续托管；");
+                Console.WriteLine("     关闭 Server_Qcha.Bot.exe 不会影响游戏服务器，在线玩家不会掉线！  ");
+                Console.ResetColor();
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("  2. 关闭后仅 Web 管理面板与 QQ 机器人停止运行。");
+                Console.WriteLine("================================================================================");
+                Console.ResetColor();
+
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.Write("确定要退出 Server_Qcha.Bot.exe 吗？(输入 Y 确认，输入其它任意键取消): ");
+                Console.ResetColor();
+
+                string? input = Console.ReadLine()?.Trim();
+                if (!string.Equals(input, "Y", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine(">> 已取消退出，Server_Qcha.Bot.exe 继续正常运行。\n");
+                    Console.ResetColor();
+                    return;
+                }
+
+                _isExitingConfirmed = true;
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine(">> 正在退出 Server_Qcha.Bot.exe（游戏服务器由守护进程继续保持运行）...");
+                Console.ResetColor();
+
+                Task.Run(() =>
+                {
+                    _lifetime?.StopApplication();
+                });
+                return;
+            }
 
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Red;
@@ -181,6 +230,27 @@ public static class ConsoleExitHandler
         {
             if (_isExitingConfirmed)
                 return false;
+
+            if (_isDaemonMode)
+            {
+                int res = MessageBox(
+                    IntPtr.Zero,
+                    "检测到您正在尝试关闭 Server_Qcha.Bot.exe 控制台窗口！\n\n" +
+                    "【架构提示】：\n" +
+                    "当前采用独立守护架构 (Daemon 模式)。\n" +
+                    "关闭 Server_Qcha.Bot.exe 仅退出 Web 面板与 QQ 机器人；\n" +
+                    "托管的 SCPSL 游戏服务器由 Server_Qcha.Daemon 持续托管，在线玩家不会掉线！\n\n" +
+                    "确定要退出吗？",
+                    "关闭 Server_Qcha.Bot 确认",
+                    MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON2 | MB_SYSTEMMODAL);
+
+                if (res != IDYES)
+                    return true;
+
+                _isExitingConfirmed = true;
+                _lifetime?.StopApplication();
+                return false;
+            }
 
             // 第一次确认弹窗
             int res1 = MessageBox(
