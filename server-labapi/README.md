@@ -82,4 +82,4 @@ dotnet build server-labapi/Server_Qcha.csproj -c Release
 
 ## 许可证
 
-保留所有权  liseximt@outlook.com
+Copyright © 2025 hmyhserver.top Lab. All rights reserved.

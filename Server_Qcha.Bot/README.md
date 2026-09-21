@@ -81,4 +81,4 @@ SocketServer 需要返回可读文本作为机器人回复。
 
 默认使用 MIT 许可证，见 `LICENSE`。
 
-保留所有权  liseximt@outlook.com
+Copyright © 2025 hmyhserver.top Lab. All rights reserved.
