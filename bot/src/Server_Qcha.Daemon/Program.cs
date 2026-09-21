@@ -34,6 +34,33 @@ catch
     // 忽略非特权环境互斥体创建失败
 }
 
+DateTime lastCtrlCTime = DateTime.MinValue;
+Console.CancelKeyPress += (sender, e) =>
+{
+    var now = DateTime.UtcNow;
+    if ((now - lastCtrlCTime).TotalSeconds < 4)
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("\n[退出确认] 正在安全停止守护进程并释放相关资源...");
+        Console.ResetColor();
+        e.Cancel = false;
+    }
+    else
+    {
+        e.Cancel = true;
+        lastCtrlCTime = now;
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine();
+        Console.WriteLine("================================================================================");
+        Console.WriteLine("  【高危警告】检测到控制台关闭/中断信号 (Ctrl+C)！");
+        Console.WriteLine("  停止守护进程将导致其托管的全部 SCPSL 游戏服务器一并退出，在线玩家全部掉线！");
+        Console.WriteLine("  提示：若仅维护或重启 Web 控制台与机器人，游戏服仍可常驻，无需退出守护进程。");
+        Console.WriteLine("  若确认要强制退出守护进程，请在 4 秒内再次按下 Ctrl+C 确认退出。");
+        Console.WriteLine("================================================================================");
+        Console.ResetColor();
+    }
+};
+
 var builder = WebApplication.CreateBuilder(args);
 
 // 确保 data/ 目录存在并完成迁移

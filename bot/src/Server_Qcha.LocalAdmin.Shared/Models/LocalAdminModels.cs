@@ -10,6 +10,7 @@ public sealed record LocalRestartRequest(bool? Force);
 public sealed record LocalConsoleRequest(string? Command);
 public sealed record LocalHeartbeatRequest(bool? Enabled);
 public sealed record LocalConsoleLevelRequest(string? Level);
+public sealed record DaemonActionRequest(bool Confirm = false);
 
 /// <summary>
 /// 新增/修改服务器的请求体。字段可空：缺省即采用 <see cref="LocalServerDefinition"/> 的默认值。
