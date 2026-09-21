@@ -21,7 +21,7 @@ export const LocalAdminView = {
             <template #header>
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
                 <div style="display:flex; align-items:center; gap:10px">
-                  <span style="font-weight:bold; font-size:15px">LocalAdmin 独立守护进程 (Server_Qcha.Daemon)</span>
+                  <span style="font-weight:bold; font-size:15px">🛡️ LocalAdmin 独立守护进程 (Server_Qcha.Daemon)</span>
                   <el-tag :type="daemon.online ? 'success' : 'danger'" effect="dark" size="small">
                     {{ daemon.online ? ('运行中 (PID: ' + (daemon.pid || '-') + ')') : '已停止 / 未运行' }}
                   </el-tag>

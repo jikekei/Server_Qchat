@@ -110,23 +110,12 @@ async function startDaemon() {
 async function stopDaemon() {
   try {
     await ElMessageBox.confirm(
-      '<div style="line-height:1.8">' +
-        '<p style="color:#f56c6c; font-weight:bold; font-size:15px; margin-bottom:8px">' +
-          '高危操作警告：停止守护进程将导致全服停机！' +
-        '</p>' +
-        '<p>停止 <strong>Server_Qcha.Daemon</strong> 独立守护进程将导致其托管的<strong>全部 SCPSL 游戏服务器一并退出</strong>，当前正在游玩的全体在线玩家将立即全部掉线断开！</p>' +
-        '<p style="color:#909399; font-size:13px; margin-top:8px">' +
-          '提示：若仅需更新、重启或维护 Web 控制台与机器人，游戏服将持续正常运行，<strong>无需停止守护进程</strong>。' +
-        '</p>' +
-      '</div>',
-      '停止守护进程警告确认',
+      '确定要停止 Server_Qcha.Daemon 独立守护进程吗？\n\n【高危警示】：守护进程停止会导致其托管的全部 SCPSL 游戏服务器一并退出，在线玩家将断开连接！',
+      '停止守护进程确认',
       {
-        confirmButtonText: '我已知晓风险，确认停止',
+        confirmButtonText: '确认停止',
         cancelButtonText: '取消',
-        confirmButtonClass: 'el-button--danger',
-        type: 'error',
-        dangerouslyUseHTMLString: true,
-        distinguishCancelAndClose: true,
+        type: 'warning',
       }
     );
   } catch {
@@ -135,10 +124,7 @@ async function stopDaemon() {
 
   daemon.loading = true;
   try {
-    const r = await api('/local/daemon/stop', {
-      method: 'POST',
-      body: JSON.stringify({ confirm: true }),
-    });
+    const r = await api('/local/daemon/stop', { method: 'POST' });
     if (r.success) {
       ElMessage.success(r.response || '守护进程已停止');
       await fetchDaemonStatus();
@@ -156,20 +142,12 @@ async function stopDaemon() {
 async function restartDaemon() {
   try {
     await ElMessageBox.confirm(
-      '<div style="line-height:1.8">' +
-        '<p style="color:#e6a23c; font-weight:bold; font-size:15px; margin-bottom:8px">' +
-          '高危操作警告：重启守护进程将导致游戏服重新拉起！' +
-        '</p>' +
-        '<p>重启 <strong>Server_Qcha.Daemon</strong> 独立守护进程将导致受其托管的游戏服一同关闭并按配置重新拉起，当前在线玩家将断开连接！</p>' +
-      '</div>',
-      '重启守护进程警告确认',
+      '确定要重启 Server_Qcha.Daemon 独立守护进程吗？\n\n【高危警示】：重启守护进程会导致受其托管的游戏服一同关闭并按设置重新拉起，在线玩家可能断开连接！',
+      '重启守护进程确认',
       {
-        confirmButtonText: '我已知晓风险，确认重启',
+        confirmButtonText: '确认重启',
         cancelButtonText: '取消',
-        confirmButtonClass: 'el-button--warning',
         type: 'warning',
-        dangerouslyUseHTMLString: true,
-        distinguishCancelAndClose: true,
       }
     );
   } catch {
@@ -178,10 +156,7 @@ async function restartDaemon() {
 
   daemon.loading = true;
   try {
-    const r = await api('/local/daemon/restart', {
-      method: 'POST',
-      body: JSON.stringify({ confirm: true }),
-    });
+    const r = await api('/local/daemon/restart', { method: 'POST' });
     if (r.success) {
       ElMessage.success(r.response || '守护进程已成功重启');
       await fetchDaemonStatus();
@@ -564,12 +539,12 @@ async function localStop(mode) {
   try {
     await ElMessageBox.confirm(
       `<div style="line-height:1.7;">
-        <p style="font-weight:bold;color:#f56c6c;font-size:15px;margin-bottom:8px;">【严重警告】关闭程序将导致服务器直接断开下线！</p>
+        <p style="font-weight:bold;color:#f56c6c;font-size:15px;margin-bottom:8px;">⚠️ 严重警告：关闭程序将导致服务器直接断开下线！</p>
         <p>确定要对【<b>${serverName}</b>】执行「<b>${action}</b>」吗？</p>
         <div style="color:#e6a23c;margin-top:8px;background:rgba(230,162,60,0.12);padding:10px;border-radius:6px;border-left:4px solid #e6a23c;">
           <b>【操作后果提示】</b><br/>
           <div style="background:#e53e3e;color:#ffffff;padding:8px 10px;border-radius:4px;font-weight:bold;margin:6px 0;">
-            1. 游戏服务端进程将被立即终止，所有在线玩家将立即全部掉线！
+            🚨 1. 游戏服务端进程将被立即终止，所有在线玩家将立即全部掉线！
           </div>
           2. 正在进行的游戏对局数据可能无法完整保存；<br/>
           3. 服务器将从在线列表中移除，外部玩家无法再连接。
@@ -589,10 +564,10 @@ async function localStop(mode) {
   try {
     await ElMessageBox.confirm(
       `<div style="line-height:1.7;">
-        <p style="font-weight:bold;color:#f56c6c;font-size:15px;margin-bottom:8px;">【最终二次确认】真的要立即关闭服务器吗？</p>
+        <p style="font-weight:bold;color:#f56c6c;font-size:15px;margin-bottom:8px;">🚨 最终二次确认：真的要立即关闭服务器吗？</p>
         <p>请再次确认：您即将彻底停止【<b>${serverName}</b>】进程！</p>
         <p style="color:#f56c6c;margin-top:6px;font-weight:bold;">
-          点击确认后，该服务器将立即停止，所有在线玩家全部掉线！
+          💥 点击确认后，该服务器将立即停止，所有在线玩家全部掉线！
         </p>
         <p style="color:#909399;font-size:12px;margin-top:6px;">
           （若只是想更换地图或重开对局，请点取消并使用「重启」或游戏内指令）
@@ -619,7 +594,7 @@ async function localRestart(force) {
   try {
     await ElMessageBox.confirm(
       `<div style="line-height:1.7;">
-        <p style="font-weight:bold;color:#e6a23c;font-size:15px;margin-bottom:8px;">【重启警告】重启服务器将导致在线玩家掉线！</p>
+        <p style="font-weight:bold;color:#e6a23c;font-size:15px;margin-bottom:8px;">⚠️ 重启警告：重启服务器将导致在线玩家掉线！</p>
         <p>确定要对【<b>${serverName}</b>】执行「<b>${action}</b>」吗？</p>
         <div style="color:#f56c6c;margin-top:8px;background:rgba(245,108,108,0.1);padding:10px;border-radius:6px;border-left:4px solid #f56c6c;">
           <b>提示：</b>对局将被强制终止，<b>所有正在游玩的玩家将全部断开掉线</b>，直至服务端重新启动完毕。

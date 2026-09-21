@@ -331,40 +331,22 @@ public static class LocalAdminEndpoints
         return ToActionResult(result);
     }
 
-    private static async Task<IResult> StopDaemonAsync(DaemonActionRequest? request, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    private static async Task<IResult> StopDaemonAsync(HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
     {
         var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
         if (error is not null)
             return error;
-
-        if (request is null || !request.Confirm)
-        {
-            return Results.Json(new
-            {
-                success = false,
-                error = "操作被拦截：停止守护进程将导致所有受托管的 SCPSL 游戏服务器一并退出，必须确认警告后才能关闭。"
-            }, statusCode: StatusCodes.Status400BadRequest);
-        }
 
         var result = await provider.StopDaemonAsync(ct);
         await AuditAsync(ctx, session!.Username, "localadmin.daemon-stop", "daemon", "关闭 LocalAdmin 独立守护进程", result.Success, ct);
         return ToActionResult(result);
     }
 
-    private static async Task<IResult> RestartDaemonAsync(DaemonActionRequest? request, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    private static async Task<IResult> RestartDaemonAsync(HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
     {
         var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
         if (error is not null)
             return error;
-
-        if (request is null || !request.Confirm)
-        {
-            return Results.Json(new
-            {
-                success = false,
-                error = "操作被拦截：重启守护进程将导致所有受托管的游戏服务器重新拉起，必须确认警告后才能重启。"
-            }, statusCode: StatusCodes.Status400BadRequest);
-        }
 
         var result = await provider.RestartDaemonAsync(ct);
         await AuditAsync(ctx, session!.Username, "localadmin.daemon-restart", "daemon", "重启 LocalAdmin 独立守护进程", result.Success, ct);
