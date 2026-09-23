@@ -33,7 +33,7 @@ const overview = reactive({
 async function loadOverview() {
   overview.loading = true;
   try {
-    const data = await api('/overview');
+    const data = await api(`/overview?historyRange=${encodeURIComponent(overview.historyRange)}`);
     if (data) {
       const s = data.stats || {};
       const servers = data.servers || [];
@@ -77,6 +77,11 @@ async function loadOverview() {
   }
 }
 
+async function onHistoryRangeChange() {
+  overview.hoverIdx = -1;
+  await loadOverview();
+}
+
 // 周期性轮询总览数据（15秒一次）
 let overviewTimer = null;
 function startOverviewPolling() {
@@ -96,16 +101,47 @@ const chartPadB = 35;
 const chartPlotW = 1000 - chartPadL - chartPadR; // 925
 const chartPlotH = 260 - chartPadT - chartPadB;  // 205
 
-// 根据时间范围筛选历史数据
+const chartRangeMs = computed(() => ({
+  '1h': 60 * 60 * 1000,
+  '6h': 6 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
+}[overview.historyRange] || 24 * 60 * 60 * 1000));
+
+// 历史不足所选窗口时，以当前可用数据的最早时间作为横轴起点，让已有曲线铺满图表。
+const chartWindow = computed(() => {
+  const end = overview.lastUpdated ? new Date(overview.lastUpdated).getTime() : Date.now();
+  const requestedStart = end - chartRangeMs.value;
+  let firstAvailable = Infinity;
+  for (const point of overview.history || []) {
+    const timestamp = new Date(point.timestamp).getTime();
+    if (Number.isFinite(timestamp) && timestamp >= requestedStart && timestamp <= end && timestamp < firstAvailable) {
+      firstAvailable = timestamp;
+    }
+  }
+  const start = Number.isFinite(firstAvailable) && firstAvailable > requestedStart
+    ? firstAvailable
+    : requestedStart;
+  return { start, end, duration: Math.max(1, end - start) };
+});
+
+// 根据真实时间范围筛选采样点。历史尚未积累到所选范围时，图表只显示已有部分。
 const filteredHistory = computed(() => {
   const all = overview.history || [];
-  if (all.length === 0) return [];
-  if (overview.historyRange === '1h') {
-    return all.slice(-120);
-  } else if (overview.historyRange === '6h') {
-    return all.slice(-720);
-  }
-  return all;
+  const start = chartWindow.value.start;
+  const end = chartWindow.value.end;
+  return all.filter(point => {
+    const timestamp = new Date(point.timestamp).getTime();
+    return Number.isFinite(timestamp) && timestamp >= start && timestamp <= end;
+  });
+});
+
+const chartDataSummary = computed(() => {
+  const points = filteredHistory.value;
+  if (points.length === 0) return '所选时间范围内暂无采样数据';
+  const first = formatChartTime(points[0].timestamp);
+  const last = formatChartTime(points[points.length - 1].timestamp);
+  return `当前区间实际采样 ${points.length} 个点：${first} 至 ${last}`;
 });
 
 // 计算 Y 轴最大值和刻度
@@ -124,7 +160,7 @@ const chartMaxY = computed(() => {
 
 const chartYGrid = computed(() => {
   const maxY = chartMaxY.value;
-  const steps = 4;
+  const steps = maxY <= 5 ? maxY : 5;
   const grids = [];
   for (let i = 0; i <= steps; i++) {
     const val = Math.round((maxY / steps) * i);
@@ -142,10 +178,13 @@ const chartPoints = computed(() => {
   const n = list.length;
   if (n === 1) {
     const y = chartPadT + chartPlotH - (list[0].totalOnline / maxY) * chartPlotH;
-    return [{ x: chartPadL + chartPlotW / 2, y, raw: list[0] }];
+    const timestamp = new Date(list[0].timestamp).getTime();
+    const x = chartPadL + ((timestamp - chartWindow.value.start) / chartWindow.value.duration) * chartPlotW;
+    return [{ x, y, raw: list[0] }];
   }
   return list.map((item, idx) => {
-    const x = chartPadL + (idx / (n - 1)) * chartPlotW;
+    const timestamp = new Date(item.timestamp).getTime();
+    const x = chartPadL + ((timestamp - chartWindow.value.start) / chartWindow.value.duration) * chartPlotW;
     const y = chartPadT + chartPlotH - (item.totalOnline / maxY) * chartPlotH;
     return { x, y, raw: item };
   });
@@ -156,7 +195,7 @@ const chartLinePath = computed(() => {
   const pts = chartPoints.value;
   if (!pts || pts.length === 0) return '';
   if (pts.length === 1) {
-    return `M ${chartPadL} ${pts[0].y.toFixed(1)} L ${(1000 - chartPadR)} ${pts[0].y.toFixed(1)}`;
+    return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)} L ${(pts[0].x + 0.1).toFixed(1)} ${pts[0].y.toFixed(1)}`;
   }
   let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
   for (let i = 0; i < pts.length - 1; i++) {
@@ -187,20 +226,28 @@ const chartAreaPath = computed(() => {
 
 // X 轴时间刻度标签
 const chartXLabels = computed(() => {
-  const pts = chartPoints.value;
-  if (!pts || pts.length === 0) return [];
-  const count = Math.min(6, pts.length);
-  if (count <= 1) return [{ x: pts[0].x, text: pts[0].raw.timeLabel }];
-  const labels = [];
-  for (let i = 0; i < count; i++) {
-    const idx = Math.round((i / (count - 1)) * (pts.length - 1));
-    labels.push({
-      x: pts[idx].x,
-      text: pts[idx].raw.timeLabel
-    });
-  }
-  return labels;
+  const { start, end, duration } = chartWindow.value;
+  const count = 6;
+  return Array.from({ length: count }, (_, index) => {
+    const timestamp = start + (duration * index) / (count - 1);
+    const x = chartPadL + (index / (count - 1)) * chartPlotW;
+    return { x, text: formatChartTime(timestamp) };
+  });
 });
+
+function formatChartTime(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = value => String(value).padStart(2, '0');
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  if (overview.historyRange === '1h') {
+    return `${time}:${pad(date.getSeconds())}`;
+  }
+  if (overview.historyRange === '30d') {
+    return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${time}`;
+  }
+  return time;
+}
 
 // 悬浮点与 Tooltip 计算
 const hoverPoint = computed(() => {
@@ -262,14 +309,17 @@ export function useOverview() {
   return {
     overview,
     loadOverview,
+    onHistoryRangeChange,
     startOverviewPolling,
     filteredHistory,
+    chartDataSummary,
     chartMaxY,
     chartYGrid,
     chartPoints,
     chartLinePath,
     chartAreaPath,
     chartXLabels,
+    formatChartTime,
     hoverPoint,
     hoverTooltipStyle,
     onChartMouseMove,

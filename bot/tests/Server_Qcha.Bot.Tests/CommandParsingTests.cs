@@ -1,4 +1,5 @@
 using Server.Qcat.Bot;
+using Server.Qcat.Web;
 
 namespace Server.Qcat.Tests;
 
@@ -42,6 +43,16 @@ public class CommandParsingTests
         Assert.Contains("机器人版本: v2.0.0", details);
         Assert.Contains("核心特性:", details);
         Assert.Contains("运行时环境: .NET", details);
+    }
+
+    [Fact]
+    public void ParsePlayerList_ExcludesServerHostAndDedicatedServer()
+    {
+        var players = PanelEndpoints.ParsePlayerList(
+            "\r\nserverhost-0\r\nDedicated Server@1-1\r\nRealPlayer-2");
+
+        Assert.Single(players);
+        Assert.Contains("RealPlayer", players[0].ToString());
     }
 }
 
