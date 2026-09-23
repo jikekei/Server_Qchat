@@ -114,10 +114,11 @@ export const OverviewView = {
                 <span>全服在线玩家趋势</span>
               </div>
               <div style="display:flex;align-items:center;gap:12px">
-                <el-radio-group v-model="overview.historyRange" size="small">
+                <el-radio-group v-model="overview.historyRange" size="small" @change="onHistoryRangeChange">
                   <el-radio-button label="1h">最近 1 小时</el-radio-button>
                   <el-radio-button label="6h">最近 6 小时</el-radio-button>
-                  <el-radio-button label="24h">24 小时</el-radio-button>
+                  <el-radio-button label="24h">最近 1 天</el-radio-button>
+                  <el-radio-button label="30d">最近 30 天</el-radio-button>
                 </el-radio-group>
               </div>
             </template>
@@ -169,7 +170,7 @@ export const OverviewView = {
 
               <!-- 悬浮数据浮层 Tooltip -->
               <div v-if="hoverPoint" class="chart-tooltip" :style="hoverTooltipStyle">
-                <div class="tooltip-time">{{ hoverPoint.raw.timeLabel }} ({{ fmtTime(hoverPoint.raw.timestamp) }})</div>
+                <div class="tooltip-time">{{ formatChartTime(hoverPoint.raw.timestamp) }} ({{ fmtTime(hoverPoint.raw.timestamp) }})</div>
                 <div class="tooltip-val">全服在线：{{ hoverPoint.raw.totalOnline }} 人</div>
                 <div v-if="hoverPoint.raw.perServer && Object.keys(hoverPoint.raw.perServer).length > 0" class="tooltip-servers">
                   <div v-for="(cnt, sname) in hoverPoint.raw.perServer" :key="sname">
@@ -178,6 +179,7 @@ export const OverviewView = {
                 </div>
               </div>
             </div>
+            <div class="muted" style="font-size:12px;margin-top:8px">{{ chartDataSummary }}</div>
           </el-card>
 
           <!-- 图形化服务器状态表格 -->

@@ -78,7 +78,7 @@ namespace SocketServer
 
         private string HandleCx()
         {
-            var players = Player.List.Where(p => !p.Nickname.Equals("Dedicated Server", StringComparison.OrdinalIgnoreCase) && !p.Nickname.StartsWith("Dedicated Server@", StringComparison.OrdinalIgnoreCase)).ToList();
+            var players = Player.List.Where(p => !IsServerPlaceholder(p.Nickname)).ToList();
             int online = players.Count;
             int admins = players.Count(p => p.RemoteAdminAccess);
 
@@ -179,12 +179,21 @@ namespace SocketServer
             var sb = new StringBuilder();
             foreach (var p in Player.List)
             {
-                if (p.Nickname.Equals("Dedicated Server", StringComparison.OrdinalIgnoreCase) || p.Nickname.StartsWith("Dedicated Server@", StringComparison.OrdinalIgnoreCase))
+                if (IsServerPlaceholder(p.Nickname))
                     continue;
                 // EXILED: p.Id → LabAPI: p.PlayerId
                 sb.Append("\r\n").Append(p.Nickname).Append("-").Append(p.PlayerId);
             }
             return sb.ToString();
+        }
+
+        private static bool IsServerPlaceholder(string nickname)
+        {
+            string normalized = (nickname ?? string.Empty).Trim().Replace(" ", string.Empty).Replace("_", string.Empty);
+            return normalized.Equals("DedicatedServer", StringComparison.OrdinalIgnoreCase)
+                || normalized.StartsWith("DedicatedServer@", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("ServerHost", StringComparison.OrdinalIgnoreCase)
+                || normalized.StartsWith("ServerHost@", StringComparison.OrdinalIgnoreCase);
         }
 
         private string HandleKick(string request)

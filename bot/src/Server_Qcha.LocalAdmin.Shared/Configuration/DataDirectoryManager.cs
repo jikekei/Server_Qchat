@@ -7,6 +7,7 @@ namespace Server.Qcat.Configuration;
 /// - bot-settings.json：机器人设置（NapCat / 官方 API、群白名单、通知目标、MySQL 连接串）
 /// - localadmin-servers.json：LocalAdmin 托管服务器定义
 /// - logging-level.json：动态日志级别配置
+/// - player-history.json：在线人数历史采样记录
 ///
 /// 在系统启动时自动创建 data/ 目录，并无缝自动迁移根目录下的旧版数据文件，
 /// 保证用户升级后既有数据 100% 不丢失。

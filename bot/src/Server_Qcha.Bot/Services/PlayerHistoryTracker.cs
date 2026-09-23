@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using Server.Qcat.Configuration;
 using Server.Qcat.Socket;
 using Server.Qcat.Web;
 
@@ -31,10 +33,19 @@ public sealed record ServerOnlineSnapshot(
 /// </summary>
 public sealed class PlayerHistoryTracker : BackgroundService
 {
-    private const int MaxHistoryPoints = 2880; // 最多保留 2880 个采样点（按 30 秒一次即 24 小时）
+    public const string HistoryFileName = "player-history.json";
+    public const int MaxHistoryPoints = 30 * 24 * 60 * 2; // 每 30 秒采样一次，最多保留 30 天
+    public const int ChartPointsPerRange = 2880; // 图表最多返回 2880 个点，避免浏览器渲染过重
     private readonly ServerRegistry _registry;
     private readonly IServerCommandGateway _gateway;
     private readonly ILogger<PlayerHistoryTracker> _log;
+    private readonly string _historyPath;
+    private readonly object _persistSync = new();
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
 
     private readonly List<PlayerHistoryPoint> _history = new();
     private readonly ConcurrentDictionary<string, ServerOnlineSnapshot> _serverSnapshots = new(StringComparer.OrdinalIgnoreCase);
@@ -46,14 +57,15 @@ public sealed class PlayerHistoryTracker : BackgroundService
     public PlayerHistoryTracker(
         ServerRegistry registry,
         IServerCommandGateway gateway,
-        ILogger<PlayerHistoryTracker> log)
+        ILogger<PlayerHistoryTracker> log,
+        IHostEnvironment environment)
     {
         _registry = registry;
         _gateway = gateway;
         _log = log;
+        _historyPath = DataDirectoryManager.GetDataFilePath(environment.ContentRootPath, HistoryFileName);
 
-        // 初始化基础平滑曲线（若刚启动没有任何历史点，生成一些平滑数据基线）
-        InitSeedHistory();
+        LoadHistory();
     }
 
     public int PeakToday
@@ -67,6 +79,17 @@ public sealed class PlayerHistoryTracker : BackgroundService
                     _peakToday = 0;
                     _peakDate = DateTime.Today;
                 }
+
+                // 以当天完整历史重新校正峰值，避免峰值只依赖最近一次采样或
+                // 其他代码路径写入的缓存值。
+                int historyPeak = _history
+                    .Where(p => p.Timestamp.Date == DateTime.Today)
+                    .Select(p => p.TotalOnline)
+                    .DefaultIfEmpty(0)
+                    .Max();
+                if (historyPeak > _peakToday)
+                    _peakToday = historyPeak;
+
                 return _peakToday;
             }
         }
@@ -81,6 +104,47 @@ public sealed class PlayerHistoryTracker : BackgroundService
                 return _history.ToList();
 
             return _history.Skip(_history.Count - maxPoints).ToList();
+        }
+    }
+
+    /// <summary>
+    /// 按图表时间范围返回历史数据。短时间范围保留原始采样精度，30 天范围按时间桶取最大值，
+    /// 这样既能保留峰值，又不会把 8 万多个采样点一次性发送给浏览器。
+    /// </summary>
+    public IReadOnlyList<PlayerHistoryPoint> GetChartHistory(string? range)
+    {
+        string normalized = (range ?? "24h").Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "1h" => GetHistory(120),
+            "6h" => GetHistory(720),
+            "30d" => GetHistory(ChartPointsPerRange, TimeSpan.FromMinutes(15)),
+            _ => GetHistory(2880)
+        };
+    }
+
+    private IReadOnlyList<PlayerHistoryPoint> GetHistory(int maxPoints, TimeSpan bucket)
+    {
+        lock (_sync)
+        {
+            if (_history.Count <= maxPoints)
+                return _history.ToList();
+
+            var source = _history
+                .Skip(Math.Max(0, _history.Count - MaxHistoryPoints))
+                .ToList();
+            if (source.Count == 0)
+                return source;
+
+            var first = source[0].Timestamp;
+            return source
+                .GroupBy(point => (long)Math.Floor((point.Timestamp - first).TotalSeconds / bucket.TotalSeconds))
+                .Select(group => group
+                    .OrderByDescending(point => point.TotalOnline)
+                    .ThenByDescending(point => point.Timestamp)
+                    .First())
+                .OrderBy(point => point.Timestamp)
+                .ToList();
         }
     }
 
@@ -194,11 +258,13 @@ public sealed class PlayerHistoryTracker : BackgroundService
                 _peakToday = totalOnline;
 
             _history.Add(point);
-            if (_history.Count > MaxHistoryPoints)
-            {
+            DateTime cutoff = now.AddDays(-30);
+            _history.RemoveAll(p => p.Timestamp < cutoff);
+            while (_history.Count > MaxHistoryPoints)
                 _history.RemoveAt(0);
-            }
         }
+
+        PersistHistory();
     }
 
     private void InitSeedHistory()
@@ -215,6 +281,69 @@ public sealed class PlayerHistoryTracker : BackgroundService
                     TimeLabel: t.ToString("HH:mm:ss"),
                     TotalOnline: 0,
                     PerServer: new Dictionary<string, int>()));
+            }
+        }
+    }
+
+    private void LoadHistory()
+    {
+        try
+        {
+            if (File.Exists(_historyPath))
+            {
+                string json = File.ReadAllText(_historyPath);
+                var saved = JsonSerializer.Deserialize<List<PlayerHistoryPoint>>(json, JsonOptions);
+                if (saved is not null)
+                {
+                    lock (_sync)
+                    {
+                        DateTime cutoff = DateTime.Now.AddDays(-30);
+                        _history.AddRange(saved
+                            .Where(p => p.Timestamp != default && p.Timestamp >= cutoff)
+                            .OrderBy(p => p.Timestamp)
+                            .TakeLast(MaxHistoryPoints));
+
+                        _peakToday = _history
+                            .Where(p => p.Timestamp.Date == DateTime.Today)
+                            .Select(p => p.TotalOnline)
+                            .DefaultIfEmpty(0)
+                            .Max();
+                    }
+
+                    _log.LogInformation("已加载在线人数历史记录：{Count} 个采样点，文件：{Path}", _history.Count, _historyPath);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "读取在线人数历史记录失败，将从新的采样开始：{Path}", _historyPath);
+        }
+
+        lock (_sync)
+        {
+            if (_history.Count == 0)
+                InitSeedHistory();
+        }
+    }
+
+    private void PersistHistory()
+    {
+        lock (_persistSync)
+        {
+            try
+            {
+                List<PlayerHistoryPoint> snapshot;
+                lock (_sync)
+                    snapshot = _history.ToList();
+
+                string json = JsonSerializer.Serialize(snapshot, JsonOptions);
+                string tempPath = _historyPath + ".tmp";
+                File.WriteAllText(tempPath, json);
+                File.Move(tempPath, _historyPath, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "保存在线人数历史记录失败：{Path}", _historyPath);
             }
         }
     }

@@ -76,6 +76,7 @@ public static class PanelEndpoints
         BotSettingsStore botStore,
         GameDbRepository dbRepo,
         ILocalAdminProvider localAdmin,
+        string? historyRange,
         CancellationToken ct)
     {
         var (_, error) = await AuthorizeAsync(ctx, auth, PanelPermission.ServersView);
@@ -130,7 +131,7 @@ public static class PanelEndpoints
         int localServerCount = localList.Enabled ? localList.Total : 0;
         int localRunningCount = localList.Enabled ? localList.Servers.Count(s => s.Running) : 0;
 
-        var history = historyTracker.GetHistory(60).Select(h => new
+        var history = historyTracker.GetChartHistory(historyRange).Select(h => new
         {
             timestamp = h.Timestamp,
             timeLabel = h.TimeLabel,
@@ -778,13 +779,21 @@ public static class PanelEndpoints
                 name = trimmed;
             }
 
-            if (name.Equals("Dedicated Server", StringComparison.OrdinalIgnoreCase) ||
-                name.StartsWith("Dedicated Server@", StringComparison.OrdinalIgnoreCase))
+            if (IsServerPlaceholder(name))
                 continue;
 
             players.Add(new { name, id });
         }
         return players;
+    }
+
+    private static bool IsServerPlaceholder(string name)
+    {
+        string normalized = (name ?? string.Empty).Trim().Replace(" ", string.Empty).Replace("_", string.Empty);
+        return normalized.Equals("DedicatedServer", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("DedicatedServer@", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("ServerHost", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("ServerHost@", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>从 cx 命令返回中提取 在线/上限 人数。</summary>
