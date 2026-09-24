@@ -157,3 +157,178 @@
   }
 }
 
+/* ==================== 游戏服务器综合负载大屏 ==================== */
+.server-load-card {
+  margin-bottom: 20px;
+}
+.server-load-meta {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.meta-sep {
+  opacity: 0.5;
+}
+.load-dashboard-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
+}
+.load-gauge-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.load-gauge-box {
+  background: var(--qb-surface-2);
+  border: 1px solid var(--qb-border);
+  border-radius: var(--qb-radius);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.load-gauge-circle {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 6px solid var(--qb-accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--qb-surface);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: border-color 0.3s ease;
+}
+.load-gauge-number {
+  font-size: 38px;
+  font-weight: 800;
+  font-family: var(--qb-mono);
+  line-height: 1;
+}
+.load-gauge-number small {
+  font-size: 18px;
+  font-weight: 600;
+  margin-left: 2px;
+}
+.load-gauge-label {
+  font-size: 12px;
+  color: var(--qb-text-2);
+  margin-top: 4px;
+  font-weight: 500;
+}
+.load-bottleneck-summary {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bottleneck-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 6px 10px;
+  background: var(--qb-surface);
+  border: 1px solid var(--qb-border);
+  border-radius: 6px;
+}
+.bottleneck-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.bottleneck-tag.primary {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+.bottleneck-tag.secondary {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+.bottleneck-name {
+  color: var(--qb-text);
+  font-weight: 500;
+  font-family: var(--qb-mono);
+}
+.load-diagnosis-card {
+  background: var(--qb-surface-2);
+  border: 1px solid var(--qb-border);
+  border-radius: var(--qb-radius);
+  padding: 14px 16px;
+}
+.diagnosis-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qb-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.diagnosis-body {
+  font-size: 12px;
+  color: var(--qb-text-2);
+  line-height: 1.6;
+}
+.load-metrics-col {
+  display: flex;
+  flex-direction: column;
+}
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+.metric-item {
+  background: var(--qb-surface-2);
+  border: 1px solid var(--qb-border);
+  border-radius: var(--qb-radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.metric-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qb-text);
+}
+.metric-weight {
+  font-size: 11px;
+  color: var(--qb-text-3);
+  margin-left: auto;
+  margin-right: 8px;
+}
+.metric-val {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--qb-mono);
+}
+.metric-desc {
+  font-size: 11px;
+  color: var(--qb-text-3);
+  line-height: 1.4;
+}
+
+@media (max-width: 992px) {
+  .load-dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+

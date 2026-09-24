@@ -78,7 +78,7 @@ namespace SocketServer
 
         private string HandleCx()
         {
-            var players = Player.List.Where(p => !IsServerPlaceholder(p.Nickname)).ToList();
+            var players = Player.List.Where(p => !IsServerPlaceholder(p.Nickname, p.PlayerId)).ToList();
             int online = players.Count;
             int admins = players.Count(p => p.RemoteAdminAccess);
 
@@ -179,7 +179,7 @@ namespace SocketServer
             var sb = new StringBuilder();
             foreach (var p in Player.List)
             {
-                if (IsServerPlaceholder(p.Nickname))
+                if (IsServerPlaceholder(p.Nickname, p.PlayerId))
                     continue;
                 // EXILED: p.Id → LabAPI: p.PlayerId
                 sb.Append("\r\n").Append(p.Nickname).Append("-").Append(p.PlayerId);
@@ -194,6 +194,11 @@ namespace SocketServer
                 || normalized.StartsWith("DedicatedServer@", StringComparison.OrdinalIgnoreCase)
                 || normalized.Equals("ServerHost", StringComparison.OrdinalIgnoreCase)
                 || normalized.StartsWith("ServerHost@", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsServerPlaceholder(string nickname, int playerId)
+        {
+            return playerId < 0 || IsServerPlaceholder(nickname);
         }
 
         private string HandleKick(string request)

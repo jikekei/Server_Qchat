@@ -24,6 +24,27 @@ const overview = reactive({
     dbConfigured: false,
     dbSummary: null
   },
+  serverStatus: {
+    load: 0,
+    status: 'Idle',
+    statusText: '空闲',
+    cpu: 0,
+    memory: 0,
+    disk: 0,
+    network: 0,
+    mainThread: 0,
+    game: 0,
+    players: 0,
+    maxPlayers: 0,
+    primaryBottleneck: '无 (0%)',
+    secondaryBottleneck: '无 (0%)',
+    bottlenecks: [],
+    diagnosis: '数据采集建立中...',
+    smoothLoad: 0,
+    peakLoad: 0,
+    details: null,
+    updatedAt: null
+  },
   servers: [],
   history: [],
   historyRange: '24h',
@@ -65,6 +86,11 @@ async function loadOverview() {
         : !!(s.dbSummary && (s.dbSummary.isConnected || s.dbSummary.connected || (!s.dbSummary.error && s.dbConfigured)));
       overview.stats.dbConfigured = !!s.dbConfigured;
       overview.stats.dbSummary = s.dbSummary || null;
+
+      // 综合负载与运行健康状态
+      if (s.serverStatus) {
+        overview.serverStatus = Object.assign({}, overview.serverStatus, s.serverStatus);
+      }
 
       overview.servers = servers;
       overview.history = data.history || [];
@@ -305,6 +331,37 @@ function progressColor(row) {
   return '#10b981';
 }
 
+function getStatusTagType(status) {
+  switch (status) {
+    case 'Idle': return 'info';
+    case 'Normal': return 'success';
+    case 'Medium': return 'warning';
+    case 'High': return 'warning';
+    case 'Critical': return 'danger';
+    case 'Overload': return 'danger';
+    default: return 'info';
+  }
+}
+
+function getStatusColor(status) {
+  switch (status) {
+    case 'Idle': return '#38bdf8';
+    case 'Normal': return '#10b981';
+    case 'Medium': return '#f59e0b';
+    case 'High': return '#f97316';
+    case 'Critical': return '#ef4444';
+    case 'Overload': return '#dc2626';
+    default: return '#94a3b8';
+  }
+}
+
+function getPressureColor(val) {
+  if (val >= 90) return '#ef4444';
+  if (val >= 70) return '#f97316';
+  if (val >= 50) return '#f59e0b';
+  return '#10b981';
+}
+
 export function useOverview() {
   return {
     overview,
@@ -326,6 +383,9 @@ export function useOverview() {
     onChartMouseLeave,
     calcProgress,
     progressColor,
+    getStatusTagType,
+    getStatusColor,
+    getPressureColor,
     chartPadL,
     chartPadR,
     chartPadT,

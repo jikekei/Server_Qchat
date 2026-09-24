@@ -36,7 +36,14 @@ async function reloadPlayers() {
     const rawList = data.players || [];
     playersDialog.players = rawList.filter(p => {
       const n = (p.name || '').toLowerCase();
-      return n !== 'dedicated server' && !n.startsWith('dedicated server@');
+      const id = Number(p.id);
+      const normalizedName = n.replace(/[ _]/g, '');
+      return Number.isFinite(id)
+        && id >= 0
+        && normalizedName !== 'dedicatedserver'
+        && !normalizedName.startsWith('dedicatedserver@')
+        && normalizedName !== 'serverhost'
+        && !normalizedName.startsWith('serverhost@');
     });
   } catch (e) {
     ElMessage.error(e.message);
