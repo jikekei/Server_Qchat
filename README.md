@@ -141,6 +141,7 @@ graph TD
 | **QQ 机器人与群服联动指南** | 官方机器人 (OpenAPI v2) 与 NapCat 快速配置、指令表与指令面板同步 | [docs/bot-guide.md](docs/bot-guide.md) |
 | **配置文件参考手册** | `appsettings.json`、守护配置与插件 `config.yml` 完整字段速查 | [docs/configuration.md](docs/configuration.md) |
 | **常见问题与排错手册 (FAQ)** | 端口占用、权限冲突、进程闪退排查与自愈诊断方案 | [docs/faq.md](docs/faq.md) |
+| **轻量级 API 查服机器人** | 零插件无侵入独立部署、NapCat 接入与列表 API 查服说明 | [API调用版本.md](API调用版本.md) |
 
 ---
 

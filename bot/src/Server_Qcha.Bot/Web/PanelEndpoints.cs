@@ -32,6 +32,7 @@ public static class PanelEndpoints
         // ---- 首页总览与玩家统计 ----
         api.MapGet("/overview", GetOverviewAsync);
         api.MapGet("/stats/player-history", GetPlayerHistoryAsync);
+        api.MapGet("/server/status", GetServerStatus);
 
         // ---- 认证 ----
         api.MapPost("/auth/login", LoginAsync);
@@ -76,6 +77,7 @@ public static class PanelEndpoints
         BotSettingsStore botStore,
         GameDbRepository dbRepo,
         ILocalAdminProvider localAdmin,
+        ServerStatusMonitorService statusMonitor,
         string? historyRange,
         CancellationToken ct)
     {
@@ -168,7 +170,10 @@ public static class PanelEndpoints
                 // MySQL 数据库状态（提供直接布尔值与完整 summary）
                 mysqlConnected,
                 dbConfigured = !string.IsNullOrWhiteSpace(dbRepo.CurrentConnectionString),
-                dbSummary
+                dbSummary,
+
+                // 游戏服务器综合负载与系统运行健康状态
+                serverStatus = statusMonitor.GetCurrentStatus()
             },
             servers = serverList,
             history
@@ -201,6 +206,15 @@ public static class PanelEndpoints
             peakToday = historyTracker.PeakToday,
             history
         });
+    }
+
+    /// <summary>
+    /// 获取服务器综合负载与运行健康状态（参考《综合负载监控系统规划书》规范）
+    /// 支持匿名或带 Token 访问，提供标准 0-100 综合负载、主要瓶颈及六维性能指标
+    /// </summary>
+    private static IResult GetServerStatus(ServerStatusMonitorService statusMonitor)
+    {
+        return Results.Json(statusMonitor.GetCurrentStatus());
     }
 
     // ==================== 认证 ====================
@@ -767,17 +781,22 @@ public static class PanelEndpoints
                 continue;
 
             int sep = trimmed.LastIndexOf('-');
-            string name;
-            int id = -1;
-            if (sep > 0 && int.TryParse(trimmed[(sep + 1)..].Trim(), out int parsedId))
+            if (sep <= 0)
+                continue;
+
+            // 若末尾是负数（如 "ok--1"），则前一个 '-' 才是分隔符，负号归属于 id
+            if (sep > 0 && trimmed[sep - 1] == '-')
             {
-                name = trimmed[..sep].Trim();
-                id = parsedId;
+                sep--;
             }
-            else
-            {
-                name = trimmed;
-            }
+
+            string name = trimmed[..sep].Trim();
+            if (!int.TryParse(trimmed[(sep + 1)..].Trim(), out int id))
+                continue;
+
+            // Dedicated server / ServerHost 可能携带临时昵称（如 "ok"）和负数 ID（如 -1），过滤排除
+            if (id < 0)
+                continue;
 
             if (IsServerPlaceholder(name))
                 continue;

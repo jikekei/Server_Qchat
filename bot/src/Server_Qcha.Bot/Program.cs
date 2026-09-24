@@ -167,6 +167,8 @@ builder.Services.AddHostedService<BotNotificationListenerService>();
 // 玩家历史采样与统计服务（为总览仪表盘和折线图提供数据）
 builder.Services.AddSingleton<PlayerHistoryTracker>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PlayerHistoryTracker>());
+builder.Services.AddSingleton<ServerStatusMonitorService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ServerStatusMonitorService>());
 
 var app = builder.Build();
 

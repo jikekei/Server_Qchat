@@ -54,5 +54,13 @@ public class CommandParsingTests
         Assert.Single(players);
         Assert.Contains("RealPlayer", players[0].ToString());
     }
+
+    [Fact]
+    public void ParsePlayerList_ExcludesPlaceholderWithNegativeId()
+    {
+        var players = PanelEndpoints.ParsePlayerList("\r\nok--1");
+
+        Assert.Empty(players);
+    }
 }
 
