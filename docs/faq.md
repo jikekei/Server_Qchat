@@ -30,9 +30,9 @@
 
 ### Q2: 初始管理员密码忘记或未保存？
 1. 停止运行中的主程序；
-2. 打开 `appsettings.Local.json`，确保 `WebPanel:ResetBuiltInPasswordOnStartup` 为 `true`；
-3. 删除程序目录下的 `panel.db` 文件（若无其他重要自定义账号配置）；
-4. 重新运行程序，控制台将重新生成并打印全新的随机管理员初始密码。
+2. 打开 `appsettings.Local.json`，将 `WebPanel:ResetBuiltInPasswordOnStartup` 临时设为 `true`；
+3. 重启程序，并使用控制台打印的新随机密码登录；
+4. 登录后将该选项恢复为 `false`，再重启程序，避免以后每次启动都重置密码。
 
 ### Q3: 多个管理员同时登录会互相顶号吗？
 不会。

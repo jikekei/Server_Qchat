@@ -171,6 +171,6 @@ cx
 
 ## 开源协议与版权声明
 
-本项目基于 [MIT License](LICENSE) 协议开源。
+本项目基于仓库根目录的 [Apache License 2.0](../LICENSE) 协议开源。
 
 Copyright 2025 hmyhserver.top

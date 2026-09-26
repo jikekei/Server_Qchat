@@ -27,7 +27,7 @@
 |---|---|---|
 | **操作系统** | Windows 10/11 / Windows Server 2016+ 或 Linux x64 | 推荐 Windows 或 Linux 容器 |
 | **.NET 环境** | .NET 8.0 Runtime 或 SDK | 运行主程序与独立守护进程所必需 |
-| **SCPSL 服务端** | SCP: Secret Laboratory Dedicated Server | 支持 EXILED 8+ 或 LabAPI 1.1+ |
+| **SCPSL 服务端** | SCP: Secret Laboratory Dedicated Server | EXILED 插件按仓库依赖 9.5.0 构建；LabAPI 插件按 1.1+ 构建 |
 | **QQ 框架（可选）** | NapCatQQ (OneBot 11) 或 QQ 官方机器人开放平台 | 仅在使用社群机器人联动时需要 |
 
 ---
@@ -78,7 +78,7 @@
    {
      "WebPanel": {
        "Enabled": true,
-       "Host": "0.0.0.0",
+       "Host": "127.0.0.1",
        "Port": 8080
      },
      "LocalAdmin": {
@@ -100,13 +100,14 @@
      "SocketServer": {
        "Host": "127.0.0.1",
        "Ports": [ 10087 ],
-       "NotificationHost": "0.0.0.0",
+       "NotificationHost": "127.0.0.1",
        "NotificationPort": 10088,
        "AuthToken": "SetYourCustomTokenHere"
      }
    }
    ```
    > **安全提示**：`SocketServer:AuthToken` 为双向通信安全鉴权密钥，请设置为自定义强密码，稍后在游戏服务端插件中需配置完全相同的值。
+   > 示例将 Web 面板与通知服务限制为本机访问。若需要从其他设备访问面板，或游戏服与机器人分布在不同机器上，请将对应监听地址改为可达网卡地址（通常为 `0.0.0.0`），并通过防火墙限制来源；`0.0.0.0` 会监听所有网卡，不代表通信只走本地回环。
 
 ---
 
@@ -184,7 +185,7 @@
 ### 单机同机部署（推荐方案）
 - SCPSL 游戏服务端、`Server_Qcha.Daemon` 与 `Server_Qcha.Bot` 运行在同一台物理机或云服务器上；
 - `SocketServer:Host` 与插件 `bot_ip` 均设置为 `127.0.0.1`；
-- 所有通信走本地回环，无需在系统防火墙开放游戏与机器人间的内部通信端口；
+- 将 `WebPanel:Host`、`SocketServer:NotificationHost`、机器人 `SocketServer:Host` 以及插件 `bot_ip` 配置为 `127.0.0.1` 后，游戏服与机器人之间的通信走本地回环；
 - 机器人随时更新或重启，游戏服绝不掉线。
 
 ### 分布式多机集群部署

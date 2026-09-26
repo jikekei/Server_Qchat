@@ -26,10 +26,11 @@
 
 | 框架 | 最低兼容版本 | 产物文件名 | 部署路径 |
 |---|---|---|---|
-| **EXILED** | EXILED 8.0+ | `Server_Qcha-EXILED.dll` | `%APPDATA%\EXILED\Plugins\` |
+| **EXILED** | 仓库依赖 EXILED 9.5.0 | `Server_Qcha-EXILED.dll` | `%APPDATA%\EXILED\Plugins\` |
 | **LabAPI** | LabAPI 1.1.7+ | `Server_Qcha-LabAPI.dll` | `%APPDATA%\SCP Secret Laboratory\LabAPI\plugins\<端口>\` |
 
 > 注意：EXILED 与 LabAPI 互不兼容，同一个服务器端口切勿同时加载两款插件。
+> EXILED 插件当前按仓库中的 `ExMod.Exiled` 9.5.0 依赖构建；其他 EXILED 版本（包括 8.x）尚未在本仓库验证，不承诺兼容。构建所需的 `PluginAPI.dll` 是 EXILED 依赖包中的引用，不表示本插件面向已归档的独立 NwPluginAPI 框架。
 
 ---
 

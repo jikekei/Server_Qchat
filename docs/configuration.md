@@ -35,12 +35,12 @@
 | 字段 | 类型 | 默认值 | 描述 |
 |---|---|---|---|
 | `Enabled` | bool | `true` | 是否启用 Web 控制面板服务 |
-| `Host` | string | `"0.0.0.0"` | 监听 IP。`"0.0.0.0"` 允许局域网与公网访问；`"127.0.0.1"` 仅允许同机访问 |
+| `Host` | string | `"127.0.0.1"` | 监听 IP。默认仅允许同机访问；设置为 `"0.0.0.0"` 可监听所有网卡，需自行限制外部访问 |
 | `Port` | int | `8080` | Web 控制台访问端口 |
 | `SessionMinutes` | int | `480` | 登录会话过期有效时长（分钟） |
 | `DatabasePath` | string | `"data/panel.db"` | 面板内置 SQLite 数据库文件存储路径（集中存储于 `data/` 目录） |
 | `DefaultAdminUsername` | string | `"admin"` | 默认超级管理员初始用户名 |
-| `ResetBuiltInPasswordOnStartup` | bool | `true` | 超级管理员不存在时，启动是否自动生成随机初始密码并打印至控制台 |
+| `ResetBuiltInPasswordOnStartup` | bool | `false` | 已有内置管理员账号时，是否在每次启动时重置为随机密码并打印至控制台。新建账号仍会生成一次随机初始密码；建议保持 `false`，仅在需要恢复访问时临时启用 |
 
 ---
 
@@ -139,7 +139,7 @@
 |---|---|---|---|
 | `Host` | string | `"127.0.0.1"` | 游戏服务端插件监听的主机 IP 地址 |
 | `Ports` | int[] | `[ 10087 ]` | 各游戏服务端插件命令监听端口列表 |
-| `NotificationHost` | string | `"0.0.0.0"` | 接收游戏内 `.ac` 推送与心跳上报的本地绑定 IP |
+| `NotificationHost` | string | `"127.0.0.1"` | 接收游戏内 `.ac` 推送与心跳上报的监听绑定 IP。默认仅接受本机连接；设置为 `0.0.0.0` 可监听所有网卡，供远程游戏服连接时需限制来源 |
 | `NotificationPort` | int | `10088` | 接收游戏通知的本地监听端口 |
 | `AuthToken` | string | `"QchaSecret_123"` | 双向通信鉴权密钥，**务必修改且与插件端保持完全一致** |
 | `ConnectTimeoutMs` | int | `10000` | 连接游戏服务端的网络超时时间（毫秒） |
