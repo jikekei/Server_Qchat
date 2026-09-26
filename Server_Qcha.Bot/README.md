@@ -79,6 +79,6 @@ SocketServer 需要返回可读文本作为机器人回复。
 
 ## 许可证
 
-默认使用 MIT 许可证，见 `LICENSE`。
+本组件遵循仓库根目录的 Apache License 2.0，见 `../LICENSE`。
 
 Copyright 2025 hmyhserver.top

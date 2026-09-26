@@ -111,7 +111,7 @@ public sealed class PanelAuthService
 
     public TimeSpan SessionLifetime => TimeSpan.FromMinutes(Math.Max(5, _options.SessionMinutes));
 
-    /// <summary>启动时确保内置管理员存在，并按配置随机重置其密码。</summary>
+    /// <summary>启动时确保内置管理员存在；仅在配置显式启用时重置已有账号密码。</summary>
     public async Task InitializeAsync(CancellationToken ct = default)
     {
         string username = string.IsNullOrWhiteSpace(_options.DefaultAdminUsername)
@@ -181,7 +181,9 @@ public sealed class PanelAuthService
             "  登录地址 : http://<本机IP>:{Port}/\n" +
             "  用户名   : {Username}\n" +
             "  密　码   : {Password}\n" +
-            "  （密码每次启动随机生成；首次登录后请在「账号管理」中修改）\n" +
+            (title == "已创建内置管理员账号"
+                ? "  （首次登录后可修改密码；后续启动不会重置，除非启用启动重置选项）\n"
+                : "  （本次启动已重置密码；如需保留修改后的密码，请关闭启动重置选项）\n") +
             "=========================================",
             title, _options.Port, username, password);
     }
@@ -218,7 +220,7 @@ public sealed class PanelAuthService
         return (session, null);
     }
 
-    /// <summary>校验并续期会话。</summary>
+    /// <summary>校验会话，并将有效会话的过期时间延长一个完整会话时长。</summary>
     public PanelSession? Validate(string? token)
     {
         if (string.IsNullOrEmpty(token) || !_sessions.TryGetValue(token, out var session))
@@ -230,6 +232,7 @@ public sealed class PanelAuthService
             return null;
         }
 
+        session.ExpiresAt = DateTime.UtcNow.Add(SessionLifetime);
         return session;
     }
 

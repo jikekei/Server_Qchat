@@ -5,7 +5,7 @@ public sealed class SocketServerOptions
     public string Host { get; set; } = "127.0.0.1";
     public int[] Ports { get; set; } = Array.Empty<int>();
 
-    public string NotificationHost { get; set; } = "0.0.0.0";
+    public string NotificationHost { get; set; } = "127.0.0.1";
     public int NotificationPort { get; set; } = 10088;
 
     public string AuthToken { get; set; } = "QchaSecret_123";

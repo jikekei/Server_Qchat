@@ -12,7 +12,7 @@
 [![Vue 3](https://img.shields.io/badge/Frontend-Vue%203-4FC08D?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![Element Plus](https://img.shields.io/badge/UI-Element%20Plus-409EFF?logo=element&logoColor=white)](https://element-plus.org/)
 [![QQ Bot](https://img.shields.io/badge/QQ%20Bot-Official%20%26%20OneBot%2011-12B7F5?logo=tencent-qq&logoColor=white)](https://bot.q.qq.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 [在线文档中心](docs/getting-started.md) · [下载最新发布包 (Releases)](https://github.com/jikekei/Server_Qchat/releases) · [提交 Issue 报障](https://github.com/jikekei/Server_Qchat/issues)
 
@@ -44,7 +44,7 @@
 - **细粒度 RBAC 权限体系与全量审计**：
   - 支持多管理员并发登录，PBKDF2-SHA256 强哈希存储，操作审计精确记录人员、时间、来源 IP 与执行结果。
 - **双生态游戏服务端插件**：
-  - 官方支持 EXILED 8+ 与 LabAPI 1.1+ 平台，双向 TCP 通信全程 AuthToken 密码学鉴权，支持游戏内 `.ac <内容>` 一键报警呼叫群管理。
+  - 提供 EXILED 插件（按仓库依赖 EXILED 9.5.0 构建）与 LabAPI 插件（LabAPI 1.1+），双向 TCP 通信使用 AuthToken 鉴权，支持游戏内 `.ac <内容>` 一键报警呼叫群管理。其他 EXILED 版本尚未在本仓库验证。
 
 ---
 
@@ -168,7 +168,7 @@ graph TD
 
 ## 开源协议与版权声明
 
-本项目基于 [MIT License](LICENSE) 协议开源。
+本项目基于 [Apache License 2.0](LICENSE) 协议开源。
 
 Copyright 2025 hmyhserver.top
 

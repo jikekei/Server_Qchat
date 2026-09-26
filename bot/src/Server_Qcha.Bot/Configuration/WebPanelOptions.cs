@@ -8,8 +8,8 @@ public sealed class WebPanelOptions
     /// <summary>是否启用 Web 面板。</summary>
     public bool Enabled { get; set; } = true;
 
-    /// <summary>监听地址，0.0.0.0 表示所有网卡。</summary>
-    public string Host { get; set; } = "0.0.0.0";
+    /// <summary>默认仅监听本机回环地址；设置为 0.0.0.0 可监听所有网卡。</summary>
+    public string Host { get; set; } = "127.0.0.1";
 
     /// <summary>监听端口。</summary>
     public int Port { get; set; } = 8080;
@@ -27,5 +27,5 @@ public sealed class WebPanelOptions
     /// 是否每次启动都重置内置管理员密码并随机生成。
     /// 关闭后仅在账号不存在时创建一次，密码随机后不再变更。
     /// </summary>
-    public bool ResetBuiltInPasswordOnStartup { get; set; } = true;
+    public bool ResetBuiltInPasswordOnStartup { get; set; } = false;
 }
