@@ -59,3 +59,9 @@ MySQL 服务已重启。服务器上的监听检查确认普通协议 `3306` 和
 
 已确认提交 `8003a02` 引入了含凭据的测试。所有本地分支和标签的历史已重写，本地 reflog 和旧 Git 对象已清除；原 4 个本地提交得到保留。GitHub 远端历史尚未更新：清理分支已准备，但强制更新 `main`、`master` 和 `v1.4.0`、`v2.0.0` 标签的操作被安全审查拦截，需要仓库维护者批准后再推送。团队成员在推送完成后应重新克隆或按维护者指引迁移，避免旧提交重新进入远端。
 
+## 游戏程序集与构建产物
+
+本地所有分支和标签的历史已清理 `.dll`、`.exe`、`.pdb`、`.nupkg`，以及 `bin/`、`obj/`、`packages/`、根目录 `net6.0/` 构建/缓存目录；本地历史扫描和当前索引扫描均未发现匹配文件。`.gitignore` 已覆盖这些输出，避免之后重新提交。
+
+EXILED 插件从 NuGet 还原 `ExMod.Exiled` 9.5.0；LabAPI API 从 Northwood 官方 NuGet 的 `Northwood.LabAPI` 1.1.7 还原。两种插件项目仍需游戏自身的部分引用程序集，本仓库不再携带它们；请从本机合法安装的 SCP:SL Dedicated Server 读取，并将 `SCPSL_REFERENCES` 指向它的 `SCPSL_Data/Managed` 目录。参考 [Northwood.LabAPI](https://www.nuget.org/packages/Northwood.LabAPI) 和 [ExMod.Exiled](https://www.nuget.org/packages/ExMod.Exiled/9.5.0)。
+
