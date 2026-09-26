@@ -14,7 +14,17 @@ SCPSL 服务端插件：把游戏服与 QQ 机器人后台双向打通。
 | 目标框架 | .NET Framework 4.8（`net48`） |
 | 插件 API | LabAPI **1.1.7** |
 | 插件基类 | `LabApi.Loader.Features.Plugins.Plugin<Config>` |
-| 编译引用 | `Refs/`（取自游戏 `SCPSL_Data/Managed`，随仓库内置） |
+| 编译引用 | LabAPI NuGet 包；游戏程序集取自本机 `SCPSL_Data/Managed` 目录（不提交到仓库） |
+
+### 编译准备
+
+从 Steam 安装 SCP:SL Dedicated Server，并将 `SCPSL_REFERENCES` 环境变量指向该服务器的 `SCPSL_Data/Managed` 目录。`LabApi` API 通过官方 [`Northwood.LabAPI`](https://www.nuget.org/packages/Northwood.LabAPI) NuGet 包还原；游戏本身的程序集只从本机安装目录读取。然后还原并编译：
+
+```powershell
+$env:SCPSL_REFERENCES = 'C:\path\to\SCPSL_Data\Managed'
+dotnet restore server-labapi/Server_Qcha.csproj
+dotnet build server-labapi/Server_Qcha.csproj -c Release
+```
 
 ## 构建
 

@@ -13,17 +13,23 @@
 ## 安装
 
 1. 确保你的 SCPSL Dedicated Server 已安装 EXILED。
-2. 编译插件（仓库根目录执行）：
+2. 安装 .NET Framework 4.8.1 targeting pack、NuGet CLI 和 SCP:SL Dedicated Server。把 `SCPSL_REFERENCES` 设为游戏 `SCPSL_Data/Managed` 目录；游戏程序集不再随仓库分发。EXILED 9.5.0 通过 [`ExMod.Exiled`](https://www.nuget.org/packages/ExMod.Exiled/9.5.0) NuGet 包还原。先还原包：
+
+```powershell
+nuget restore server/Server_Qcha.csproj -PackagesDirectory packages
+```
+
+3. 编译插件（仓库根目录执行）：
 
 ```powershell
 dotnet build server/Server_Qcha.csproj -c Release
 ```
 
-3. 找到编译产物：
+4. 找到编译产物：
 
 `server/bin/Release/Server_Qcha.dll`
 
-4. 把 `Server_Qcha.dll` 放到服务器的 EXILED 插件目录（示例）：
+5. 把 `Server_Qcha.dll` 放到服务器的 EXILED 插件目录（示例）：
 
 - Windows：`...\\EXILED\\Plugins\\`
 - Linux：`~/.config/EXILED/Plugins/`

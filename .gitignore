@@ -9,10 +9,19 @@
 # Build outputs
 **/bin/
 **/obj/
+**/packages/
 publish/
 **/publish/
 dist/
 **/dist/
+**/Refs/*.dll
+**/Refs/*.exe
+**/Refs/*.pdb
+*.dll
+*.exe
+*.pdb
+*.nupkg
+/net6.0/
 
 # Local config / secrets / runtime data
 data/
