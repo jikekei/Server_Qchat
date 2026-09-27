@@ -48,16 +48,13 @@ string listenUri = string.IsNullOrWhiteSpace(localAdminConfig.DaemonUri)
     ? "http://127.0.0.1:10090"
     : localAdminConfig.DaemonUri;
 
-var secretProblems = SharedSecretPolicy.DescribeStartupRejection(
+// 仍在使用默认密钥或密钥为空时只输出醒目的安全警告，不阻止启动。
+var secretProblems = SharedSecretPolicy.DescribeWeakSecrets(
     checkAuthToken: false,
     authToken: null,
     checkDaemonToken: true,
     daemonToken: localAdminConfig.DaemonToken);
-if (secretProblems.Count > 0)
-{
-    SharedSecretPolicy.WriteStartupRejection(secretProblems);
-    return;
-}
+SharedSecretPolicy.WriteStartupWarning(secretProblems);
 
 if (!DaemonHostGuard.ListenUriIsLoopback(listenUri))
 {
@@ -79,7 +76,8 @@ var app = builder.Build();
 // Daemon 自身退出是高危操作：会连带停止所有由它托管的游戏服。
 DaemonExitHandler.Initialize(app.Services.GetRequiredService<IHostApplicationLifetime>());
 
-// 守护进程认证：Host 必须对应当前连接，所有接口都要校验 Token。
+// 守护进程认证：Host 必须对应当前连接。配置了 DaemonToken 时所有接口都要校验 Token；
+// DaemonToken 为空时与旧版本一致不校验 Token（机器人此时也不会发送该请求头），启动时已输出安全警告。
 app.Use(async (context, next) =>
 {
     var options = context.RequestServices.GetRequiredService<IOptions<LocalAdminOptions>>().Value;
@@ -91,8 +89,9 @@ app.Use(async (context, next) =>
         return;
     }
 
-    if (!context.Request.Headers.TryGetValue("X-Daemon-Token", out var token) ||
-        !SharedSecretPolicy.FixedTimeEquals(token.ToString(), options.DaemonToken))
+    if (!SharedSecretPolicy.IsEmpty(options.DaemonToken) &&
+        (!context.Request.Headers.TryGetValue("X-Daemon-Token", out var token) ||
+         !SharedSecretPolicy.FixedTimeEquals(token.ToString(), options.DaemonToken)))
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         await context.Response.WriteAsJsonAsync(new { error = "未授权：Daemon Token 不匹配" });

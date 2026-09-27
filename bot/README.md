@@ -11,7 +11,7 @@
 - `#<n>`：查询第 n 个服务器玩家列表
 - `/bd <Steam64>`：绑定 QQ 与 Steam64（写入 MySQL 的 `playerdata.QQ_ID`）
 - `/me`：按 QQ 号查询自己的玩家统计
-- 管理指令（需要群管理员/群主）：
+- 管理指令（配置了 `Bot:AdminUserIds` 时只认名单；未配置时需要群管理员/群主）：
   - `/bc <n> <内容>`：广播
   - `/round <n>`：重启回合（发送 `rest`）
   - `/ban <n> <ID> <时间> <原因>`：踢出/封禁（发送 `kick&...`）
@@ -56,8 +56,8 @@ dotnet run --project src/Server_Qcha.Bot -c Release
 主要配置在 `src/Server_Qcha.Bot/appsettings.json`，推荐只在 `src/Server_Qcha.Bot/appsettings.Local.json` 放本机配置（已在 `.gitignore` 里忽略）。
 
 - `Bot:AllowedGroupIds` 为空表示监听所有群；不为空则只处理指定群
-- `Bot:AdminUserIds` 是管理指令白名单。留空则拒绝 `/ban`、`/bc`、`/round` 等管理指令，群主或管理员身份不会自动放行
-- `Bot:NotifyPrivateUserIds` 只决定谁能收私聊，不会因此获得管理权限
+- `Bot:AdminUserIds` 是管理指令白名单。配置后只有名单内的 QQ 能用 `/ban`、`/bc`、`/round` 等管理指令，群主或管理员身份不会自动放行；留空时沿用原有判定（群主/群管理员可用，私聊中 `NotifyPrivateUserIds` 内的用户可用），启动时会输出提示
+- `Bot:NotifyPrivateUserIds` 决定谁能私聊机器人；配置了 `Bot:AdminUserIds` 后不会因此获得管理权限
 
 ## Socket 协议（约定）
 

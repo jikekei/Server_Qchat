@@ -103,7 +103,7 @@ server_qcha:
 - `appsettings.json` / `appsettings.Example.json`：新增配置字段。
 
 ### 安全须知
-`AuthToken` 必须自行设置。已公开的旧默认值会被拒绝启动，游戏服端与机器人端的 Token 必须完全一致。
+部署前请务必修改默认的 `AuthToken`。检测到仍在使用默认值 `QchaSecret_123`（或留空）时，启动日志会输出安全警告，程序仍继续启动；游戏服端与机器人端的 Token 必须完全一致。
 
 ---
 

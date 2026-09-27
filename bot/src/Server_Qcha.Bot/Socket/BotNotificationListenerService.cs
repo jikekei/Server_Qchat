@@ -70,10 +70,11 @@ public sealed class BotNotificationListenerService : BackgroundService
             return;
         }
 
-        if (TcpAuthEnvelope.IsRejectedToken(_socketOpts.AuthToken))
+        if (TcpAuthEnvelope.IsWeakToken(_socketOpts.AuthToken))
         {
-            _log.LogError("【安全】SocketServer:AuthToken 为空或仍是已公开的旧默认值，通知监听服务拒绝启动。");
-            return;
+            // 只警告不拒绝，详细说明见启动时的安全警告。
+            _log.LogWarning("【安全警告】SocketServer:AuthToken 为空或仍是默认密钥 {DefaultToken}，通知监听服务照常启动，但存在被伪造通知的风险，请尽快修改并与插件 auth_token 保持一致。",
+                TcpAuthEnvelope.LegacyDefaultToken);
         }
 
         IPAddress ip;

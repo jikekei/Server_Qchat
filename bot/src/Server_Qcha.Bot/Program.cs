@@ -173,16 +173,13 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<ServerStatusMonito
 var socketOptsForGuard = builder.Configuration.GetSection("SocketServer").Get<SocketServerOptions>() ?? new SocketServerOptions();
 bool needDaemonToken = localAdminOptions.Enabled
     && !string.Equals(localAdminOptions.Mode, "Embedded", StringComparison.OrdinalIgnoreCase);
-var secretProblems = SharedSecretPolicy.DescribeStartupRejection(
+// 仍在使用默认密钥或密钥为空时只输出醒目的安全警告，不阻止启动。
+var secretProblems = SharedSecretPolicy.DescribeWeakSecrets(
     checkAuthToken: true,
     authToken: socketOptsForGuard.AuthToken,
     checkDaemonToken: needDaemonToken,
     daemonToken: localAdminOptions.DaemonToken);
-if (secretProblems.Count > 0)
-{
-    SharedSecretPolicy.WriteStartupRejection(secretProblems);
-    return;
-}
+SharedSecretPolicy.WriteStartupWarning(secretProblems);
 
 var app = builder.Build();
 

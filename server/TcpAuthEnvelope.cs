@@ -10,19 +10,51 @@ namespace Qchat.Security
     /// 报文格式：v2|unix秒|nonce|base64(hmac)|负载。
     /// HMAC-SHA256 的密钥是 Token 的 UTF-8，原文是「unix秒\nnonce\n负载」。
     /// 这条链路只鉴权、不加密；跨机器部署请走 VPN 或防火墙。
+    /// Token 为空或仍是公开的默认值时照常封装与校验（空 Token 即空 HMAC 密钥），
+    /// 只由调用方在启动时输出安全警告，不阻止通信。
     /// 本文件同时被 EXILED 插件、LabAPI 插件和机器人编译，请保持 C# 7 语法。
     /// </summary>
     public static class TcpAuthEnvelope
     {
         public const string Version = "v2";
-        public const string RetiredDefaultToken = "QchaSecret_123";
+        public const string LegacyDefaultToken = "QchaSecret_123";
         public const int AllowedSkewSeconds = 120;
 
-        public static bool IsRejectedToken(string token)
+        public static bool IsLegacyDefaultToken(string token)
         {
-            if (string.IsNullOrWhiteSpace(token))
-                return true;
-            return string.Equals(token.Trim(), RetiredDefaultToken, StringComparison.Ordinal);
+            return token != null && string.Equals(token.Trim(), LegacyDefaultToken, StringComparison.Ordinal);
+        }
+
+        /// <summary>为空或仍是公开的默认值。只用于决定是否输出安全警告。</summary>
+        public static bool IsWeakToken(string token)
+        {
+            return string.IsNullOrWhiteSpace(token) || IsLegacyDefaultToken(token);
+        }
+
+        /// <summary>
+        /// 插件启动时输出的安全警告（多行）。Token 正常时返回空数组。
+        /// </summary>
+        public static string[] BuildWeakTokenWarning(string token)
+        {
+            if (!IsWeakToken(token))
+                return new string[0];
+
+            string problem = IsLegacyDefaultToken(token)
+                ? "auth_token 仍在使用公开的默认密钥 " + LegacyDefaultToken + "。"
+                : "auth_token 为空，任何人都能按公开协议算出合法签名，鉴权形同虚设。";
+
+            return new[]
+            {
+                "===================================================================",
+                "【安全警告】检测到仍在使用默认密钥（或密钥为空）：",
+                "  · " + problem,
+                "使用默认密钥存在安全风险：默认值已写在公开仓库和文档中，任何能连到本插件 TCP 端口的人",
+                "都可以伪造鉴权，下发封禁、广播、重启回合等管理指令，也能冒充本服向机器人发送通知。",
+                "请管理员尽快修改：自行生成一段随机字符串（建议至少 24 位），",
+                "同时写入本插件配置 auth_token 和机器人 SocketServer:AuthToken（两边必须相同），然后重启。",
+                "插件将继续启动 TCP 服务与心跳，但在修改之前上述风险一直存在。",
+                "===================================================================",
+            };
         }
 
         public static bool TrySeal(string token, string payload, out string wire, out string error)
@@ -34,12 +66,6 @@ namespace Qchat.Security
         {
             wire = "";
             error = "";
-            if (IsRejectedToken(token))
-            {
-                error = "Token 为空或仍是已公开的旧默认值";
-                return false;
-            }
-
             if (string.IsNullOrEmpty(payload))
                 payload = "";
             if (string.IsNullOrEmpty(nonce))
@@ -51,7 +77,7 @@ namespace Qchat.Security
             }
 
             long unix = utcNow.ToUnixTimeSeconds();
-            string mac = ComputeMac(token.Trim(), unix, nonce, payload);
+            string mac = ComputeMac(NormalizeToken(token), unix, nonce, payload);
             wire = Version + "|" + unix.ToString() + "|" + nonce + "|" + mac + "|" + payload;
             return true;
         }
@@ -65,12 +91,6 @@ namespace Qchat.Security
         {
             payload = "";
             error = "";
-            if (IsRejectedToken(token))
-            {
-                error = "未配置有效 Token";
-                return false;
-            }
-
             if (string.IsNullOrEmpty(message) || !message.StartsWith(Version + "|", StringComparison.Ordinal))
             {
                 error = "鉴权格式无效";
@@ -115,7 +135,7 @@ namespace Qchat.Security
                 return false;
             }
 
-            string expected = ComputeMac(token.Trim(), unix, nonce, payload);
+            string expected = ComputeMac(NormalizeToken(token), unix, nonce, payload);
             if (!FixedTimeEquals(mac, expected))
             {
                 error = "鉴权校验失败";
@@ -160,6 +180,11 @@ namespace Qchat.Security
             }
 
             return true;
+        }
+
+        private static string NormalizeToken(string token)
+        {
+            return token == null ? "" : token.Trim();
         }
 
         private static string ComputeMac(string token, long unix, string nonce, string payload)

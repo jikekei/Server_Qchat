@@ -23,7 +23,7 @@ public sealed class LocalAdminOptions
     /// <summary>独立守护节点的 HTTP 监听地址（仅在 Mode = "Daemon" 时生效）。默认 http://127.0.0.1:10090</summary>
     public string DaemonUri { get; set; } = "http://127.0.0.1:10090";
 
-    /// <summary>与守护节点通信的共享凭证。空值或已公开的旧默认值会被拒绝。</summary>
+    /// <summary>与守护节点通信的共享凭证。为空或仍是旧默认值时启动会输出安全警告，但不阻止运行；为空时守护进程不校验 Token。</summary>
     public string DaemonToken { get; set; } = "";
 
     /// <summary>当守护节点未运行时，是否由 Bot 尝试自动后台拉起 Server_Qcha.Daemon.exe。</summary>

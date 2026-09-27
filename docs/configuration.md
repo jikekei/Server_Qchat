@@ -52,7 +52,7 @@
 | `Enabled` | bool | `true` | 是否启用 LocalAdmin 进程托管功能 |
 | `Mode` | string | `"Daemon"` | 运行模式：`"Daemon"` 为独立守护进程架构（推荐，防掉线）；`"Embedded"` 为进程内直接托管 |
 | `DaemonUri` | string | `"http://127.0.0.1:10090"` | 独立守护进程的内部通信端点 |
-| `DaemonToken` | string | `""` | Bot 与守护进程之间的安全鉴权密钥。留空或使用已公开的旧默认值时拒绝启动，须自行设置并与守护进程一致 |
+| `DaemonToken` | string | `""` | Bot 与守护进程之间的安全鉴权密钥，须自行设置并与守护进程一致。留空或仍使用默认密钥 `QchaSecret_123` 时，Bot 与守护进程都会在启动日志中输出安全警告，但仍继续启动；留空时守护进程不校验 Token |
 | `AutoStartDaemon` | bool | `true` | Bot 启动时若检测到守护进程未运行，是否自动在后台静默拉起守护进程 |
 | `DefaultExecutablePath` | string | 参见配置 | 默认的 SCPSL.exe 服务端可执行文件路径 |
 | `ConsoleBufferLines` | int | `2000` | Web 交互控制台内存环形缓冲保留的最大日志行数 |
@@ -90,9 +90,9 @@
 |---|---|---|---|
 | `Mode` | string | `"NapCat"` | 当前运行模式：`"NapCat"`（OneBot 11）、`"Official"`（QQ官方）、`"Both"` 或 `"None"` |
 | `AllowedGroupIds` | long[] | `[]` | 允许响应指令的 QQ 群白名单（适用于 NapCat 模式）。空数组表示响应所有群。管理指令不看这个名单 |
-| `AdminUserIds` | long[] | `[]` | 允许执行管理指令的 QQ 号。不看群主或管理员身份；留空则拒绝全部管理指令。通知名单不会授予管理权限 |
+| `AdminUserIds` | long[] | `[]` | 允许执行管理指令的 QQ 号。配置后只认名单，不看群主或管理员身份，通知名单也不会授予管理权限。留空时沿用原有判定：群聊中群主和群管理员可用，私聊中 `NotifyPrivateUserIds` 内的用户可用，启动时会输出提示，建议尽快配置 |
 | `NotifyGroupIds` | long[] | `[]` | 接收系统日常通知事件的目标群号列表 |
-| `NotifyPrivateUserIds` | long[] | `[]` | 接收系统日常通知事件的目标私聊 QQ 号列表。出现在此名单中不会变成管理员 |
+| `NotifyPrivateUserIds` | long[] | `[]` | 接收系统日常通知事件的目标私聊 QQ 号列表。配置了 `AdminUserIds` 后，出现在此名单中不会变成管理员 |
 | `AcTargetGroupId` | long | `0` | 接收游戏内 `.ac` 报警与求助信息的目标 QQ 群号 |
 
 ---
@@ -111,7 +111,7 @@
 | `ShardTotal` | int | `1` | 分片总数 |
 | `MaxTextLength` | int | `800` | 单条消息最大文本字符数，超出则自动智能分段 |
 | `AllowActivePush` | bool | `false` | 是否允许主动下发通知（需平台开通对应权限） |
-| `AdminOpenIds` | string[] | `[]` | 允许执行管理指令的用户 OpenId。不信任群角色；留空则拒绝全部管理指令 |
+| `AdminOpenIds` | string[] | `[]` | 允许执行管理指令的用户 OpenId。配置后只认名单，不看群角色。留空时沿用原有判定：群聊中 `member_role` 为 admin 或 owner 的成员可用，单聊不放行管理指令，启动时会输出提示 |
 | `AllowedGroupOpenIds` | string[] | `[]` | 允许响应指令的群组 OpenId 白名单 |
 | `NotifyGroupOpenIds` | string[] | `[]` | 接收日常通知的目标群组 OpenId 列表 |
 | `NotifyPrivateOpenIds` | string[] | `[]` | 接收日常通知的目标用户 OpenId 列表 |
@@ -142,7 +142,7 @@
 | `Ports` | int[] | `[ 10087 ]` | 各游戏服务端插件命令监听端口列表 |
 | `NotificationHost` | string | `"127.0.0.1"` | 接收游戏内 `.ac` 推送与心跳上报的监听绑定 IP。默认仅接受本机连接；设置为 `0.0.0.0` 可监听所有网卡，供远程游戏服连接时需限制来源 |
 | `NotificationPort` | int | `10088` | 接收游戏通知的本地监听端口 |
-| `AuthToken` | string | `""` | 双向通信 HMAC 鉴权密钥。留空或使用已公开的旧默认值时拒绝启动，**必须自行设置且与插件端完全一致**。信道不加密 |
+| `AuthToken` | string | `""` | 双向通信 HMAC 鉴权密钥，**请自行设置且与插件端完全一致**。留空或仍使用默认密钥 `QchaSecret_123` 时会在启动日志中输出安全警告，但仍继续启动，请尽快修改。信道不加密 |
 | `ConnectTimeoutMs` | int | `10000` | 连接游戏服务端的网络超时时间（毫秒） |
 | `ReadTimeoutMs` | int | `2000` | 读取游戏服务端回执的超时时间（毫秒） |
 | `Retries` | int | `3` | 指令重发重试最大次数 |
@@ -171,7 +171,7 @@
 | `server_name` | string | `"1服"` | 本服在系统中的展示名称 |
 | `bot_ip` | string | `"127.0.0.1"` | 主程序所在的 IP 地址（分布式时填写主控机 IP） |
 | `bot_port` | int | `10088` | 主程序的 `NotificationPort` 监听端口 |
-| `auth_token` | string | `""` | 通信鉴权密钥，**必须与主程序 AuthToken 保持一致**。留空或使用已公开的旧默认值时插件不启动 TCP 服务 |
+| `auth_token` | string | `""` | 通信鉴权密钥，**必须与主程序 AuthToken 保持一致**。留空或仍使用默认密钥时插件会在启动日志中输出安全警告，但照常启动 TCP 服务，请尽快修改 |
 | `debug` | bool | `false` | 是否在游戏服务端控制台输出调试日志 |
 
 ---

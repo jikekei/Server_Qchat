@@ -10,6 +10,7 @@
 **/bin/
 **/obj/
 **/packages/
+**/net6.0/
 publish/
 **/publish/
 dist/

@@ -142,9 +142,9 @@ export const BotView = {
                 <h4 style="margin:0 0 14px;color:var(--qb-accent)">三、官方平台权限与目标</h4>
                 <el-form-item label="管理员 OpenID">
                   <el-select v-model="botForm.officialAdminOpenIds" multiple filterable allow-create default-first-option
-                             placeholder="输入 openid 后回车。群主或管理员身份不会自动放行" style="width:100%"></el-select>
+                             placeholder="输入 openid 后回车。配置后群主或管理员身份不会自动放行" style="width:100%"></el-select>
                   <div class="muted">
-                    管理指令只认这份名单，不看群角色。留空则拒绝全部管理指令。单聊同样必须在此登记。
+                    配置后管理指令只认这份名单，不看群角色。留空时沿用原有判定：群聊中群主和管理员可用，单聊不放行。建议尽快配置。
                   </div>
                 </el-form-item>
                 <el-form-item label="群消息白名单">
@@ -234,7 +234,7 @@ export const BotView = {
                              placeholder="从好友选择或直接输入 QQ 号" style="width:100%">
                     <el-option v-for="f in bot.friends" :key="'admin-' + f.userId" :label="(f.remark || f.nickname) + ' (' + f.userId + ')'" :value="f.userId"></el-option>
                   </el-select>
-                  <div class="muted">只有名单内的 QQ 能使用封禁、广播、回合等管理指令。不看群主或管理员身份。留空则全部拒绝。运营通知名单不会授予管理权限。</div>
+                  <div class="muted">配置后只有名单内的 QQ 能使用封禁、广播、回合等管理指令，不看群主或管理员身份，运营通知名单也不会授予管理权限。留空时沿用原有判定：群主和群管理员可用，私聊通知名单内的 QQ 可用。建议尽快配置。</div>
                 </el-form-item>
 
                 <el-form-item label=".ac 游戏推送群">
@@ -258,7 +258,7 @@ export const BotView = {
                              placeholder="从好友选择或直接输入 QQ 号" style="width:100%">
                     <el-option v-for="f in bot.friends" :key="f.userId" :label="(f.remark || f.nickname) + ' (' + f.userId + ')'" :value="f.userId"></el-option>
                   </el-select>
-                  <div class="muted">名单内的 QQ 可以收私聊并使用普通指令。管理指令仍只认上面的管理白名单。</div>
+                  <div class="muted">名单内的 QQ 可以私聊机器人。配置了上面的管理白名单后，管理指令只认管理白名单；管理白名单为空时，这里的 QQ 在私聊中仍可使用管理指令（原有逻辑）。</div>
                 </el-form-item>
               </template>
               <template v-else>

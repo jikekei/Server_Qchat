@@ -8,7 +8,7 @@ public sealed class SocketServerOptions
     public string NotificationHost { get; set; } = "127.0.0.1";
     public int NotificationPort { get; set; } = 10088;
 
-    /// <summary>双向鉴权密钥。空值或已公开的旧默认值会被拒绝，须与插件 auth_token 相同。</summary>
+    /// <summary>双向 HMAC 鉴权密钥，须与插件 auth_token 相同。为空或仍是旧默认值时启动会输出安全警告，但不阻止运行。</summary>
     public string AuthToken { get; set; } = "";
 
     public int ConnectTimeoutMs { get; set; } = 10_000;
