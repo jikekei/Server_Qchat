@@ -23,8 +23,8 @@ public sealed class LocalAdminOptions
     /// <summary>独立守护节点的 HTTP 监听地址（仅在 Mode = "Daemon" 时生效）。默认 http://127.0.0.1:10090</summary>
     public string DaemonUri { get; set; } = "http://127.0.0.1:10090";
 
-    /// <summary>与守护节点通信的共享凭证 Token（防止未授权调用）。</summary>
-    public string DaemonToken { get; set; } = "QchaSecret_123";
+    /// <summary>与守护节点通信的共享凭证。空值或已公开的旧默认值会被拒绝。</summary>
+    public string DaemonToken { get; set; } = "";
 
     /// <summary>当守护节点未运行时，是否由 Bot 尝试自动后台拉起 Server_Qcha.Daemon.exe。</summary>
     public bool AutoStartDaemon { get; set; } = true;
@@ -137,12 +137,7 @@ public sealed class LocalServerDefinition
             Name = string.IsNullOrWhiteSpace(Id) ? $"本地服-{index + 1}" : Id;
 
         if (string.IsNullOrWhiteSpace(Id))
-        {
-            var chars = Name.Trim().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray();
-            Id = new string(chars).Trim('-');
-            if (Id.Length == 0)
-                Id = $"local-{index + 1}";
-        }
+            Id = DeriveId(Name, index);
 
         Id = Id.Trim();
 
@@ -166,4 +161,18 @@ public sealed class LocalServerDefinition
         LaToSlBufferSize = Math.Clamp(LaToSlBufferSize, 101, 16 * 1024 * 1024);
         SlToLaBufferSize = Math.Clamp(SlToLaBufferSize, 351, 16 * 1024 * 1024);
     }
+
+    private static string DeriveId(string name, int index)
+    {
+        var chars = name.Trim().Select(c => IsAsciiIdChar(c) ? c : '-').ToArray();
+        string id = new string(chars).Trim('-');
+        if (id.Length > 64)
+            id = id.Substring(0, 64).Trim('-');
+        if (id.Length == 0)
+            id = $"local-{index + 1}";
+        return id;
+    }
+
+    private static bool IsAsciiIdChar(char c) =>
+        (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
 }

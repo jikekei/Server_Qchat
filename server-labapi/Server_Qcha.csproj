@@ -36,6 +36,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\server\TcpAuthEnvelope.cs" Link="TcpAuthEnvelope.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Northwood.LabAPI" Version="1.1.7" />
     <Reference Include="Assembly-CSharp">
       <HintPath>$(ScpslReferences)\Assembly-CSharp.dll</HintPath>

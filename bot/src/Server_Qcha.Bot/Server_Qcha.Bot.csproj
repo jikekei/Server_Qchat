@@ -24,6 +24,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Server_Qcha.LocalAdmin.Shared\Server_Qcha.LocalAdmin.Shared.csproj" />
+    <!-- 与两套游戏插件共用同一份 TCP 鉴权实现，避免封套格式漂移。 -->
+    <Compile Include="..\..\..\server\TcpAuthEnvelope.cs" Link="Socket\TcpAuthEnvelope.cs" />
   </ItemGroup>
 
   <!--

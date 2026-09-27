@@ -10,8 +10,14 @@ public sealed class BotOptions
     /// </summary>
     public BotPlatform Mode { get; set; } = BotPlatform.NapCat;
 
-    // If empty, listens to all groups.
+    // If empty, listens to all groups. 管理指令不看这个名单。
     public long[] AllowedGroupIds { get; set; } = Array.Empty<long>();
+
+    /// <summary>
+    /// 允许执行管理指令的 QQ 号。不信任群主/管理员身份；名单为空则拒绝全部管理指令。
+    /// 通知名单不会授予管理权限。
+    /// </summary>
+    public long[] AdminUserIds { get; set; } = Array.Empty<long>();
 
     // For operational notifications (monitoring, etc).
     public long[] NotifyGroupIds { get; set; } = Array.Empty<long>();

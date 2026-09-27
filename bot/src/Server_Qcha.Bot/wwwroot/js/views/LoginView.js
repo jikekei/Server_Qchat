@@ -61,7 +61,8 @@ export const LoginView = {
 
         token.value = data.token;
         session.value = data;
-        localStorage.setItem(TOKEN_KEY, data.token);
+        try { sessionStorage.setItem(TOKEN_KEY, data.token); } catch (e) { /* 忽略 */ }
+        try { localStorage.removeItem(TOKEN_KEY); } catch (e) { /* 忽略 */ }
         loginForm.password = '';
 
         await loadMeta();

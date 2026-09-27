@@ -56,7 +56,8 @@ dotnet run --project src/Server_Qcha.Bot -c Release
 主要配置在 `src/Server_Qcha.Bot/appsettings.json`，推荐只在 `src/Server_Qcha.Bot/appsettings.Local.json` 放本机配置（已在 `.gitignore` 里忽略）。
 
 - `Bot:AllowedGroupIds` 为空表示监听所有群；不为空则只处理指定群
-- `Bot:NotifyGroupIds`/`Bot:NotifyPrivateUserIds` 当前未使用（预留给未来的告警/通知功能）
+- `Bot:AdminUserIds` 是管理指令白名单。留空则拒绝 `/ban`、`/bc`、`/round` 等管理指令，群主或管理员身份不会自动放行
+- `Bot:NotifyPrivateUserIds` 只决定谁能收私聊，不会因此获得管理权限
 
 ## Socket 协议（约定）
 

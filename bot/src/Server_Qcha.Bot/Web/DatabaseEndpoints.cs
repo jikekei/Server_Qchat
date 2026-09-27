@@ -71,26 +71,8 @@ public static class DatabaseEndpoints
         return Regex.Replace(cs, @"(?i)(Password|Pwd)\s*=\s*[^;]+", "$1=******");
     }
 
-    /// <summary>
-    /// 若输入连接串包含脱敏掩码 ******，则从当前配置中复用真实密码。
-    /// 若用户显式输入了新密码或清空，则沿用输入。
-    /// </summary>
-    private static string ResolveConnectionString(string? input, string? current)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return "";
-        input = input.Trim();
-        if (input.Contains("******") && !string.IsNullOrWhiteSpace(current))
-        {
-            var match = Regex.Match(current, @"(?i)(Password|Pwd)\s*=\s*([^;]+)");
-            if (match.Success)
-            {
-                string actualPwd = match.Groups[2].Value;
-                return Regex.Replace(input, @"(?i)(Password|Pwd)\s*=\s*\*{6}", $"$1={actualPwd}");
-            }
-        }
-        return input;
-    }
+    private static bool TryResolveConnectionString(string? input, string? current, out string resolved, out string? error) =>
+        DbConnectionSecret.TryResolve(input, current, out resolved, out error);
 
     private static async Task<IResult> GetStatusAsync(
         HttpContext ctx,
@@ -125,7 +107,8 @@ public static class DatabaseEndpoints
         if (error is not null)
             return error;
 
-        string cs = ResolveConnectionString(request.ConnectionString, repo.CurrentConnectionString);
+        if (!TryResolveConnectionString(request.ConnectionString, repo.CurrentConnectionString, out string cs, out string? secretError))
+            return Results.Json(new { error = secretError }, statusCode: StatusCodes.Status400BadRequest);
 
         if (request.TestFirst == true && !string.IsNullOrWhiteSpace(cs))
         {
@@ -163,7 +146,18 @@ public static class DatabaseEndpoints
         if (error is not null)
             return error;
 
-        string cs = ResolveConnectionString(request.ConnectionString, repo.CurrentConnectionString);
+        if (!TryResolveConnectionString(request.ConnectionString, repo.CurrentConnectionString, out string cs, out string? secretError))
+        {
+            return Results.Json(new
+            {
+                success = false,
+                error = secretError,
+                elapsedMs = 0,
+                playerDataExists = false,
+                banPlayerDataExists = false,
+            }, statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var res = await repo.TestConnectionAsync(cs, ct);
         return Results.Json(new
         {

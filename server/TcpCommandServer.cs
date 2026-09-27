@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Qchat.Security;
 using Log = Exiled.API.Features.Log;
 
 namespace SocketServer
@@ -14,6 +15,7 @@ namespace SocketServer
         private readonly int _port;
         private readonly Func<string, string> _dispatch;
         private readonly Func<string> _authToken;
+        private readonly TcpAuthNonceCache _nonces = new TcpAuthNonceCache();
 
         private TcpListener _listener;
         private CancellationTokenSource _cts;
@@ -124,26 +126,14 @@ namespace SocketServer
                             return;
                         }
 
-                        string commandToDispatch = request;
                         string token = _authToken();
-                        if (!string.IsNullOrEmpty(token))
+                        string commandToDispatch;
+                        string authError;
+                        if (!TcpAuthEnvelope.TryUnseal(token, request, _nonces, out commandToDispatch, out authError))
                         {
-                            int splitIdx = request.IndexOf("||", StringComparison.Ordinal);
-                            if (splitIdx < 0)
-                            {
-                                Log.Warn($"[Server_Qcha] 拒绝来自 {remoteIP} 的未授权连接：缺少 Token");
-                                await WriteUtf8Async(stream, "Unauthorized", ct).ConfigureAwait(false);
-                                return;
-                            }
-
-                            string reqToken = request.Substring(0, splitIdx);
-                            if (reqToken != token)
-                            {
-                                Log.Warn($"[Server_Qcha] 拒绝来自 {remoteIP} 的未授权连接：Token 不匹配");
-                                await WriteUtf8Async(stream, "Unauthorized", ct).ConfigureAwait(false);
-                                return;
-                            }
-                            commandToDispatch = request.Substring(splitIdx + 2);
+                            Log.Warn($"[Server_Qcha] 拒绝来自 {remoteIP} 的未授权连接：{authError}");
+                            await WriteUtf8Async(stream, "Unauthorized", ct).ConfigureAwait(false);
+                            return;
                         }
 
                         Log.Debug($"[Server_Qcha] 收到命令 [{commandToDispatch}] 来自 {remoteIP}");

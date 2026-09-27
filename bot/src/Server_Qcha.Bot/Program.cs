@@ -91,7 +91,7 @@ builder.Services.Configure<LocalAdminOptions>(builder.Configuration.GetSection("
 var webOptions = builder.Configuration.GetSection("WebPanel").Get<WebPanelOptions>() ?? new WebPanelOptions();
 if (webOptions.Enabled)
 {
-    string host = string.IsNullOrWhiteSpace(webOptions.Host) ? "0.0.0.0" : webOptions.Host;
+    string host = string.IsNullOrWhiteSpace(webOptions.Host) ? "127.0.0.1" : webOptions.Host;
     int port = webOptions.Port is > 0 and <= 65535 ? webOptions.Port : 8080;
     builder.WebHost.UseUrls($"http://{host}:{port}");
 }
@@ -169,6 +169,20 @@ builder.Services.AddSingleton<PlayerHistoryTracker>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PlayerHistoryTracker>());
 builder.Services.AddSingleton<ServerStatusMonitorService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ServerStatusMonitorService>());
+
+var socketOptsForGuard = builder.Configuration.GetSection("SocketServer").Get<SocketServerOptions>() ?? new SocketServerOptions();
+bool needDaemonToken = localAdminOptions.Enabled
+    && !string.Equals(localAdminOptions.Mode, "Embedded", StringComparison.OrdinalIgnoreCase);
+var secretProblems = SharedSecretPolicy.DescribeStartupRejection(
+    checkAuthToken: true,
+    authToken: socketOptsForGuard.AuthToken,
+    checkDaemonToken: needDaemonToken,
+    daemonToken: localAdminOptions.DaemonToken);
+if (secretProblems.Count > 0)
+{
+    SharedSecretPolicy.WriteStartupRejection(secretProblems);
+    return;
+}
 
 var app = builder.Build();
 

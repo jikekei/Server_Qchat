@@ -47,8 +47,7 @@ public sealed class OfficialQqOptions
     public bool AllowActivePush { get; set; }
 
     /// <summary>
-    /// 允许执行管理指令的用户 OpenID 列表。
-    /// 官方群虽然有 member_role，但沙箱/异常情况下可能为空，此列表作为兜底白名单。
+    /// 允许执行管理指令的用户 OpenID。不信任群角色；名单为空则拒绝全部管理指令。
     /// </summary>
     public string[] AdminOpenIds { get; set; } = Array.Empty<string>();
 

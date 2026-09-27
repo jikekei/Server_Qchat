@@ -24,7 +24,7 @@ const app = createApp({
     // 启动恢复会话
     (async function bootstrap() {
       try { await loadMeta(); } catch (e) { /* 忽略 */ }
-      if (!localStorage.getItem('scpsl_panel_token')) return;
+      if (!sessionStorage.getItem('scpsl_panel_token')) return;
       try {
         const me = await api('/auth/me');
         session.value = me;
