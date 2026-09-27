@@ -2,7 +2,7 @@
 
 # Server_Qcha (Qridge)
 
-[简体中文](README.zh-CN.md) · [English](README.md)
+[简体中文](README.md) · [English](../../README.md)
 
 ### SCP: Secret Laboratory 现代化 Web 运维控制面板、独立守护集群与社群机器人系统
 
@@ -14,9 +14,9 @@
 [![Vue 3](https://img.shields.io/badge/Frontend-Vue%203-4FC08D?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![Element Plus](https://img.shields.io/badge/UI-Element%20Plus-409EFF?logo=element&logoColor=white)](https://element-plus.org/)
 [![QQ Bot](https://img.shields.io/badge/QQ%20Bot-Official%20%26%20OneBot%2011-12B7F5?logo=tencent-qq&logoColor=white)](https://bot.q.qq.com/)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](../../LICENSE)
 
-[在线文档中心](docs/getting-started.md) · [English quick start](docs/getting-started.en.md) · [下载最新发布包 (Releases)](https://github.com/jikekei/Server_Qchat/releases) · [提交 Issue 报障](https://github.com/jikekei/Server_Qchat/issues)
+[中文文档中心](../README.zh-CN.md) · [English documentation](../README.md) · [下载最新发布包 (Releases)](https://github.com/jikekei/Server_Qchat/releases) · [提交 Issue 报障](https://github.com/jikekei/Server_Qchat/issues)
 
 </div>
 
@@ -137,13 +137,13 @@ graph TD
 
 | 文档名称 | 内容概览 | 快速链接 |
 |---|---|---|
-| **快速上手与全平台部署** | 基础要求、开箱运行、单机与多机集群部署指南 | [docs/getting-started.md](docs/getting-started.md) |
-| **Web 面板与 LocalAdmin 替代说明** | 独立守护架构详解、心跳自愈机制、Web 监控管理与移动端适配 | [docs/web-panel.md](docs/web-panel.md) |
-| **游戏服务端插件指南** | EXILED 与 LabAPI 插件安装、TCP 双向通信、Token 鉴权与 `.ac` 呼叫 | [docs/plugin-guide.md](docs/plugin-guide.md) |
-| **QQ 机器人与群服联动指南** | 官方机器人 (OpenAPI v2) 与 NapCat 快速配置、指令表与指令面板同步 | [docs/bot-guide.md](docs/bot-guide.md) |
-| **配置文件参考手册** | `appsettings.json`、守护配置与插件 `config.yml` 完整字段速查 | [docs/configuration.md](docs/configuration.md) |
-| **常见问题与排错手册 (FAQ)** | 端口占用、权限冲突、进程闪退排查与自愈诊断方案 | [docs/faq.md](docs/faq.md) |
-| **轻量级 API 查服机器人** | 零插件无侵入独立部署、NapCat 接入与列表 API 查服说明 | [API调用版本.md](API调用版本.md) |
+| **快速上手与全平台部署** | 基础要求、开箱运行、单机与多机集群部署指南 | [快速开始](guides/getting-started.md) |
+| **Web 面板与 LocalAdmin 替代说明** | 独立守护架构详解、心跳自愈机制、Web 监控管理与移动端适配 | [Web 面板指南](guides/web-panel.md) |
+| **游戏服务端插件指南** | EXILED 与 LabAPI 插件安装、TCP 双向通信、Token 鉴权与 `.ac` 呼叫 | [插件指南](guides/plugin-guide.md) |
+| **QQ 机器人与群服联动指南** | 官方机器人 (OpenAPI v2) 与 NapCat 快速配置、指令表与指令面板同步 | [机器人指南](guides/bot-guide.md) |
+| **配置文件参考手册** | `appsettings.json`、守护配置与插件 `config.yml` 完整字段速查 | [配置参考](guides/configuration.md) |
+| **常见问题与排错手册 (FAQ)** | 端口占用、权限冲突、进程闪退排查与自愈诊断方案 | [FAQ](guides/faq.md) |
+| **轻量级 API 查服机器人** | 零插件无侵入独立部署、NapCat 接入与列表 API 查服说明 | [API 查服机器人](guides/api-bot.md) |
 
 ---
 
@@ -170,7 +170,7 @@ graph TD
 
 ## 开源协议与版权声明
 
-本项目基于 [Apache License 2.0](LICENSE) 协议开源。
+本项目基于 [Apache License 2.0](../../LICENSE) 协议开源。
 
 Copyright 2025 hmyhserver.top
 

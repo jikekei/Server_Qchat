@@ -1,13 +1,13 @@
 # Server_Qcha（LabAPI 版）
 
-[简体中文](README.md) · [English](README.en.md)
+[简体中文](labapi-plugin.md) · [English](../../en/components/labapi-plugin.md)
 
 SCPSL 服务端插件：把游戏服与 QQ 机器人后台双向打通。
 
 本目录是 `server/`（EXILED 版）的 **LabAPI 迁移版本**，功能等价、**通信协议完全一致，机器人端无需任何改动**。
 
-- 迁移对照表与行为差异 → [MIGRATION-EXILED-to-LABAPI.md](MIGRATION-EXILED-to-LABAPI.md)
-- TCP 协议细节 → 上级目录 [`通信协议文档.md`](../通信协议文档.md)
+- 迁移对照表与行为差异 → [EXILED 到 LabAPI 迁移说明](exiled-to-labapi-migration.md)
+- TCP 协议细节 → [通信协议参考](../reference/communication-protocol.md)
 
 ## 运行环境
 

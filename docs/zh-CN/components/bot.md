@@ -1,6 +1,6 @@
 # Server_Qcha.Bot
 
-[简体中文](README.md) · [English](README.en.md)
+[简体中文](bot.md) · [English](../../en/components/bot.md)
 
 一个用于 **SCP: Secret Laboratory (SCPSL)** 的 QQ 机器人与服务器联动工具。
 
@@ -79,10 +79,10 @@ SocketServer 需要返回可读文本作为机器人回复。
 
 - 不要把任何 token/密码写进源码或提交到 GitHub
 - 本项目默认从环境变量读取配置（例如 `MySql__ConnectionString`）
-- 数据库 live 测试默认跳过；启用方式和泄露凭据的轮换、来源白名单及历史清理说明见 [数据库安全处理](../docs/database-security.md)。
+- 数据库 live 测试默认跳过；启用方式和凭据泄露处理见 [数据库安全处理](../guides/database-security.md)。
 
 ## 许可证
 
-本组件遵循仓库根目录的 Apache License 2.0，见 `../LICENSE`。
+本组件遵循仓库根目录的 Apache License 2.0，见 `../../../LICENSE`。
 
 Copyright 2025 hmyhserver.top
