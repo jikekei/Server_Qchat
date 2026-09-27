@@ -5,9 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Server.Qcat</RootNamespace>
-    <Version>2.0.0</Version>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
+    <Version>2.0.1</Version>
+    <AssemblyVersion>2.0.1.0</AssemblyVersion>
+    <FileVersion>2.0.1.0</FileVersion>
     <Product>Server_Qcha LocalAdmin Shared</Product>
   </PropertyGroup>
 

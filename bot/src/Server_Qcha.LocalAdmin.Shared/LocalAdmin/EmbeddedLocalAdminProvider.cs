@@ -196,7 +196,7 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
         return Task.FromResult(new DaemonStatusResult(
             Online: true,
             Status: "running (embedded)",
-            Version: "2.0.0",
+            Version: "2.0.1",
             Pid: Environment.ProcessId,
             StartTime: proc.StartTime,
             UptimeSeconds: uptime,

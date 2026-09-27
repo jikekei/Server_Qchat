@@ -7,9 +7,9 @@
     <Nullable>enable</Nullable>
     <!-- 与既有代码的根命名空间保持一致（Server.Qcat） -->
     <RootNamespace>Server_Qcha.Bot</RootNamespace>
-    <Version>2.0.0</Version>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
+    <Version>2.0.1</Version>
+    <AssemblyVersion>2.0.1.0</AssemblyVersion>
+    <FileVersion>2.0.1.0</FileVersion>
     <Product>Qcha QQ Bot</Product>
     <Description>SCPSL Qcha QQ 机器人与 Web 控制台</Description>
   </PropertyGroup>

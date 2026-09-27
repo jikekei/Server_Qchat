@@ -40,7 +40,7 @@ public class CommandParsingTests
     {
         string details = CommandRouter.GetVersionDetails();
         Assert.Contains("Qcha QQ Bot 版本详情", details);
-        Assert.Contains("机器人版本: v2.0.0", details);
+        Assert.Contains("机器人版本: v2.0.1", details);
         Assert.Contains("核心特性:", details);
         Assert.Contains("运行时环境: .NET", details);
     }

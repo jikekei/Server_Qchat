@@ -56,18 +56,18 @@ public static class SharedSecretPolicy
         var lines = new List<string>
         {
             "===================================================================",
-            "【安全警告】检测到仍在使用默认密钥（或密钥为空）：",
+            "【安全警告】检测到默认密钥或空密钥。",
+            "",
+            "当前默认密钥 " + LegacyDefaultToken + " 已公开，继续使用可能导致未授权鉴权和管理操作。",
+            "",
+            "请尽快修改为至少 24 位随机字符串，并确保：",
+            "· SocketServer:AuthToken = 游戏插件 auth_token",
+            "· LocalAdmin:DaemonToken = 守护进程对应 Token",
+            "",
+            "跨机器部署建议配合 VPN 或防火墙限制来源。",
+            "程序将继续启动，但修改前仍存在安全风险。",
+            "==================================================================="
         };
-        foreach (string problem in problems)
-            lines.Add("  · " + problem);
-        lines.Add("使用默认密钥存在安全风险：默认值已写在公开仓库和文档中，任何能连到相关端口的人");
-        lines.Add("都可以伪造鉴权，向游戏服下发封禁、广播、重启回合等管理指令，或操作守护进程托管的服务器。");
-        lines.Add("请管理员尽快修改：自行生成一段随机字符串（建议至少 24 位），按下面的对应关系写成同一个值后重启：");
-        lines.Add("  · 机器人 SocketServer:AuthToken 与游戏插件 auth_token 必须相同");
-        lines.Add("  · 机器人与守护进程的 LocalAdmin:DaemonToken 必须相同");
-        lines.Add("跨机器通信请走 VPN，或用防火墙限制来源。这条 TCP 链路只做 HMAC 鉴权，不加密内容。");
-        lines.Add("程序将继续启动，但在修改之前上述风险一直存在。");
-        lines.Add("===================================================================");
         return lines;
     }
 

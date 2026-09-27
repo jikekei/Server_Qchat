@@ -107,7 +107,7 @@ var api = app.MapGroup("/api/daemon");
 api.MapGet("/ping", (LocalAdminManager manager) =>
 {
     int running = manager.Instances.Count(i => i.Running);
-    return Results.Json(new DaemonPingResult("ok", "2.0.0", Environment.ProcessId, manager.Instances.Count, running));
+    return Results.Json(new DaemonPingResult("ok", "2.0.1", Environment.ProcessId, manager.Instances.Count, running));
 });
 
 api.MapGet("/status", (LocalAdminManager manager, IOptions<LocalAdminOptions> options) =>
@@ -122,7 +122,7 @@ api.MapGet("/status", (LocalAdminManager manager, IOptions<LocalAdminOptions> op
     return Results.Json(new DaemonStatusResult(
         Online: true,
         Status: "running",
-        Version: "2.0.0",
+        Version: "2.0.1",
         Pid: Environment.ProcessId,
         StartTime: proc.StartTime,
         UptimeSeconds: uptime,
