@@ -107,6 +107,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CommandDispatcher.cs" />
+    <Compile Include="TcpAuthEnvelope.cs" />
     <Compile Include="TcpCommandServer.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="AcCommand.cs" />

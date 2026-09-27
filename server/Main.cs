@@ -33,8 +33,8 @@ namespace SocketServer
         [Description("QQ机器人后台监听服务的端口号")]
         public int BotPort { get; set; } = 10088;
 
-        [Description("安全验证Token，须与机器人端的Token一致")]
-        public string AuthToken { get; set; } = "QchaSecret_123";
+        [Description("安全验证 Token，须与机器人 SocketServer:AuthToken 一致。留空或使用已公开的旧默认值时，插件拒绝启动 TCP 服务")]
+        public string AuthToken { get; set; } = "";
 
         [Description("排序权重，>0时按此排序，=0时自动排序")]
         public int SortOrder { get; set; } = 0;
@@ -115,6 +115,12 @@ namespace SocketServer
                 return;
 
             _started = true;
+
+            if (Qchat.Security.TcpAuthEnvelope.IsRejectedToken(Config.AuthToken))
+            {
+                Log.Error("[Server_Qcha] 【安全】auth_token 为空或仍是已公开的旧默认值，已拒绝启动 TCP 服务与心跳。请把它和机器人 SocketServer:AuthToken 设成同一段自行生成的随机字符串后重启。");
+                return;
+            }
 
             // 1. 解析回连主机地址
             _resolvedHost = Config.ConnectHost;

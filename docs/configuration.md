@@ -52,7 +52,7 @@
 | `Enabled` | bool | `true` | 是否启用 LocalAdmin 进程托管功能 |
 | `Mode` | string | `"Daemon"` | 运行模式：`"Daemon"` 为独立守护进程架构（推荐，防掉线）；`"Embedded"` 为进程内直接托管 |
 | `DaemonUri` | string | `"http://127.0.0.1:10090"` | 独立守护进程的内部通信端点 |
-| `DaemonToken` | string | `"QchaSecret_123"` | Bot 与守护进程之间的安全鉴权密钥 |
+| `DaemonToken` | string | `""` | Bot 与守护进程之间的安全鉴权密钥。留空或使用已公开的旧默认值时拒绝启动，须自行设置并与守护进程一致 |
 | `AutoStartDaemon` | bool | `true` | Bot 启动时若检测到守护进程未运行，是否自动在后台静默拉起守护进程 |
 | `DefaultExecutablePath` | string | 参见配置 | 默认的 SCPSL.exe 服务端可执行文件路径 |
 | `ConsoleBufferLines` | int | `2000` | Web 交互控制台内存环形缓冲保留的最大日志行数 |
@@ -64,9 +64,9 @@
 #### `Servers` 数组内每个游戏实例配置项：
 | 字段 | 类型 | 默认值 | 描述 |
 |---|---|---|---|
-| `Id` | string | `"main"` | 实例唯一标识（建议由纯英文字母与数字构成） |
+| `Id` | string | `"main"` | 实例唯一标识，只允许英文字母、数字、下划线和连字符 |
 | `Name` | string | `"主服务器"` | 实例在 Web 控制台中显示的友好名称 |
-| `ExecutablePath` | string | 路径字符串 | 本实例对应的 `SCPSL.exe` 完整绝对路径 |
+| `ExecutablePath` | string | 路径字符串 | 本实例对应的服务端路径。文件名只允许 `SCPSL.exe` 或 `SCPSL.x86_64`。该权限会以当前进程身份拉起程序，等同主机上的高权限操作 |
 | `WorkingDirectory` | string | `""` | 实例运行工作目录，留空则自动取程序所在目录 |
 | `GamePort` | int | `7777` | 游戏服务监听端口 |
 | `ExtraArguments` | string | `""` | 传递给 SCPSL 的附加命令行参数 |
@@ -89,9 +89,10 @@
 | 字段 | 类型 | 默认值 | 描述 |
 |---|---|---|---|
 | `Mode` | string | `"NapCat"` | 当前运行模式：`"NapCat"`（OneBot 11）、`"Official"`（QQ官方）、`"Both"` 或 `"None"` |
-| `AllowedGroupIds` | long[] | `[]` | 允许响应指令的 QQ 群白名单（适用于 NapCat 模式）。空数组表示响应所有群 |
+| `AllowedGroupIds` | long[] | `[]` | 允许响应指令的 QQ 群白名单（适用于 NapCat 模式）。空数组表示响应所有群。管理指令不看这个名单 |
+| `AdminUserIds` | long[] | `[]` | 允许执行管理指令的 QQ 号。不看群主或管理员身份；留空则拒绝全部管理指令。通知名单不会授予管理权限 |
 | `NotifyGroupIds` | long[] | `[]` | 接收系统日常通知事件的目标群号列表 |
-| `NotifyPrivateUserIds` | long[] | `[]` | 接收系统日常通知事件的目标私聊 QQ 号列表 |
+| `NotifyPrivateUserIds` | long[] | `[]` | 接收系统日常通知事件的目标私聊 QQ 号列表。出现在此名单中不会变成管理员 |
 | `AcTargetGroupId` | long | `0` | 接收游戏内 `.ac` 报警与求助信息的目标 QQ 群号 |
 
 ---
@@ -110,7 +111,7 @@
 | `ShardTotal` | int | `1` | 分片总数 |
 | `MaxTextLength` | int | `800` | 单条消息最大文本字符数，超出则自动智能分段 |
 | `AllowActivePush` | bool | `false` | 是否允许主动下发通知（需平台开通对应权限） |
-| `AdminOpenIds` | string[] | `[]` | 拥有管理员权限的用户 OpenId 白名单 |
+| `AdminOpenIds` | string[] | `[]` | 允许执行管理指令的用户 OpenId。不信任群角色；留空则拒绝全部管理指令 |
 | `AllowedGroupOpenIds` | string[] | `[]` | 允许响应指令的群组 OpenId 白名单 |
 | `NotifyGroupOpenIds` | string[] | `[]` | 接收日常通知的目标群组 OpenId 列表 |
 | `NotifyPrivateOpenIds` | string[] | `[]` | 接收日常通知的目标用户 OpenId 列表 |
@@ -141,7 +142,7 @@
 | `Ports` | int[] | `[ 10087 ]` | 各游戏服务端插件命令监听端口列表 |
 | `NotificationHost` | string | `"127.0.0.1"` | 接收游戏内 `.ac` 推送与心跳上报的监听绑定 IP。默认仅接受本机连接；设置为 `0.0.0.0` 可监听所有网卡，供远程游戏服连接时需限制来源 |
 | `NotificationPort` | int | `10088` | 接收游戏通知的本地监听端口 |
-| `AuthToken` | string | `"QchaSecret_123"` | 双向通信鉴权密钥，**务必修改且与插件端保持完全一致** |
+| `AuthToken` | string | `""` | 双向通信 HMAC 鉴权密钥。留空或使用已公开的旧默认值时拒绝启动，**必须自行设置且与插件端完全一致**。信道不加密 |
 | `ConnectTimeoutMs` | int | `10000` | 连接游戏服务端的网络超时时间（毫秒） |
 | `ReadTimeoutMs` | int | `2000` | 读取游戏服务端回执的超时时间（毫秒） |
 | `Retries` | int | `3` | 指令重发重试最大次数 |
@@ -170,7 +171,7 @@
 | `server_name` | string | `"1服"` | 本服在系统中的展示名称 |
 | `bot_ip` | string | `"127.0.0.1"` | 主程序所在的 IP 地址（分布式时填写主控机 IP） |
 | `bot_port` | int | `10088` | 主程序的 `NotificationPort` 监听端口 |
-| `auth_token` | string | `"QchaSecret_123"` | 通信鉴权密钥，**必须与主程序 AuthToken 保持一致** |
+| `auth_token` | string | `""` | 通信鉴权密钥，**必须与主程序 AuthToken 保持一致**。留空或使用已公开的旧默认值时插件不启动 TCP 服务 |
 | `debug` | bool | `false` | 是否在游戏服务端控制台输出调试日志 |
 
 ---

@@ -2,6 +2,7 @@ using System;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Qchat.Security;
 using Log = Exiled.API.Features.Log;
 
 namespace SocketServer
@@ -65,7 +66,10 @@ namespace SocketServer
 
                     using (var stream = client.GetStream())
                     {
-                        string payload = string.IsNullOrEmpty(token) ? jsonPayload : $"{token}||{jsonPayload}";
+                        string payload;
+                        string authError;
+                        if (!TcpAuthEnvelope.TrySeal(token, jsonPayload, out payload, out authError))
+                            return false;
                         byte[] bytes = Encoding.UTF8.GetBytes(payload);
                         await stream.WriteAsync(bytes, 0, bytes.Length);
 

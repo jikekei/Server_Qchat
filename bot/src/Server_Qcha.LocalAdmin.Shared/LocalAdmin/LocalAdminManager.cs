@@ -25,13 +25,6 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
     private readonly string _contentRootPath;
     private readonly LocalServerStore _store;
 
-    private static readonly HashSet<string> DisallowedExecutables = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "cmd.exe", "powershell.exe", "pwsh.exe", "bash.exe", "sh.exe", "zsh.exe",
-        "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe",
-        "certutil.exe", "bitsadmin.exe", "schtasks.exe"
-    };
-
     /// <summary>与 <see cref="_definitions"/> 一一对应、顺序一致。</summary>
     private readonly List<LocalServerInstance> _instances = new();
 
@@ -157,6 +150,12 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
             {
                 def.Normalize(index++);
 
+                if (!LocalServerGuard.IsSafeId(def.Id))
+                {
+                    _log.LogError("本地服务器 Id 不合法，已跳过：{Id}", def.Id);
+                    continue;
+                }
+
                 if (_byId.ContainsKey(def.Id))
                 {
                     _log.LogError("本地服务器 Id 重复，已跳过：{Id}", def.Id);
@@ -197,12 +196,13 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
         if (string.IsNullOrWhiteSpace(def.Name) && string.IsNullOrWhiteSpace(def.Id))
             return LocalAdminResult.Fail("名称不能为空");
 
-        if (string.IsNullOrWhiteSpace(def.ExecutablePath))
-            return LocalAdminResult.Fail("可执行文件路径不能为空");
+        string? idError = LocalServerGuard.ValidateId(def.Id);
+        if (idError is not null)
+            return LocalAdminResult.Fail(idError);
 
-        string exeFileName = Path.GetFileName(def.ExecutablePath).Trim();
-        if (DisallowedExecutables.Contains(exeFileName))
-            return LocalAdminResult.Fail($"不允许指定系统命令行或系统解释器作为服务端程序：{exeFileName}");
+        string? exeError = LocalServerGuard.ValidateExecutable(def.ExecutablePath);
+        if (exeError is not null)
+            return LocalAdminResult.Fail(exeError);
 
         if (def.GamePort is < 1 or > 65535)
             return LocalAdminResult.Fail($"游戏端口不合法：{def.GamePort}（应在 1-65535 之间）");

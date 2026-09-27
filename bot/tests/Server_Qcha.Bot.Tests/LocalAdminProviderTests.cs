@@ -33,7 +33,7 @@ public class LocalAdminProviderTests
         var options = new LocalAdminOptions();
         Assert.Equal("Daemon", options.Mode);
         Assert.Equal("http://127.0.0.1:10090", options.DaemonUri);
-        Assert.Equal("QchaSecret_123", options.DaemonToken);
+        Assert.Equal("", options.DaemonToken);
         Assert.True(options.AutoStartDaemon);
     }
 

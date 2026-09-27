@@ -118,6 +118,7 @@ QQ 官方机器人支持在聊天框直接展示结构化的指令选项。系�
 - `Mode`：设为 `"NapCat"`；
 - `WsBaseUri`：填写 NapCat 监听的正向 WebSocket 完整地址；
 - `AllowedGroupIds`：允许响应的 QQ 群白名单。留空数组 `[]` 表示响应机器人加入的所有群；
+- `AdminUserIds`：允许执行管理指令的 QQ 号。不看群主或管理员身份，留空则管理指令全部拒绝。`NotifyPrivateUserIds` 只用于通知，不会变成管理员；
 - `AcTargetGroupId`：接收游戏内报警求助消息的目标群号。
 
 ---

@@ -19,6 +19,15 @@ function localBase() {
   return '/local/servers/' + encodeURIComponent(local.selectedId);
 }
 
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function syncHeartbeatSwitch() {
   local.heartbeatSwitch = !!(local.status && local.status.heartbeatStatus !== 'disabled');
 }
@@ -540,7 +549,7 @@ async function localStop(mode) {
     await ElMessageBox.confirm(
       `<div style="line-height:1.7;">
         <p style="font-weight:bold;color:#f56c6c;font-size:15px;margin-bottom:8px;">⚠️ 严重警告：关闭程序将导致服务器直接断开下线！</p>
-        <p>确定要对【<b>${serverName}</b>】执行「<b>${action}</b>」吗？</p>
+        <p>确定要对【<b>${escapeHtml(serverName)}</b>】执行「<b>${escapeHtml(action)}</b>」吗？</p>
         <div style="color:#e6a23c;margin-top:8px;background:rgba(230,162,60,0.12);padding:10px;border-radius:6px;border-left:4px solid #e6a23c;">
           <b>【操作后果提示】</b><br/>
           <div style="background:#e53e3e;color:#ffffff;padding:8px 10px;border-radius:4px;font-weight:bold;margin:6px 0;">
@@ -565,7 +574,7 @@ async function localStop(mode) {
     await ElMessageBox.confirm(
       `<div style="line-height:1.7;">
         <p style="font-weight:bold;color:#f56c6c;font-size:15px;margin-bottom:8px;">🚨 最终二次确认：真的要立即关闭服务器吗？</p>
-        <p>请再次确认：您即将彻底停止【<b>${serverName}</b>】进程！</p>
+        <p>请再次确认：您即将彻底停止【<b>${escapeHtml(serverName)}</b>】进程！</p>
         <p style="color:#f56c6c;margin-top:6px;font-weight:bold;">
           💥 点击确认后，该服务器将立即停止，所有在线玩家全部掉线！
         </p>
@@ -595,7 +604,7 @@ async function localRestart(force) {
     await ElMessageBox.confirm(
       `<div style="line-height:1.7;">
         <p style="font-weight:bold;color:#e6a23c;font-size:15px;margin-bottom:8px;">⚠️ 重启警告：重启服务器将导致在线玩家掉线！</p>
-        <p>确定要对【<b>${serverName}</b>】执行「<b>${action}</b>」吗？</p>
+        <p>确定要对【<b>${escapeHtml(serverName)}</b>】执行「<b>${escapeHtml(action)}</b>」吗？</p>
         <div style="color:#f56c6c;margin-top:8px;background:rgba(245,108,108,0.1);padding:10px;border-radius:6px;border-left:4px solid #f56c6c;">
           <b>提示：</b>对局将被强制终止，<b>所有正在游玩的玩家将全部断开掉线</b>，直至服务端重新启动完毕。
         </div>

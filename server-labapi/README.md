@@ -74,7 +74,7 @@ dotnet build server-labapi/Server_Qcha.csproj -c Release
 | `display_mode` | `2` | `0` 显示查询时间 / `1` 显示 `content_text` / `2` 留空 |
 | `bot_ip` | `127.0.0.1` | QQ 机器人后台监听地址 |
 | `bot_port` | `10088` | QQ 机器人后台监听端口 |
-| `auth_token` | `QchaSecret_123` | 双向鉴权 Token，**必须与机器人端一致** |
+| `auth_token` | 空 | 双向鉴权 Token，**必须自行设置并与机器人端一致**。留空或旧公开默认值会拒绝启动 |
 | `sort_order` | `0` | 排序权重，`>0` 按此排序，`=0` 自动 |
 | `connect_host` | 空 | 机器人回连本服用的 IP；跨机部署必填，同机留空 |
 | `debug` | `false` | 打开后输出命令收发、心跳明细等调试日志 |

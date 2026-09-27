@@ -2,7 +2,9 @@ import { ref, reactive } from './deps.js';
 
 export const TOKEN_KEY = 'scpsl_panel_token';
 
-export const token = ref(localStorage.getItem(TOKEN_KEY) || '');
+// 登录令牌只放在本次标签页。关掉页面即失效，并清掉旧版本留在 localStorage 里的令牌。
+try { localStorage.removeItem(TOKEN_KEY); } catch (e) { /* 忽略 */ }
+export const token = ref(sessionStorage.getItem(TOKEN_KEY) || '');
 export const session = ref(null);
 export const page = ref('overview');
 export const mobileMenuOpen = ref(false);
@@ -21,7 +23,8 @@ export const capabilities = reactive({ localAdmin: false, localServerCount: 0 })
 export function clearSession() {
   token.value = '';
   session.value = null;
-  localStorage.removeItem(TOKEN_KEY);
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* 忽略 */ }
+  try { localStorage.removeItem(TOKEN_KEY); } catch (e) { /* 忽略 */ }
 }
 
 export async function api(path, options = {}) {

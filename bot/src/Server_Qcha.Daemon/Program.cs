@@ -48,6 +48,25 @@ string listenUri = string.IsNullOrWhiteSpace(localAdminConfig.DaemonUri)
     ? "http://127.0.0.1:10090"
     : localAdminConfig.DaemonUri;
 
+var secretProblems = SharedSecretPolicy.DescribeStartupRejection(
+    checkAuthToken: false,
+    authToken: null,
+    checkDaemonToken: true,
+    daemonToken: localAdminConfig.DaemonToken);
+if (secretProblems.Count > 0)
+{
+    SharedSecretPolicy.WriteStartupRejection(secretProblems);
+    return;
+}
+
+if (!DaemonHostGuard.ListenUriIsLoopback(listenUri))
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("【安全】守护进程监听地址不是回环地址：" + listenUri);
+    Console.WriteLine("请确认防火墙只放行可信来源。Host 头必须与实际访问地址一致。");
+    Console.ResetColor();
+}
+
 builder.WebHost.UseUrls(listenUri);
 
 // 注册 LocalAdmin 管理器与内嵌提供方
@@ -60,24 +79,26 @@ var app = builder.Build();
 // Daemon 自身退出是高危操作：会连带停止所有由它托管的游戏服。
 DaemonExitHandler.Initialize(app.Services.GetRequiredService<IHostApplicationLifetime>());
 
-// 守护进程认证中间件（校验 X-Daemon-Token）
+// 守护进程认证：Host 必须对应当前连接，所有接口都要校验 Token。
 app.Use(async (context, next) =>
 {
     var options = context.RequestServices.GetRequiredService<IOptions<LocalAdminOptions>>().Value;
-    if (!string.IsNullOrWhiteSpace(options.DaemonToken))
+    string configuredHost = DaemonHostGuard.ConfiguredHost(options.DaemonUri);
+    if (!DaemonHostGuard.IsAllowed(context.Connection.LocalIpAddress, context.Request.Headers.Host.ToString(), configuredHost))
     {
-        // 允许直接访问根路径、ping 或 status
-        if (context.Request.Path != "/" && !context.Request.Path.StartsWithSegments("/api/daemon/ping") && !context.Request.Path.StartsWithSegments("/api/daemon/status"))
-        {
-            if (!context.Request.Headers.TryGetValue("X-Daemon-Token", out var token) ||
-                !string.Equals(token.ToString(), options.DaemonToken, StringComparison.Ordinal))
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsJsonAsync(new { error = "未授权：Daemon Token 不匹配" });
-                return;
-            }
-        }
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new { error = "拒绝访问：Host 与监听地址不匹配" });
+        return;
     }
+
+    if (!context.Request.Headers.TryGetValue("X-Daemon-Token", out var token) ||
+        !SharedSecretPolicy.FixedTimeEquals(token.ToString(), options.DaemonToken))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(new { error = "未授权：Daemon Token 不匹配" });
+        return;
+    }
+
     await next();
 });
 

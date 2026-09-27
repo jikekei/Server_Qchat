@@ -85,7 +85,7 @@
        "Enabled": true,
        "Mode": "Daemon",
        "DaemonUri": "http://127.0.0.1:10090",
-       "DaemonToken": "QchaSecret_123",
+       "DaemonToken": "请改成自行生成的随机字符串",
        "AutoStartDaemon": true,
        "Servers": [
          {
@@ -193,7 +193,7 @@
 - 各宿主机上分别运行独立的 `Server_Qcha.Daemon`；
 - 各游戏服插件配置中的 `bot_ip` 指向管理机 IP，`bot_port` 指向管理机的 `NotificationPort`（默认 10088）；
 - 管理机防火墙开放 `10088` 端口入站权限，游戏宿主机防火墙开放对应 `tcp_port`；
-- 双方强制使用相同的 `AuthToken` 进行端到端加密鉴权。
+- 双方必须使用相同的 `AuthToken`。报文带 HMAC 鉴权，但信道本身不加密；跨机器部署请走 VPN，或用防火墙限制来源。空 Token 和已公开的旧默认值会被拒绝启动。
 
 ---
 

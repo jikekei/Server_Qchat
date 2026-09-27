@@ -156,7 +156,8 @@ public sealed class LocalServerInstance : IAsyncDisposable
         string root = Path.IsPathRooted(options.LogDirectory)
             ? options.LogDirectory
             : Path.Combine(contentRootPath, options.LogDirectory);
-        _logDirectory = Path.Combine(root, definition.Id);
+        string idSegment = LocalServerGuard.IsSafeId(definition.Id) ? definition.Id : "_rejected";
+        _logDirectory = Path.Combine(Path.GetFullPath(root), idSegment);
 
         // 定义里的级别键可能被手改坏，这里统一规范化一次
         _def.ConsoleLevel = ConsoleCaptureLevels.NormalizeKey(definition.ConsoleLevel);
@@ -793,7 +794,11 @@ public sealed class LocalServerInstance : IAsyncDisposable
                 return LocalAdminResult.Fail("该服务器已在运行中。");
         }
 
-        if (string.IsNullOrWhiteSpace(_def.ExecutablePath) || !File.Exists(_def.ExecutablePath))
+        string? exeError = LocalServerGuard.ValidateExecutable(_def.ExecutablePath);
+        if (exeError is not null)
+            return LocalAdminResult.Fail(exeError);
+
+        if (!File.Exists(_def.ExecutablePath))
             return LocalAdminResult.Fail($"找不到可执行文件：{_def.ExecutablePath}");
 
         try

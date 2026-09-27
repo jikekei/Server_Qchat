@@ -36,7 +36,7 @@
 通知通道全面升级为 JSON 信封格式，彻底解决旧版文本前缀与 `.ac` 用户输入混淆的安全隐患。
 
 ```
-{AuthToken}||{"type":"register|unregister|heartbeat|ac","data":{...}}
+v2|unix秒|nonce|hmac|{"type":"register|unregister|heartbeat|ac","data":{...}}
 ```
 - 所有消息均为**请求-响应**模式（机器人回复 `"OK"` 确认）
 - 用户输入内容封装在 `data.message` 中，无论内容是什么都不会影响类型判断
@@ -124,4 +124,4 @@ sort_order: 0
 
 - **向下兼容**：手动配置的 `Ports` 条目仍然有效（标记为静态，豁免心跳超时清理）
 - **跨机部署**：需在游戏服端手动配置 `connect_host` 为本机可路由的 IP 地址
-- **默认 Token**：请务必修改默认的 `QchaSecret_123`，并确保双端 Token 一致
+- **Token**：不要使用已公开的旧默认值。留空或仍使用该值时会拒绝启动，双端 Token 必须一致

@@ -437,14 +437,14 @@ public sealed class OfficialQqBotClient : BotClientHost, IBotClient
         if (groupOpenId.Length == 0)
             return;
 
-        _observedGroups[groupOpenId] = DateTimeOffset.Now;
-
         var opts = _opts.CurrentValue;
-        if (opts.AllowedGroupOpenIds.Length > 0 && !opts.AllowedGroupOpenIds.Contains(groupOpenId))
+        if (!BotAdminPolicy.MayObserveGroup(opts.AllowedGroupOpenIds, groupOpenId))
         {
             _log.LogDebug("群 {GroupOpenId} 不在白名单内，忽略该消息", groupOpenId);
             return;
         }
+
+        _observedGroups[groupOpenId] = DateTimeOffset.Now;
 
         // 官方已把 @机器人 前缀从 content 中剥离
         string text = d.TryGetProperty("content", out var c) ? (c.GetString() ?? "").Trim() : "";
@@ -465,15 +465,10 @@ public sealed class OfficialQqBotClient : BotClientHost, IBotClient
             if (author.TryGetProperty("username", out var un))
                 senderName = un.GetString() ?? "";
 
-            // 官方群角色：member / admin / owner
-            string role = author.TryGetProperty("member_role", out var r) ? (r.GetString() ?? "") : "";
-            isAdmin = role.Equals("admin", StringComparison.OrdinalIgnoreCase)
-                   || role.Equals("owner", StringComparison.OrdinalIgnoreCase);
         }
 
-        // 兜底白名单：官方在某些场景下不返回 member_role
-        if (!isAdmin && opts.AdminOpenIds.Length > 0 && senderId.Length > 0)
-            isAdmin = opts.AdminOpenIds.Contains(senderId);
+        // 不信任群主/管理员角色。管理指令只认 AdminOpenIds，名单为空则全部拒绝。
+        isAdmin = BotAdminPolicy.IsListed(opts.AdminOpenIds, senderId);
 
         var incoming = new BotIncomingMessage
         {
@@ -513,8 +508,7 @@ public sealed class OfficialQqBotClient : BotClientHost, IBotClient
             return;
 
         var opts = _opts.CurrentValue;
-        // 单聊没有群角色，是否放行管理指令由 AdminOpenIds 决定；空列表时视为未授权
-        bool isAdmin = opts.AdminOpenIds.Length > 0 && opts.AdminOpenIds.Contains(senderId);
+        bool isAdmin = BotAdminPolicy.IsListed(opts.AdminOpenIds, senderId);
 
         var incoming = new BotIncomingMessage
         {

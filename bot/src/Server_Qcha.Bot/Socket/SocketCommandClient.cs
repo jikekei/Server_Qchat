@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Server.Qcat.Configuration;
+using Qchat.Security;
 using System.Net.Sockets;
 using System.Text;
 
@@ -34,7 +35,12 @@ public sealed class SocketCommandClient
                 }
 
                 using var stream = client.GetStream();
-                string payload = string.IsNullOrEmpty(_opts.AuthToken) ? text : $"{_opts.AuthToken}||{text}";
+                if (!TcpAuthEnvelope.TrySeal(_opts.AuthToken, text, out string payload, out string? authError))
+                {
+                    _log.LogError("拒绝发送命令：{Reason}", authError);
+                    return null;
+                }
+
                 byte[] bytes = Encoding.UTF8.GetBytes(payload);
 
                 _log.LogInformation("TCP send to {Host}:{Port}: {Text}", host, port, text);
