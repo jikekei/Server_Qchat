@@ -1,5 +1,7 @@
 # Server_Qcha (EXILED Plugin)
 
+[简体中文](README.md) · [English](README.en.md)
+
 这是 **SCPSL (SCP: Secret Laboratory) Dedicated Server** 的 EXILED 插件端，用来在服务器上开启一个 **TCP 命令端口**，接收外部程序（例如本仓库的 `bot/` QQ 机器人）发送的文本命令，并在服务器内执行对应操作，然后把执行结果返回给调用方。
 
 ## 你能用它做什么

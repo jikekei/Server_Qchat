@@ -1,5 +1,7 @@
 # Server_Qcha.Bot
 
+[简体中文](README.md) · [English](README.en.md)
+
 一个用于 **SCP: Secret Laboratory (SCPSL)** 的 QQ 机器人与服务器联动工具。
 
 它通过 **go-cqhttp 正向 WebSocket** 接收群消息指令，然后通过 **TCP Socket** 把指令转发给你的 SCPSL 服务器侧插件/SocketServer（例如查询在线、广播、踢人、重启回合等）。
