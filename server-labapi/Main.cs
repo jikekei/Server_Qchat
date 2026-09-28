@@ -220,7 +220,7 @@ namespace SocketServer
                 int delaySec = normalInterval;
                 if (consecutiveFailures > 0)
                 {
-                    delaySec = Math.Min(normalInterval * (int)Math.Pow(2, consecutiveFailures), 300);
+                    delaySec = GetHeartbeatRetryDelaySeconds(normalInterval, consecutiveFailures);
                 }
 
                 try
@@ -261,17 +261,31 @@ namespace SocketServer
                 else
                 {
                     consecutiveFailures++;
-                    int nextBackoff = Math.Min(normalInterval * (int)Math.Pow(2, consecutiveFailures), 300);
+                    int nextBackoff = GetHeartbeatRetryDelaySeconds(normalInterval, consecutiveFailures);
                     if (consecutiveFailures < 10)
                     {
                         Log.Warn($"[Server_Qcha] 心跳失败 (第 {consecutiveFailures}/10 次): {errorMsg}，{nextBackoff}秒后重试");
                     }
                     else
                     {
-                        Log.Error($"[Server_Qcha] 心跳连续失败 {consecutiveFailures} 次，进入慢速重试模式（每 300 秒一次）。请检查机器人 {Config.BotIP}:{Config.BotPort} 是否在线");
+                        Log.Error($"[Server_Qcha] 心跳连续失败 {consecutiveFailures} 次，进入慢速重试模式（每 {nextBackoff} 秒一次）。请检查机器人 {Config.BotIP}:{Config.BotPort} 是否在线");
                     }
                 }
             }
+        }
+
+        private static int GetHeartbeatRetryDelaySeconds(int normalInterval, int consecutiveFailures)
+        {
+            const int maxRetryDelaySeconds = 60;
+            int delay = Math.Min(normalInterval, maxRetryDelaySeconds);
+
+            // Saturate before multiplying so long outages cannot overflow the delay.
+            for (int i = 0; i < consecutiveFailures && delay < maxRetryDelaySeconds; i++)
+            {
+                delay = Math.Min(delay * 2, maxRetryDelaySeconds);
+            }
+
+            return delay;
         }
 
         private void StopServer()
