@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="230" viewBox="0 0 1200 230" role="img" aria-labelledby="bannerTitle bannerDesc">
+  <title id="bannerTitle">Server_Qcha documentation</title>
+  <desc id="bannerDesc">Documentation title and subtitle, with four documentation categories on the right: guides and operations, components, technical reference, and releases.</desc>
+
+  <rect width="1200" height="230" rx="22" fill="#0A0E14"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+    <text x="64" y="66" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" letter-spacing="1.4" fill="#3E8BFF">SERVER_QCHA · DOCUMENTATION</text>
+    <text x="64" y="126" font-size="46" font-weight="700" fill="#E8EEF6">Documentation</text>
+    <rect x="64" y="142" width="56" height="4" rx="2" fill="#3E8BFF"/>
+    <text x="64" y="180" font-size="17" fill="#8393A6">Guides, component references, and technical notes.</text>
+
+    <rect x="660" y="56" width="226" height="58" rx="10" fill="#141B26" stroke="#222C3A" stroke-width="1"/>
+    <circle cx="682" cy="85" r="4" fill="#3E8BFF"/>
+    <text x="700" y="91" font-size="15" fill="#C6D3E2">Guides &amp; operations</text>
+
+    <rect x="910" y="56" width="226" height="58" rx="10" fill="#141B26" stroke="#222C3A" stroke-width="1"/>
+    <circle cx="932" cy="85" r="4" fill="#2FD4A0"/>
+    <text x="950" y="91" font-size="15" fill="#C6D3E2">Components</text>
+
+    <rect x="660" y="126" width="226" height="58" rx="10" fill="#141B26" stroke="#222C3A" stroke-width="1"/>
+    <circle cx="682" cy="155" r="4" fill="#E8A33D"/>
+    <text x="700" y="161" font-size="15" fill="#C6D3E2">Technical reference</text>
+
+    <rect x="910" y="126" width="226" height="58" rx="10" fill="#141B26" stroke="#222C3A" stroke-width="1"/>
+    <circle cx="932" cy="155" r="4" fill="#7C8CA0"/>
+    <text x="950" y="161" font-size="15" fill="#C6D3E2">Releases</text>
+  </g>
+</svg>

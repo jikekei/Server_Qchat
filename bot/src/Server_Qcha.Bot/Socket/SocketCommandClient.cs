@@ -18,6 +18,25 @@ public sealed class SocketCommandClient
         _log = log;
     }
 
+    public async Task<Qchat.GameAdmin.AdminReply> SendAdminAsync(ServerInfo server, Qchat.GameAdmin.AdminRequest request, CancellationToken ct)
+    {
+        // Probe using the existing protocol before sending a new framed message to an older plugin.
+        var capability = await SendAsync(server.ConnectHost, server.Port, "game-admin-capabilities", ct);
+        if (capability != "QGA1")
+            return new() { Code = capability is null ? "offline" : "upgrade", Error = capability is null ? "服务器离线或超时" : "该插件不支持游戏权限管理，请升级对应的 EXILED / LabAPI 插件" };
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+        using var client = new TcpClient();
+        await client.ConnectAsync(server.ConnectHost, server.Port, timeout.Token);
+        using var stream = client.GetStream();
+        if (!TcpAuthEnvelope.TrySeal(_opts.AuthToken, "game-admin&" + Qchat.GameAdmin.AdminJson.Write(request), out var wire, out var error))
+            throw new InvalidOperationException(error);
+        await Qchat.GameAdmin.AdminFrame.Write(stream, wire, timeout.Token);
+        var response = await Qchat.GameAdmin.AdminFrame.Read(stream, timeout.Token);
+        if (response == "Unauthorized") return new() { Code = "unauthorized", Error = "游戏服鉴权失败，请检查共享 Token" };
+        return Qchat.GameAdmin.AdminJson.Read<Qchat.GameAdmin.AdminReply>(response);
+    }
+
     public async Task<string?> SendAsync(string host, int port, string text, CancellationToken ct)
     {
         for (int attempt = 1; attempt <= Math.Max(1, _opts.Retries); attempt++)

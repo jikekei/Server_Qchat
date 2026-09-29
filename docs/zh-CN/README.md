@@ -1,10 +1,8 @@
 <div align="center">
 
-# Server_Qcha (Qridge)
+<img src="../../assets/readme/hero.svg" width="100%" alt="Server_Qcha (Qridge) —— 把 SCP:SL 游戏服从本地黑框命令行搬进浏览器，面板或机器人重启也不会让游戏服掉线。右侧是面板界面示意：九个模块的导航列表、在线玩家与守护进程指标卡、24 小时在线走势图与实时控制台输出。">
 
 [简体中文](README.md) · [English](../../README.md)
-
-### SCP: Secret Laboratory 现代化 Web 运维控制面板、独立守护集群与社群机器人系统
 
 [![Release](https://img.shields.io/github/v/release/jikekei/Server_Qchat?color=blue&logo=github)](https://github.com/jikekei/Server_Qchat/releases)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
@@ -45,8 +43,21 @@
   - 全服在线总数与今日峰值 KPI 统计，后台周期采样精准剔除 Dedicated Server 虚假占位。
 - **细粒度 RBAC 权限体系与全量审计**：
   - 支持多管理员并发登录，PBKDF2-SHA256 强哈希存储，操作审计精确记录人员、时间、来源 IP 与执行结果。
+- **游戏内管理员与权限组管理（游戏管理员）**：
+  - 在面板中直接读取并编辑各游戏服 `config_remoteadmin.txt` 里的管理员与权限组，无需手动改配置文件。
+  - 逐项勾选游戏内权限；权限组可设置称号与徽章颜色并同步影响组内成员；插件权限按节点配置允许/拒绝与总开关，关闭后权限检查直接拒绝，不会被继承或通配符重新放行。
+  - 支持个人权限覆盖（不改动权限组即可单独调整）与权限组跨服复制，便于集群统一权限体系。
+  - 修改由插件热应用，撤销在线管理员实时生效，全程无需重启游戏服。入口需要 `game-admin.manage` 面板权限，内置管理员默认具备。
 - **双生态游戏服务端插件**：
   - 提供 EXILED 插件（按仓库依赖 EXILED 9.5.0 构建）与 LabAPI 插件（LabAPI 1.1+），双向 TCP 通信使用 AuthToken 做 HMAC 鉴权（信道不加密），支持游戏内 `.ac <内容>` 一键报警呼叫群管理。其他 EXILED 版本尚未在本仓库验证。Token 为空或仍使用默认密钥时会在启动日志中输出醒目的安全警告，请尽快修改。
+
+---
+
+## 面板模块一览
+
+<img src="../../assets/readme/panel-modules.svg" width="100%" alt="Qridge 面板的九个功能模块：服务器总览、服务器、服务器进程、QQ 机器人、游戏管理员、账号管理、数据库管理、日志级别、审计日志，按监控与运行、社群与权限、数据与追溯三组排列。">
+
+*结构示意图：九个模块按「监控与运行 / 社群与权限 / 数据与追溯」三组组织，各模块的具体能力见 [Web 面板指南](guides/web-panel.md)。*
 
 ---
 
@@ -62,6 +73,7 @@
 | **性能监控** | 无指标统计 | 实时监控物理内存占用 (MB)、专用内存、PID 与存活时长 |
 | **控制台交互** | 简单黑框打印 | Web 交互控制台、环形日志缓冲区、ANSI 颜色高亮与日志级别热过滤 |
 | **权限体系** | 无，接触者均为最高管理员 | 细粒度多账号 RBAC 权限系统，可精确授权各模块操作 |
+| **游戏内权限** | 手动编辑 `config_remoteadmin.txt` | 面板内编辑管理员与权限组，修改实时生效 |
 | **运营分析** | 无 | 24 小时动态折线图、全服今日最高在线峰值分析 |
 | **社群联动** | 无 | 深度集成 NapCat / QQ 官方机器人，打通群服双向指令与游戏内报警呼叫 |
 
@@ -138,7 +150,7 @@ graph TD
 | 文档名称 | 内容概览 | 快速链接 |
 |---|---|---|
 | **快速上手与全平台部署** | 基础要求、开箱运行、单机与多机集群部署指南 | [快速开始](guides/getting-started.md) |
-| **Web 面板与 LocalAdmin 替代说明** | 独立守护架构详解、心跳自愈机制、Web 监控管理与移动端适配 | [Web 面板指南](guides/web-panel.md) |
+| **Web 面板与 LocalAdmin 替代说明** | 独立守护架构详解、心跳自愈机制、Web 监控管理、游戏管理员与移动端适配 | [Web 面板指南](guides/web-panel.md) |
 | **游戏服务端插件指南** | EXILED 与 LabAPI 插件安装、TCP 双向通信、Token 鉴权与 `.ac` 呼叫 | [插件指南](guides/plugin-guide.md) |
 | **QQ 机器人与群服联动指南** | 官方机器人 (OpenAPI v2) 与 NapCat 快速配置、指令表与指令面板同步 | [机器人指南](guides/bot-guide.md) |
 | **配置文件参考手册** | `appsettings.json`、守护配置与插件 `config.yml` 完整字段速查 | [配置参考](guides/configuration.md) |
@@ -155,6 +167,8 @@ graph TD
    - **方式 A（推荐）**：双击运行 **`一键启动(守护+机器人).bat`**；
    - **方式 B（免脚本）**：直接双击运行 **`Server_Qcha.Bot.exe`**，程序会自动检测并在后台拉起独立守护进程；
    - 打开浏览器访问 `http://127.0.0.1:8080/`，使用控制台首次输出的初始管理员密码登录即可。
+
+> 插件部署：EXILED 服放置 `Server_Qcha-EXILED.dll`，LabAPI 服放置 `Server_Qcha-LabAPI.dll` 并将 `0Harmony.dll` 放入其 `dependencies` 子目录，详见[插件指南](guides/plugin-guide.md)。同一服务器实例请勿同时加载两套框架。
 
 ---
 

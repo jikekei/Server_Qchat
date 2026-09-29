@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-reference.svg" width="100%" alt="Server_Qcha 文档：技术参考。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md)
+
 # 机器人接入模式说明（NapCat / QQ 官方 Bot API）
 
 本文档说明 Qcha 机器人同时支持的两套接入方式、如何在运行时切换，以及 QQ 官方平台的能力边界。

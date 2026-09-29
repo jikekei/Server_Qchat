@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-components.svg" width="100%" alt="Server_Qcha 文档：组件说明。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md) · [English](../../en/components/bot.md)
+
 # Server_Qcha.Bot
 
 [简体中文](bot.md) · [English](../../en/components/bot.md)
@@ -72,6 +80,15 @@ dotnet run --project src/Server_Qcha.Bot -c Release
 - `bc&<text>`
 - `kick&<id>&<reason>&<time>`
 - `bc&<id>&<group>`（用于 `/setadmin`，保持旧协议）
+
+以上命令使用旧的 `v2|` 鉴权封套。面板的**游戏管理员**功能需要传输数百 KB 的配置文件内容，因此在其上增加了一层带长度前缀的报文帧——**帧正文仍是同一个 `v2|` 封套，鉴权与重放校验和旧通道完全一致**：
+
+| 步骤 | 命令 | 说明 |
+|---|---|---|
+| 能力探测 | `game-admin-capabilities` | 仍走旧文本通道；支持该协议的插件返回 `QGA1`，否则面板提示升级插件 |
+| 读取 / 写入 | `game-admin&{JSON}` | 封套后再套一层 `QGA1` 帧发送，用于读写游戏内管理员与权限组 |
+
+帧格式为 `QGA1`（4 字节 ASCII 魔数）+ 4 字节大端长度 + UTF-8 正文，单帧上限 2 MiB。字段、操作与错误码见[通信协议文档](../reference/communication-protocol.md)。
 
 SocketServer 需要返回可读文本作为机器人回复。
 

@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides-en.svg" width="100%" alt="Server_Qcha documentation: Operating guides.">
+
+</div>
+
+[Documentation index](../../../docs/README.md) · [Project homepage](../../../README.md) · [简体中文](../../zh-CN/guides/web-panel.md)
+
 # Web Panel and Standalone LocalAdmin Daemon
 
 [English documentation index](../README.md) · [简体中文](../../zh-CN/guides/web-panel.md)
@@ -67,7 +75,7 @@ At viewport widths of 768 px or less, the interface switches to a touch layout: 
 
 ### 6. Multi-account RBAC
 
-Multiple administrators can be signed in concurrently, including the same account on different devices. Module permissions include `servers.view`, `servers.control`, and `accounts.manage`.
+Multiple administrators can be signed in concurrently, including the same account on different devices. Module permissions include `servers.view`, `servers.control`, `accounts.manage`, and `game-admin.manage` (see section 9).
 
 ### 7. Audit log
 
@@ -76,5 +84,18 @@ Web/API management actions record the actor, timestamp, target server, command, 
 ### 8. Live log-level changes
 
 The logging level can be changed between Trace, Debug, Information, Warning, and Error while running; no process restart is required.
+
+### 9. Game administrators
+
+The panel manages the in-game administrators and permission groups directly, replacing manual editing of `config_remoteadmin.txt` on each game server.
+
+- Existing administrators and permission groups are read from each server's `config_remoteadmin.txt`, edited in the panel, and written back; the game server keeps loading the same file.
+- Permissions are granted item by item per administrator or group. A group carries a badge text and color that apply to every member.
+- Plugin permission nodes (for example `tools.*`) support per-node allow/deny rules plus a master switch. When the switch is off, the permission check rejects the node outright, and inheritance or wildcards cannot re-grant it.
+- Per-user overrides add allow/deny rules to a single administrator without changing the group, and are preserved when the group is edited.
+- Permission groups can be copied to other servers, which keeps a cluster on one permission scheme.
+- Changes are applied live by the plugin. Revoking an online administrator takes effect immediately, with no game-server restart.
+- The entry point requires the `game-admin.manage` panel permission. The built-in administrator holds it by default; other accounts are granted it under Account Management (section 6).
+- Both EXILED and LabAPI are supported. On LabAPI servers, deploy `0Harmony.dll` into the `dependencies` folder under the plugin directory (`<server-port>/dependencies/0Harmony.dll`), because the plugin relies on it to apply configuration changes.
 
 Copyright 2025 hmyhserver.top

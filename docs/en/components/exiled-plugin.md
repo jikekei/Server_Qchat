@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-components-en.svg" width="100%" alt="Server_Qcha documentation: Component reference.">
+
+</div>
+
+[Documentation index](../../../docs/README.md) · [Project homepage](../../../README.md) · [简体中文](../../zh-CN/components/exiled-plugin.md)
+
 # Server_Qcha — EXILED Plugin
 
 [English documentation index](../README.md) · [简体中文](../../zh-CN/components/exiled-plugin.md) · [Project homepage](../../../README.md)

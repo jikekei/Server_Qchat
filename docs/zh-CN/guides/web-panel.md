@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides.svg" width="100%" alt="Server_Qcha 文档：使用与运维指南。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md) · [English](../../en/guides/web-panel.md)
+
 # Web 管理面板与 LocalAdmin 独立守护架构说明
 
 **Server_Qcha (Qridge) v2.0** 的核心定位是**深度取代官方命令行黑框工具 LocalAdmin (LA)**，并为 SCP: Secret Laboratory (SCPSL) 提供现代化的 Web 运维中枢与高可用独立守护能力。
@@ -22,6 +30,7 @@
   - [6. 细粒度多账号权限体系 (RBAC)](#6-细粒度多账号权限体系-rbac)
   - [7. 全方位操作审计日志 (Audit)](#7-全方位操作审计日志-audit)
   - [8. 动态日志级别热切换 (Logging)](#8-动态日志级别热切换-logging)
+  - [9. 游戏管理员 (Game Admin)](#9-游戏管理员-game-admin)
 
 ---
 
@@ -139,7 +148,8 @@ graph LR
 - 提供模块级细粒度权限控制：
   - `servers.view`：查看服务器状态与在线情况；
   - `servers.control`：允许使用控制台与启停服务器；
-  - `accounts.manage`：管理系统其他账号。
+  - `accounts.manage`：管理系统其他账号；
+  - `game-admin.manage`：管理游戏内管理员与权限组（见第 9 节）。
 
 ### 7. 全方位操作审计日志 (Audit)
 - 自动记录所有通过 Web 界面或 API 执行的管理指令；
@@ -148,6 +158,18 @@ graph LR
 ### 8. 动态日志级别热切换 (Logging)
 - 支持在控制台中随时在线调整系统的运行日志输出级别（Trace/Debug/Info/Warn/Error）；
 - 改动即时生效，无需重启任何进程。
+
+### 9. 游戏管理员 (Game Admin)
+在面板中直接接管游戏内的管理员与权限组，取代手动登录游戏服编辑 `config_remoteadmin.txt`：
+
+- **读取与编辑既有配置**：自动读取各游戏服 `config_remoteadmin.txt` 中已存在的管理员与权限组，在面板内可视化编辑后写回，游戏服仍加载同一份配置文件；
+- **逐项权限配置**：对管理员或权限组逐项勾选游戏内权限（踢出、封禁、广播、回合控制等），权限组可设置称号与徽章颜色，修改后同步影响组内成员；
+- **插件权限节点**：按权限节点（如 `tools.*`）配置允许 / 拒绝，并提供总开关；关闭后权限检查入口直接拒绝，继承或通配符无法重新放行；
+- **个人权限覆盖**：在不改动权限组的前提下，为单个管理员追加允许 / 拒绝规则；编辑权限组时个人覆盖会被保留；
+- **权限组跨服复制**：将一台服务器的权限组一键复制到其他服务器，便于集群统一权限体系；
+- **在线即时生效**：修改由插件热应用，撤销在线管理员权限实时回收，全程无需重启游戏服；
+- **面板权限要求**：入口需要 `game-admin.manage` 面板权限。内置管理员默认具备，其他账号需在「账号管理」中补授权（详见第 6 节）；
+- **部署说明**：EXILED 与 LabAPI 双框架均支持。LabAPI 服需将 `0Harmony.dll` 放入插件目录下的 `dependencies` 子目录（即 `<服务器端口>/dependencies/0Harmony.dll`），插件依赖它完成配置热应用。
 
 ---
 

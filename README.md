@@ -1,10 +1,8 @@
 <div align="center">
 
-# Server_Qcha (Qridge)
+<img src="./assets/readme/hero-en.svg" width="100%" alt="Server_Qcha (Qridge) — SCP:SL server operations in the browser; panel or bot restarts never drop players. The panel mock on the right shows a nine-module navigation list, online-player and daemon metric cards, a 24-hour player trend, and live console output.">
 
 [English](README.md) · [简体中文](docs/zh-CN/README.md)
-
-### A modern web control panel, independent game-server supervisor, and QQ community bot for SCP: Secret Laboratory
 
 [![Release](https://img.shields.io/github/v/release/jikekei/Server_Qchat?color=blue&logo=github)](https://github.com/jikekei/Server_Qchat/releases)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
@@ -33,7 +31,14 @@ Server_Qcha, also known as Qridge, connects SCP: Secret Laboratory game servers 
 - **Responsive mobile interface**: A dedicated layout activates at viewports up to 768 px, with a slide-out navigation drawer and touch-friendly dialogs.
 - **Operations dashboard**: Displays 24-hour online-player trends, the daily peak, and periodically sampled statistics that filter the Dedicated Server placeholder.
 - **Multi-account RBAC and audit trail**: Supports concurrent administrator sessions, PBKDF2-SHA256 password hashing, and operation records with actor, time, source IP, and result.
+- **In-game administrator and permission-group management**: Reads and edits the administrators and permission groups stored in each server's `config_remoteadmin.txt`, so the file no longer needs manual editing. Permissions are granted item by item, permission groups carry a badge text and color, plugin permissions are configured per node with a master switch plus allow/deny rules, and per-user overrides can be added without touching the group. Permission groups can also be copied across servers, and edits are applied live by the plugin — revoking an online administrator takes effect immediately without restarting the game server. Requires the `game-admin.manage` panel permission, which the built-in administrator holds by default.
 - **Two game-server plugin options**: EXILED is built against the repository's `ExMod.Exiled` 9.5.0 dependency; LabAPI targets 1.1.7+. Their TCP messages are authenticated with HMAC using a shared token; the channel is not encrypted. In-game `.ac <message>` sends a help alert to the configured QQ group. Other EXILED versions have not been verified here.
+
+## The panel at a glance
+
+<img src="./assets/readme/panel-modules-en.svg" width="100%" alt="The nine modules of the Qridge panel, grouped into monitoring and runtime, community and permissions, and data and traceability.">
+
+*Structural illustration: the nine modules are grouped into monitoring and runtime, community and permissions, and data and traceability. See the [web panel guide](docs/en/guides/web-panel.md) for what each module does.*
 
 ## Qridge and the official LocalAdmin
 
@@ -47,6 +52,7 @@ Server_Qcha, also known as Qridge, connects SCP: Secret Laboratory game servers 
 | Monitoring | No resource dashboard | Memory, PID, uptime, and player trends |
 | Console | Basic terminal output | Web console with buffered logs, ANSI colors, and live log filtering |
 | Access control | Users with access have administrator control | Multiple accounts with granular RBAC permissions |
+| In-game permissions | Manual editing of `config_remoteadmin.txt` | Administrators and permission groups edited in the panel and applied live |
 | Community integration | None | NapCat or official QQ Bot, server commands, and in-game help alerts |
 
 ## Architecture
@@ -86,7 +92,7 @@ The daemon supervises the game-server processes and retains their console pipes.
 1. Download `Server_Qcha.Bot-v2.0.1.zip` from [GitHub Releases](https://github.com/jikekei/Server_Qchat/releases/latest) and extract it to a deployment directory.
 2. Back up `data/` and `appsettings.json` before an upgrade. Copy `appsettings.Example.json` to `appsettings.Local.json` and configure the QQ connection and game-server paths.
 3. Set strong random tokens for bot/plugin communication and, when used, daemon authentication. Configure explicit QQ administrator and group allowlists where needed.
-4. Install either `Server_Qcha-EXILED.dll` or `Server_Qcha-LabAPI.dll` in the matching game-server plugin directory. Do not load both frameworks on the same server instance.
+4. Install either `Server_Qcha-EXILED.dll` or `Server_Qcha-LabAPI.dll` in the matching game-server plugin directory. Do not load both frameworks on the same server instance. On LabAPI servers, deploy `0Harmony.dll` into the plugin's `dependencies` folder.
 5. Run `一键启动(守护+机器人).bat` or start `Server_Qcha.Bot.exe`. Open `http://127.0.0.1:8080/` and sign in with the initial credentials printed in the console.
 
 The panel listens on loopback by default. To reach it from another device, set `WebPanel:Host` to `0.0.0.0` and restrict access with a firewall. The startup log detects local IPv4 addresses and prints the corresponding panel URLs.

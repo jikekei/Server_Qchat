@@ -106,6 +106,7 @@ namespace SocketServer
         public override void Disable()
         {
             ServerEvents.WaitingForPlayers -= OnWaitingForPlayers;
+            Qchat.GameAdmin.GameAdminRuntime.StopRuntime();
             StopServer();
             Instance = null;
         }
@@ -116,6 +117,7 @@ namespace SocketServer
                 return;
 
             _started = true;
+            Qchat.GameAdmin.GameAdminRuntime.StartRuntime();
 
             // 仍在使用默认密钥或密钥为空时只输出醒目的安全警告，插件照常启动。
             foreach (string warningLine in Qchat.Security.TcpAuthEnvelope.BuildWeakTokenWarning(Config.AuthToken))

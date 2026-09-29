@@ -124,7 +124,26 @@ namespace SocketServer
                         var remoteIP = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
                         var buffer = new byte[4096];
 
-                        string request = await ReadOnceWithTimeout(stream, buffer, 2000, ct).ConfigureAwait(false);
+                        bool framed = false;
+                        string request;
+                        using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                        {
+                            timeout.CancelAfter(15000);
+                            // New frames start with Q; legacy authenticated envelopes start with v2|.
+                            await Qchat.GameAdmin.AdminFrame.ReadExactly(stream, buffer, 0, 1, timeout.Token).ConfigureAwait(false);
+                            if (buffer[0] == 81)
+                            {
+                                await Qchat.GameAdmin.AdminFrame.ReadExactly(stream, buffer, 1, 3, timeout.Token).ConfigureAwait(false);
+                                if (Encoding.ASCII.GetString(buffer, 0, 4) != "QGA1") return;
+                                framed = true;
+                                request = await Qchat.GameAdmin.AdminFrame.ReadBody(stream, timeout.Token).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                int read = await stream.ReadAsync(buffer, 1, buffer.Length - 1, timeout.Token).ConfigureAwait(false);
+                                request = Encoding.UTF8.GetString(buffer, 0, read + 1).Trim('\0', '\r', '\n', ' ', '\t');
+                            }
+                        }
                         if (string.IsNullOrWhiteSpace(request))
                         {
                             await WriteUtf8Async(stream, "empty command", ct).ConfigureAwait(false);
@@ -137,7 +156,8 @@ namespace SocketServer
                         if (!TcpAuthEnvelope.TryUnseal(token, request, _nonces, out commandToDispatch, out authError))
                         {
                             Log.Warn($"[Server_Qcha] 拒绝来自 {remoteIP} 的未授权连接：{authError}");
-                            await WriteUtf8Async(stream, "Unauthorized", ct).ConfigureAwait(false);
+                            if (framed) await Qchat.GameAdmin.AdminFrame.Write(stream, "Unauthorized", ct).ConfigureAwait(false);
+                            else await WriteUtf8Async(stream, "Unauthorized", ct).ConfigureAwait(false);
                             return;
                         }
 
@@ -159,7 +179,8 @@ namespace SocketServer
 
                         byte[] responseBytes = Encoding.UTF8.GetBytes(response);
                         Log.Debug($"[Server_Qcha] 命令 [{commandToDispatch}] 执行完成，响应长度 {responseBytes.Length} 字节");
-                        await stream.WriteAsync(responseBytes, 0, responseBytes.Length, ct).ConfigureAwait(false);
+                        if (framed) await Qchat.GameAdmin.AdminFrame.Write(stream, response, ct).ConfigureAwait(false);
+                        else await stream.WriteAsync(responseBytes, 0, responseBytes.Length, ct).ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex)

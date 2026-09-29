@@ -118,4 +118,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Compile Include="../shared/*.cs" />
+    <Reference Include="System.Runtime.Serialization" />
+    <PackageReference Include="Lib.Harmony" Version="2.3.3" GeneratePathProperty="true" />
+    <Reference Include="0Harmony"><HintPath>$(PkgLib_Harmony)/lib/net48/0Harmony.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
 </Project>

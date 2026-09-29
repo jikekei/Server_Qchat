@@ -1,6 +1,12 @@
-# Documentation
+<div align="center">
+
+<img src="../assets/readme/docs-banner-en.svg" width="100%" alt="Server_Qcha documentation: guides and operations, components, technical reference, and releases.">
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Project homepage](../README.md)
+
+</div>
+
+---
 
 The documentation is organized by language. The English guides are translations of the corresponding Chinese guides and are maintained as matching pages. Chinese technical references that do not yet have an English counterpart are listed separately.
 

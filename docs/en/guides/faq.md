@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides-en.svg" width="100%" alt="Server_Qcha documentation: Operating guides.">
+
+</div>
+
+[Documentation index](../../../docs/README.md) · [Project homepage](../../../README.md) · [简体中文](../../zh-CN/guides/faq.md)
+
 # FAQ and Troubleshooting
 
 [English documentation index](../README.md) · [简体中文](../../zh-CN/guides/faq.md)

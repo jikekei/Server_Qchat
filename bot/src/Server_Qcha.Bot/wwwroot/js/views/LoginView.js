@@ -1,5 +1,5 @@
 import { reactive, ref } from '../deps.js';
-import { api, token, session, loadMeta, TOKEN_KEY } from '../api.js';
+import { api, token, session, page, can, loadMeta, TOKEN_KEY } from '../api.js';
 import { useOverview } from '../modules/useOverview.js';
 import { useServers } from '../modules/useServers.js';
 import { ElMessage } from '../deps.js';
@@ -66,9 +66,12 @@ export const LoginView = {
         loginForm.password = '';
 
         await loadMeta();
-        await loadOverview();
-        await loadServers();
-        startOverviewPolling();
+        if (can('servers.view')) {
+          page.value = 'overview';
+          await loadOverview();
+          await loadServers();
+          startOverviewPolling();
+        } else if (can('game-admin.manage')) page.value = 'game-admin';
         ElMessage.success('欢迎回来，' + (data.displayName || data.username));
       } catch (e) {
         ElMessage.error(e.message);

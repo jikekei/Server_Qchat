@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides-en.svg" width="100%" alt="Server_Qcha documentation: Operating guides.">
+
+</div>
+
+[Documentation index](../../../docs/README.md) · [Project homepage](../../../README.md) · [简体中文](../../zh-CN/guides/plugin-guide.md)
+
 # SCP:SL Server Plugin Guide — EXILED and LabAPI
 
 [English documentation index](../README.md) · [简体中文](../../zh-CN/guides/plugin-guide.md)
@@ -35,6 +43,17 @@ EXILED and LabAPI are incompatible when loaded together on the same server port.
 2. Put it under the per-port plugin directory `%APPDATA%\SCP Secret Laboratory\LabAPI\plugins\<server-port>\`. Use `plugins\global\` to share it between ports.
 3. Start the server once. LabAPI creates a configuration at `%APPDATA%\SCP Secret Laboratory\LabAPI\configs\<server-port>\Server_Qcha\config.yml`.
 
+The LabAPI build references Lib.Harmony to hot-apply administrator configuration, and its build output places `0Harmony.dll` in a `dependencies` subfolder. Keep that layout when deploying:
+
+```text
+LabAPI\plugins\<server-port>\
+├── Server_Qcha.dll
+└── dependencies\
+    └── 0Harmony.dll
+```
+
+Without it, the code paths that apply administrator configuration fail because the assembly cannot be loaded.
+
 Configure matching ports and a shared token. The main LabAPI keys are `tcp_port`, `ip`, `server_name`, `content_text`, `display_mode`, `bot_ip`, `bot_port`, `auth_token`, `sort_order`, `connect_host`, and `debug`. Their meanings match the EXILED version. `display_mode` values: `0` adds query time, `1` adds `content_text`, and `2` returns basic information. `connect_host` is needed when bot and game server are on different hosts.
 
 ## Communication channels
@@ -49,6 +68,16 @@ Both sides must use the same `AuthToken`. Messages use HMAC authentication, time
 ## In-game `.ac` help alert
 
 Press `~` to open the game console and enter `.ac <message>`. The plugin sends the player name, SteamID, and server name to the bot, which forwards the report to the configured QQ group. Online in-game administrators also see a prominent ten-second alert.
+
+## Game-administrator plugin support
+
+The plugin is the executing side of the panel's **game administrators** feature: the panel sends read/write requests over the command channel, and the plugin parses the server's `config_remoteadmin.txt`, writes it, and hot-applies the result at runtime.
+
+- **Protocol**: a length-prefixed `QGA1` frame is layered on top of the existing `v2|` envelope (the frame body is still that envelope), capped at 2 MiB per frame so it can carry a configuration file of several hundred kilobytes. Both formats coexist on the same port, so older clients are unaffected. Fields, operations, and error codes are documented in the [communication protocol reference](../../zh-CN/reference/communication-protocol.md).
+- **Capability probe**: the panel first sends the legacy text command `game-admin-capabilities`. A plugin that replies `QGA1` supports the feature; **a plugin that predates it replies with something else, and the panel then asks the operator to upgrade the plugin** instead of failing silently.
+- **Shared implementation**: the EXILED and LabAPI builds use the same shared code, so permission semantics and validation rules match exactly; the `Framework` field in each reply states which build answered.
+- **Write safety**: every participating file is recorded in a durable transaction journal before any file is replaced, and an interrupted write is rolled back on the next start instead of leaving a half-written permission file.
+- **LabAPI dependency**: keep the `dependencies\0Harmony.dll` layout described in the installation steps above.
 
 ## Dedicated Server placeholder filtering
 

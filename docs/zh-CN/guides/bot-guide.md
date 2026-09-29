@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides.svg" width="100%" alt="Server_Qcha 文档：使用与运维指南。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md) · [English](../../en/guides/bot-guide.md)
+
 # QQ 机器人与群服联动指南
 
 Server_Qcha (Qridge) v2.0 提供了功能完备的社群机器人与游戏服联动引擎。系统同时支持 **QQ 官方机器人开放平台 (OpenAPI v2)** 与社区主流的 **NapCatQQ (OneBot 11)** 双协议引擎，并支持在 Web 管理面板中进行在线无缝热切换。

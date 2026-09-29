@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="heroTitle heroDesc">
+  <title id="heroTitle">Server_Qcha (Qridge) —— SCP: Secret Laboratory 服务器 Web 运维控制台</title>
+  <desc id="heroDesc">左侧是项目名称与一句话价值：把 SCP:SL 游戏服从本地黑框命令行搬进浏览器，面板或机器人重启也不会让游戏服掉线，下方是守护进程心跳曲线。右侧是面板界面结构示意：九个模块的导航列表、在线玩家与守护进程指标卡、24 小时在线走势图与实时控制台输出。</desc>
+
+  <rect width="1200" height="420" rx="26" fill="#0A0E14"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+
+    <g id="title-block">
+      <text x="64" y="92" font-size="19" letter-spacing="1.6" fill="#3E8BFF">SCP: SECRET LABORATORY · 运维控制台</text>
+
+      <text x="64" y="162" font-size="62" font-weight="700" fill="#E8EEF6">Server_Qcha</text>
+      <rect x="64" y="182" width="72" height="4" rx="2" fill="#3E8BFF"/>
+
+      <text x="64" y="228" font-size="22" fill="#C6D3E2">把 SCP:SL 游戏服从本地黑框命令行搬进浏览器。</text>
+      <text x="64" y="260" font-size="22" fill="#C6D3E2">面板或机器人重启，游戏服与在线玩家<tspan fill="#2FD4A0">都不掉线。</tspan></text>
+
+      <line x1="64" y1="296" x2="560" y2="296" stroke="#1D2734" stroke-width="1"/>
+
+      <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+        <text x="64" y="328" font-size="16" fill="#6F7F92">.NET 8 · EXILED 9.5.0 · LabAPI 1.1.7 · Apache-2.0</text>
+      </g>
+    </g>
+
+    <g id="heartbeat-motif">
+      <path d="M64 378 H100 l6 -6 l6 10 l6 -46 l7 74 l7 -38 l6 6 H196 l6 -6 l6 10 l6 -46 l7 74 l7 -38 l6 6 H300"
+            fill="none" stroke="#2FD4A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="316" y="384" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" fill="#6F7F92">守护进程心跳</text>
+    </g>
+
+    <g id="panel-mock">
+      <rect x="644" y="52" width="492" height="324" rx="14" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <line x1="644" y1="90" x2="1136" y2="90" stroke="#222C3A" stroke-width="1"/>
+      <circle cx="666" cy="71" r="4" fill="#2A3442"/>
+      <circle cx="682" cy="71" r="4" fill="#2A3442"/>
+      <circle cx="698" cy="71" r="4" fill="#2A3442"/>
+      <text x="716" y="77" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#6F7F92">127.0.0.1:8080</text>
+
+      <rect x="1042" y="61" width="78" height="23" rx="11.5" fill="#12241C" stroke="#1F4A34" stroke-width="1"/>
+      <circle cx="1057" cy="72.5" r="3.5" fill="#2FD4A0"/>
+      <text x="1067" y="77" font-size="12" fill="#2FD4A0">在线</text>
+
+      <g id="module-nav">
+        <rect x="658" y="104" width="152" height="25" rx="6" fill="#17263C"/>
+        <rect x="658" y="104" width="3" height="25" rx="1.5" fill="#3E8BFF"/>
+        <text x="676" y="121" font-size="15" fill="#3E8BFF">服务器总览</text>
+        <text x="676" y="148" font-size="15" fill="#7C8CA0">服务器</text>
+        <text x="676" y="175" font-size="15" fill="#7C8CA0">服务器进程</text>
+        <text x="676" y="202" font-size="15" fill="#7C8CA0">QQ 机器人</text>
+        <text x="676" y="229" font-size="15" fill="#7C8CA0">游戏管理员</text>
+        <text x="676" y="256" font-size="15" fill="#7C8CA0">账号管理</text>
+        <text x="676" y="283" font-size="15" fill="#7C8CA0">数据库管理</text>
+        <text x="676" y="310" font-size="15" fill="#7C8CA0">日志级别</text>
+        <text x="676" y="337" font-size="15" fill="#7C8CA0">审计日志</text>
+      </g>
+
+      <g id="metrics">
+        <rect x="822" y="104" width="142" height="66" rx="10" fill="#151C27" stroke="#222C3A" stroke-width="1"/>
+        <text x="836" y="126" font-size="14" fill="#7C8CA0">在线玩家</text>
+        <text x="950" y="126" text-anchor="end" font-size="12" fill="#2FD4A0">↑ 6</text>
+        <text x="836" y="158" font-size="28" font-weight="700" fill="#2FD4A0">42</text>
+
+        <rect x="976" y="104" width="144" height="66" rx="10" fill="#151C27" stroke="#222C3A" stroke-width="1"/>
+        <text x="990" y="126" font-size="14" fill="#7C8CA0">守护进程</text>
+        <text x="990" y="156" font-size="22" font-weight="700" fill="#2FD4A0">运行中</text>
+      </g>
+
+      <g id="trend">
+        <line x1="822" y1="186" x2="1120" y2="186" stroke="#1B2331" stroke-width="1"/>
+        <line x1="822" y1="212" x2="1120" y2="212" stroke="#1B2331" stroke-width="1"/>
+        <line x1="822" y1="238" x2="1120" y2="238" stroke="#1B2331" stroke-width="1"/>
+        <polygon points="822,238 847,230 872,234 897,218 922,224 947,206 972,214 997,196 1022,204 1047,186 1072,194 1097,182 1120,188 1120,238 822,238"
+                 fill="#3E8BFF" opacity="0.09"/>
+        <polyline points="822,238 847,230 872,234 897,218 922,224 947,206 972,214 997,196 1022,204 1047,186 1072,194 1097,182 1120,188"
+                  fill="none" stroke="#3E8BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" fill="#5A6879">
+          <text x="822" y="258">00:00</text>
+          <text x="971" y="258" text-anchor="middle">12:00</text>
+          <text x="1120" y="258" text-anchor="end">24:00</text>
+        </g>
+      </g>
+
+      <g id="console">
+        <rect x="822" y="278" width="298" height="78" rx="8" fill="#0C1119" stroke="#1D2734" stroke-width="1"/>
+        <rect x="828" y="290" width="3" height="54" rx="1.5" fill="#2FD4A0"/>
+        <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">
+          <text x="842" y="303" fill="#2FD4A0">[10:24:03] 心跳正常</text>
+          <text x="842" y="323" fill="#7C8CA0">[10:24:07] main 已托管</text>
+          <text x="842" y="343" fill="#7C8CA0">[10:24:11] NapCat 已连接</text>
+        </g>
+      </g>
+    </g>
+
+  </g>
+</svg>

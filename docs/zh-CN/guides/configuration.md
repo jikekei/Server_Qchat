@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides.svg" width="100%" alt="Server_Qcha 文档：使用与运维指南。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md) · [English](../../en/guides/configuration.md)
+
 # 配置文件参考手册
 
 本文档提供 **Server_Qcha (Qridge) v2.0** 所有配置项的完整说明、数据类型与推荐默认值。

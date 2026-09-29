@@ -221,6 +221,7 @@ if (webOptions.Enabled)
     app.UseStaticFiles();
 
     app.MapPanelApi();
+    app.MapGameAdminApi();
     app.MapLocalAdminApi();
     app.MapLoggingApi();
     app.MapBotApi();

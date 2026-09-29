@@ -41,4 +41,7 @@
     <Content Update="wwwroot/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../../../shared/*.cs" Exclude="../../../shared/GameAdminRuntime.cs" Link="GameAdmin/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

@@ -75,4 +75,15 @@
     </Reference>
   </ItemGroup>
 
+  <PropertyGroup><DefineConstants>$(DefineConstants);LABAPI</DefineConstants></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../shared/*.cs" Link="GameAdmin/%(Filename)%(Extension)" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="YamlDotNet"><HintPath>$(ScpslReferences)/YamlDotNet.dll</HintPath><Private>false</Private></Reference>
+    <PackageReference Include="Lib.Harmony" Version="2.3.3" GeneratePathProperty="true" />
+  </ItemGroup>
+  <Target Name="CopyGameAdminDependency" AfterTargets="Build">
+    <MakeDir Directories="$(OutputPath)dependencies" />
+    <Copy SourceFiles="$(PkgLib_Harmony)/lib/net48/0Harmony.dll" DestinationFolder="$(OutputPath)dependencies" />
+  </Target>
 </Project>

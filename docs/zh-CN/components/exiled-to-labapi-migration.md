@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-components.svg" width="100%" alt="Server_Qcha 文档：组件说明。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md)
+
 # EXILED → LabAPI 迁移记录
 
 | | 源 | 目标 |

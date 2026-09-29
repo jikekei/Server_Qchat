@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../assets/readme/doc-index-en.svg" width="100%" alt="Server_Qcha documentation: English documentation.">
+
+</div>
+
+[Documentation index](../../docs/README.md) · [Project homepage](../../README.md)
+
 # English Documentation
 
 [English](README.md) · [简体中文](../README.zh-CN.md) · [Project homepage](../../README.md)

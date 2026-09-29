@@ -154,9 +154,9 @@ public sealed class ServerRegistry : IDisposable
         }
     }
 
-    public List<ServerInfo> GetSorted()
+    public List<ServerInfo> GetSorted(bool includeOffline = false)
     {
-        var all = _registry.Values.Where(s => s.IsOnline).ToList();
+        var all = _registry.Values.Where(s => includeOffline || s.IsOnline).ToList();
 
         var groupA = all.Where(s => s.SortOrder > 0)
                         .OrderBy(s => s.SortOrder)

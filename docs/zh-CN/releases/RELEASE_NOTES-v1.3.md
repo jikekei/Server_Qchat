@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-releases.svg" width="100%" alt="Server_Qcha 文档：更新日志与发布。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md)
+
 # v1.3.0 — 服务器自动注册 & 心跳机制
 
 ## 🚀 新功能

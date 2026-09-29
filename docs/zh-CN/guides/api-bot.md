@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides.svg" width="100%" alt="Server_Qcha 文档：使用与运维指南。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md) · [English](../../en/guides/api-bot.md)
+
 # Server_Qchat_API 轻量级查服机器人
 
 Server_Qchat_API 是本仓库提供的 **独立轻量级部署版本**。该版本专为仅需在 QQ 群中快速查询 SCP: Secret Laboratory 服务器在线人数的服主或管理员设计。

@@ -1,6 +1,12 @@
-# 文档中心
+<div align="center">
+
+<img src="../assets/readme/docs-banner.svg" width="100%" alt="Server_Qcha 文档中心：使用与运维指南、组件说明、技术参考、更新日志。">
 
 [简体中文](README.zh-CN.md) · [English](README.md) · [项目主页](../README.md)
+
+</div>
+
+---
 
 项目面向用户的文档统一按语言整理。英文页面逐篇对应中文指南，尽量保持功能、参数、命令和安全边界一致；仍只有中文的技术参考会在下方单独列出。
 

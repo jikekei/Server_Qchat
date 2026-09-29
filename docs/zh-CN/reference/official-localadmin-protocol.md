@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-reference.svg" width="100%" alt="Server_Qcha 文档：技术参考。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md)
+
 # 官方 LocalAdmin ↔ 游戏服务端 通讯协议
 
 > 结论来源：**源码 + 二进制双向交叉验证**，不是猜测。

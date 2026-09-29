@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-components-en.svg" width="100%" alt="Server_Qcha documentation: Component reference.">
+
+</div>
+
+[Documentation index](../../../docs/README.md) · [Project homepage](../../../README.md) · [简体中文](../../zh-CN/components/bot.md)
+
 # Server_Qcha.Bot
 
 [English documentation index](../README.md) · [简体中文](../../zh-CN/components/bot.md) · [Project homepage](../../../README.md)
@@ -62,6 +70,15 @@ bc&<id>&<group>
 ```
 
 The final form is used by `/setadmin` for compatibility with the existing plugin protocol. The plugin returns a readable response that the bot uses in its QQ reply.
+
+The panel's game-administrator feature must move hundreds of kilobytes of configuration, so it adds a length-prefixed frame on top of the same channel. **The frame body is still the same `v2|` envelope, so authentication and replay checks are identical to the legacy path:**
+
+| Step | Command | Purpose |
+|---|---|---|
+| Capability probe | `game-admin-capabilities` | Still sent over the legacy text channel; a supporting plugin replies `QGA1`, otherwise the panel asks for a plugin upgrade |
+| Read / write | `game-admin&{JSON}` | Written inside the `v2|` envelope and then wrapped in a `QGA1` frame to read or write in-game administrators and permission groups |
+
+A frame is the `QGA1` ASCII magic, a 4-byte big-endian length, and a UTF-8 body, capped at 2 MiB. See the [communication protocol reference](../../zh-CN/reference/communication-protocol.md) for fields, operations, and error codes.
 
 The command and notification channels authenticate requests with the configured shared token using HMAC, timestamps, and replay checks. Authentication does not encrypt network traffic. Use a VPN or firewall source restrictions when bot and game servers run on different machines.
 

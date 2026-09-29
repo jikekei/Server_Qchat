@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides.svg" width="100%" alt="Server_Qcha 文档：使用与运维指南。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md) · [English](../../en/guides/getting-started.md)
+
 # 快速上手与全平台部署指南
 
 本文档将引导您在 5 分钟内完成 **Server_Qcha (Qridge) v2.0** 的基础环境搭建、配置与运行。

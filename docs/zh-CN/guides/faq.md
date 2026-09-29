@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides.svg" width="100%" alt="Server_Qcha 文档：使用与运维指南。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md) · [English](../../en/guides/faq.md)
+
 # 常见问题与排错手册 (FAQ)
 
 本文档汇总了部署和使用 **Server_Qcha (Qridge)** 过程中最常见的故障排查步骤与解决方案。

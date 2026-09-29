@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="../../../assets/readme/doc-guides.svg" width="100%" alt="Server_Qcha 文档：使用与运维指南。">
+
+</div>
+
+[文档中心](../../../docs/README.zh-CN.md) · [项目主页](../../../docs/zh-CN/README.md) · [English](../../en/guides/plugin-guide.md)
+
 # 游戏服务端插件指南 (EXILED & LabAPI)
 
 本项目同时为 **EXILED** 与 **LabAPI** 两大主流 SCPSL 插件框架提供了原生插件支持，通信协议与配置规范完全统一。
@@ -17,6 +25,7 @@
   - [AuthToken 安全鉴权](#authtoken-安全鉴权)
   - [游戏内 .ac 一键求助与广播](#游戏内-ac-一键求助与广播)
   - [Dedicated Server 自动过滤](#dedicated-server-自动过滤)
+  - [游戏管理员权限支持（QGA1）](#游戏管理员权限支持qga1)
 
 ---
 
@@ -71,6 +80,14 @@
    ```text
    %APPDATA%\SCP Secret Laboratory\LabAPI\configs\<服务器端口>\Server_Qcha\config.yml
    ```
+4. LabAPI 版引用了 Lib.Harmony（用于游戏管理员配置的热应用），构建产物已把 `0Harmony.dll` 放在 `dependencies` 子目录，部署时请保持该结构：
+   ```text
+   LabAPI\plugins\<服务器端口>\
+   ├── Server_Qcha.dll
+   └── dependencies\
+       └── 0Harmony.dll
+   ```
+   缺少该依赖时，涉及管理员配置热应用的代码路径会因找不到程序集而失败。
 
 ### 配置说明
 打开 `config.yml`，字段含义与 EXILED 版完全对应：
@@ -117,3 +134,12 @@ debug: false
 ### Dedicated Server 自动过滤
 在 SCPSL 某些版本与插件环境下，服务端控制台会生成 `Dedicated Server` 占位玩家。
 本插件在执行在线查询 (`cx`)、返回玩家列表 (`list`) 时，已在底层源码中统一过滤掉 `Dedicated Server`，确保 Web 面板、机器人回显及历史采样数据 100% 为真实玩家。
+
+### 游戏管理员权限支持（QGA1）
+插件是「游戏管理员」功能的执行端：面板通过命令通道下发读写请求，插件负责解析游戏服的 `config_remoteadmin.txt`、落盘，并在运行时热应用。
+
+- **协议**：在旧 `v2|` 封套之外增加一层带长度前缀的 `QGA1` 帧（**帧正文仍是同一个封套**），单帧上限 2 MiB，用于承载数百 KB 的配置文件；两种格式在同一端口并存，老客户端不受影响。字段、操作与错误码见[通信协议文档](../reference/communication-protocol.md)。
+- **能力探测**：面板先发旧文本命令 `game-admin-capabilities`；返回 `QGA1` 表示支持。**未升级的旧插件会返回其它内容，面板据此提示升级插件**，而不是静默失败。
+- **双框架一致**：EXILED 与 LabAPI 两个版本共用同一套共享实现，权限语义与校验规则完全一致；响应中的 `Framework` 字段会标明当前框架。
+- **写入安全**：所有参与文件在替换前先写持久化事务日志，中途异常可在下次启动自动回滚，不会留下半写的权限配置。
+- **LabAPI 依赖**：见上文安装步骤第 4 步，需保持 `dependencies\0Harmony.dll` 的目录结构。
