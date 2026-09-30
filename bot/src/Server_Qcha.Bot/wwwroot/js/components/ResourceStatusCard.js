@@ -1,12 +1,12 @@
 import { computed } from '../deps.js';
 
 const metricDefinitions = [
-  { key: 'mainThread', label: '游戏主线程', hint: '基于心跳与玩家负载估算', weight: 25 },
-  { key: 'cpu', label: 'CPU 综合压力', hint: '进程 CPU 与系统估算值', weight: 25 },
-  { key: 'game', label: '游戏业务', hint: '在线人数与承载比例', weight: 15 },
-  { key: 'memory', label: '内存压力', hint: '内存负载与进程占用', weight: 15 },
-  { key: 'network', label: '网络压力', hint: '基于心跳与连接数估算', weight: 10 },
-  { key: 'disk', label: '磁盘空间压力', hint: '根据所在磁盘剩余空间评估', weight: 10 },
+  { key: 'mainThread', label: '游戏主线程' },
+  { key: 'cpu', label: 'CPU 综合压力' },
+  { key: 'game', label: '游戏业务' },
+  { key: 'memory', label: '内存压力' },
+  { key: 'network', label: '网络压力' },
+  { key: 'disk', label: '磁盘空间压力' },
 ];
 
 function percentage(value) {
@@ -70,56 +70,46 @@ export const ResourceStatusCard = {
     <el-card class="chart-card resource-card" shadow="never">
       <template #header>
         <div class="resource-heading">
-          <span class="resource-heading-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="5" y="5" width="14" height="14" rx="3"/><rect x="9" y="9" width="6" height="6" rx="1"/>
-              <path d="M9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3"/>
-            </svg>
-          </span>
-          <div><h2>服务器资源与运行健康</h2><p>主机资源与游戏运行压力</p></div>
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="5" width="14" height="14" rx="3"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+            <path d="M9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3"/>
+          </svg>
+          <h2>服务器资源报表</h2>
         </div>
-        <span class="resource-sample">{{ loading ? '正在同步数据…' : (ready ? '采集于 ' + sampleTime : '等待首次采集') }}</span>
+        <span class="resource-sample">{{ loading ? '正在同步…' : (ready ? '采集于 ' + sampleTime : '等待首次采集') }}</span>
       </template>
 
-      <div class="resource-layout">
-        <section class="resource-summary" :data-tone="tone" aria-label="综合负载摘要">
-          <div class="resource-summary-top"><span>综合负载</span><span class="resource-badge">{{ ready ? (status.statusText || '状态未知') : '待采集' }}</span></div>
-          <div class="resource-score">{{ load ?? '—' }}<span v-if="load !== null">%</span></div>
-          <div class="resource-track" role="progressbar" aria-label="综合负载" :aria-valuenow="load ?? undefined" aria-valuemin="0" aria-valuemax="100" :aria-valuetext="load === null ? '暂无数据' : load + '%'">
-            <span :style="{ transform: 'scaleX(' + ((load ?? 0) / 100) + ')' }"></span>
-          </div>
-          <dl class="resource-summary-stats">
-            <div><dt>平滑负载</dt><dd>{{ ready ? (percentage(status.smoothLoad) ?? '—') : '—' }}<small v-if="ready && percentage(status.smoothLoad) !== null">%</small></dd></div>
-            <div><dt>60 秒峰值</dt><dd>{{ ready ? (percentage(status.peakLoad) ?? '—') : '—' }}<small v-if="ready && percentage(status.peakLoad) !== null">%</small></dd></div>
-          </dl>
-          <p class="resource-summary-note">六项压力综合评估，包含峰值保护</p>
-        </section>
-
-        <div class="resource-metrics" aria-label="各项资源压力">
-          <section v-for="metric in metrics" :key="metric.key" class="resource-metric" :data-tone="metric.tone" :aria-label="metric.label">
-            <div class="resource-metric-head"><h3>{{ metric.label }}</h3><span class="resource-level">{{ metric.key === 'mainThread' || metric.key === 'network' ? '估算' : '压力指数' }}</span></div>
-            <div class="resource-metric-reading"><strong>{{ metric.value ?? '—' }}<small v-if="metric.value !== null">%</small></strong><span class="resource-pressure-label">{{ metric.level }}</span></div>
-            <div class="resource-track" role="progressbar" :aria-label="metric.label" :aria-valuenow="metric.value ?? undefined" aria-valuemin="0" aria-valuemax="100" :aria-valuetext="metric.value === null ? '暂无数据' : metric.value + '%'">
-              <span :style="{ transform: 'scaleX(' + ((metric.value ?? 0) / 100) + ')' }"></span>
-            </div>
-            <p>{{ metric.hint }}</p>
-          </section>
-        </div>
-      </div>
-
-      <div class="resource-insights">
-        <dl class="resource-bottlenecks">
-          <div><dt>主要压力来源</dt><dd>{{ ready ? (status.primaryBottleneck || '暂无') : '—' }}</dd></div>
-          <div><dt>次要压力来源</dt><dd>{{ ready ? (status.secondaryBottleneck || '暂无') : '—' }}</dd></div>
+      <div class="resource-summary" :data-tone="tone" aria-label="综合负载摘要">
+        <div class="resource-total"><span>综合负载</span><strong>{{ load ?? '—' }}<small v-if="load !== null">%</small></strong><span class="resource-badge">{{ ready ? (status.statusText || '状态未知') : '待采集' }}</span></div>
+        <dl class="resource-summary-stats">
+          <div><dt>平滑</dt><dd>{{ ready ? (percentage(status.smoothLoad) ?? '—') : '—' }}<small v-if="ready && percentage(status.smoothLoad) !== null">%</small></dd></div>
+          <div><dt>60 秒峰值</dt><dd>{{ ready ? (percentage(status.peakLoad) ?? '—') : '—' }}<small v-if="ready && percentage(status.peakLoad) !== null">%</small></dd></div>
         </dl>
-        <section class="resource-diagnosis"><h3>运行建议</h3><p>{{ ready ? (status.diagnosis || '暂无运行建议') : '等待监控采集数据，采集完成后显示负载与运行建议。' }}</p></section>
       </div>
+
+      <table class="resource-report">
+        <caption class="resource-sr-only">六项资源压力指数</caption>
+        <colgroup><col class="resource-col-name"><col class="resource-col-value"><col class="resource-col-state"></colgroup>
+        <thead><tr><th scope="col">指标</th><th scope="col">压力指数</th><th scope="col">状态</th></tr></thead>
+        <tbody>
+          <tr v-for="metric in metrics" :key="metric.key" :data-tone="metric.tone">
+            <th scope="row">{{ metric.label }}</th>
+            <td><div class="resource-reading"><strong>{{ metric.value ?? '—' }}<small v-if="metric.value !== null">%</small></strong><div class="resource-track" aria-hidden="true"><span :style="{ transform: 'scaleX(' + ((metric.value ?? 0) / 100) + ')' }"></span></div></div></td>
+            <td><span class="resource-pressure-label">{{ metric.level }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <dl class="resource-bottlenecks">
+        <div><dt>主要压力</dt><dd>{{ ready ? (status.primaryBottleneck || '暂无') : '—' }}</dd></div>
+        <div><dt>次要压力</dt><dd>{{ ready ? (status.secondaryBottleneck || '暂无') : '—' }}</dd></div>
+      </dl>
+      <section class="resource-diagnosis"><h3>运行建议</h3><p>{{ ready ? (status.diagnosis || '暂无运行建议') : '等待首次采集，完成后显示负载与运行建议。' }}</p></section>
 
       <details class="resource-details">
         <summary>采集明细与指标说明<span aria-hidden="true">展开 / 收起</span></summary>
         <dl v-if="detailItems.length" class="resource-details-grid"><div v-for="item in detailItems" :key="item.label"><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd></div></dl>
-        <p>压力指数用于识别运行瓶颈，不等同于硬件实际使用率。主线程与网络压力基于心跳等信息估算；磁盘评估使用的是空间占用。主机数据来自面板所在机器，进程组合包含面板与本机 SCPSL 进程。</p>
-        <p>综合权重：<span v-for="(metric, index) in metrics" :key="metric.key">{{ index ? ' · ' : '' }}{{ metric.label }} {{ metric.weight }}%</span>。内存容量与可用值来自运行时，可作为参考。</p>
+        <p>压力指数用于识别运行瓶颈，不等同于硬件实际使用率。主机数据来自面板所在机器，进程组合包含面板与本机 SCPSL 进程；内存容量与可用值来自运行时，可作为参考。综合负载包含峰值保护。</p>
       </details>
     </el-card>
   `,
