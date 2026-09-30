@@ -70,7 +70,7 @@
 ## LabAPI 插件安装与配置
 
 ### 安装步骤
-1. 从 Releases 下载 `Server_Qcha-LabAPI.dll`，重命名为 `Server_Qcha.dll`；
+1. 从 Releases 下载 `Server_Qcha-LabAPI-v2.2.0.zip` 并解压；若单独下载 `Server_Qcha-LabAPI.dll`，须重命名为 `Server_Qcha.dll` 并另行部署配套 Harmony 依赖；
 2. 将文件放置到按端口划分的 LabAPI 插件目录：
    ```text
    %APPDATA%\SCP Secret Laboratory\LabAPI\plugins\<服务器端口>\Server_Qcha.dll

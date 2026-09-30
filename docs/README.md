@@ -31,7 +31,7 @@ The documentation is organized by language. The English guides are translations 
 
 ### Releases
 
-- [v2.0.1 release notes](en/releases/v2.0.1.md)
+- [v2.0.1 release notes](en/releases/v2.2.0.md)
 
 ## 中文
 

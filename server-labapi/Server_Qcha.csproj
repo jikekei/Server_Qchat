@@ -11,9 +11,9 @@
 
     <!-- 插件版本：LabAPI 默认用 Assembly.GetName().Version 作为插件版本，
          这里显式声明，需与 Main.cs 中的 Version 属性保持一致。 -->
-    <Version>1.4.0</Version>
-    <AssemblyVersion>1.4.0.0</AssemblyVersion>
-    <FileVersion>1.4.0.0</FileVersion>
+    <Version>2.2.0</Version>
+    <AssemblyVersion>2.2.0.0</AssemblyVersion>
+    <FileVersion>2.2.0.0</FileVersion>
 
     <AssemblyName>Server_Qcha</AssemblyName>
     <RootNamespace>SocketServer</RootNamespace>

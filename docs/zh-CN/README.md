@@ -161,7 +161,7 @@ graph TD
 
 ## 3 步极速上手
 
-1. **下载发行包**：前往 [Releases 页面](https://github.com/jikekei/Server_Qchat/releases) 下载最新版本的 `Server_Qcha.Bot-v2.0.1.zip`，并解压至您的部署目录；
+1. **下载发行包**：前往 [Releases 页面](https://github.com/jikekei/Server_Qchat/releases) 下载最新版本的 `Server_Qcha.Bot-v2.2.0.zip`，并解压至您的部署目录；
 2. **确认配置**：复制 `appsettings.Example.json` 为 `appsettings.Local.json`（或直接使用内置配置），按需配置游戏服的 `SCPSL.exe` 路径；
 3. **一键启动运行**：
    - **方式 A（推荐）**：双击运行 **`一键启动(守护+机器人).bat`**；

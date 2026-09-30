@@ -63,7 +63,7 @@ namespace SocketServer
 
         public override string Author => "Fantasy Galaxy";
 
-        public override Version Version => new Version(1, 4, 0);
+        public override Version Version => new Version(2, 2, 0);
 
         /// <summary>
         /// 声明本插件要求的 LabAPI 版本。LabAPI 装载时会拿它和当前运行版本比对：

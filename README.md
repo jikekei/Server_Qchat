@@ -89,7 +89,7 @@ The daemon supervises the game-server processes and retains their console pipes.
 
 ## Quick start
 
-1. Download `Server_Qcha.Bot-v2.0.1.zip` from [GitHub Releases](https://github.com/jikekei/Server_Qchat/releases/latest) and extract it to a deployment directory.
+1. Download `Server_Qcha.Bot-v2.2.0.zip` from [GitHub Releases](https://github.com/jikekei/Server_Qchat/releases/latest) and extract it to a deployment directory.
 2. Back up `data/` and `appsettings.json` before an upgrade. Copy `appsettings.Example.json` to `appsettings.Local.json` and configure the QQ connection and game-server paths.
 3. Set strong random tokens for bot/plugin communication and, when used, daemon authentication. Configure explicit QQ administrator and group allowlists where needed.
 4. Install either `Server_Qcha-EXILED.dll` or `Server_Qcha-LabAPI.dll` in the matching game-server plugin directory. Do not load both frameworks on the same server instance. On LabAPI servers, deploy `0Harmony.dll` into the plugin's `dependencies` folder.

@@ -41,4 +41,4 @@
 - [English project homepage](../README.md)
 - [English getting started guide](en/guides/getting-started.md)
 - [English component guides](en/components/bot.md)
-- [English releases](en/releases/v2.0.1.md)
+- [English releases](en/releases/v2.2.0.md)
