@@ -42,7 +42,7 @@ public static class GameAdminEndpoints
             return Results.BadRequest(new { error = "不支持的操作" });
         if (string.IsNullOrWhiteSpace(request.Revision) || string.IsNullOrWhiteSpace(request.RequestId))
             return Results.BadRequest(new { error = "缺少配置版本或请求标识" });
-        if (AdminJson.Write(request).Length > 256 * 1024) return Results.BadRequest(new { error = "单次变更过大" });
+        if (System.Text.Encoding.UTF8.GetByteCount(AdminJson.Write(request)) > 256 * 1024) return Results.BadRequest(new { error = "单次变更过大（最多 256 KiB UTF-8）" });
         AdminReply reply;
         try
         {

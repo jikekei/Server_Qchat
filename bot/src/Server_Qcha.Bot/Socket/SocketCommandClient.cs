@@ -31,7 +31,7 @@ public sealed class SocketCommandClient
         using var stream = client.GetStream();
         if (!TcpAuthEnvelope.TrySeal(_opts.AuthToken, "game-admin&" + Qchat.GameAdmin.AdminJson.Write(request), out var wire, out var error))
             throw new InvalidOperationException(error);
-        await Qchat.GameAdmin.AdminFrame.Write(stream, wire, timeout.Token);
+        await Qchat.GameAdmin.AdminFrame.Write(stream, wire, timeout.Token, Qchat.GameAdmin.AdminFrame.MaxRequestLength);
         var response = await Qchat.GameAdmin.AdminFrame.Read(stream, timeout.Token);
         if (response == "Unauthorized") return new() { Code = "unauthorized", Error = "游戏服鉴权失败，请检查共享 Token" };
         return Qchat.GameAdmin.AdminJson.Read<Qchat.GameAdmin.AdminReply>(response);

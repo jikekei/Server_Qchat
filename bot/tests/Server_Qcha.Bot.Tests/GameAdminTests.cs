@@ -204,6 +204,8 @@ public class GameAdminTests
             http.DefaultRequestHeaders.Add("X-Qcha-Server", "wrong-server");
             Assert.Equal(HttpStatusCode.Conflict, (await http.GetAsync("/api/servers/1/game-admin")).StatusCode);
             http.DefaultRequestHeaders.Remove("X-Qcha-Server"); http.DefaultRequestHeaders.Add("X-Qcha-Server", "127.0.0.1:12345");
+            // Fewer than 256 Ki characters can still exceed 256 KiB when encoded as UTF-8.
+            Assert.Equal(HttpStatusCode.BadRequest, (await http.PostAsJsonAsync("/api/servers/1/game-admin/changes", new AdminRequest { Operation = "delete-member", Key = new string('中', 100 * 1024), Revision = "test", RequestId = "oversized-utf8" })).StatusCode);
             Assert.Equal(HttpStatusCode.ServiceUnavailable, (await http.PostAsJsonAsync("/api/servers/1/game-admin/changes", new AdminRequest { Operation = "delete-member", Key = "123@steam", Revision = "test", RequestId = "offline-test" })).StatusCode);
             using var connection = new Microsoft.Data.Sqlite.SqliteConnection(db.ConnectionString); await connection.OpenAsync();
             using var query = connection.CreateCommand(); query.CommandText = "SELECT COUNT(*) FROM panel_audit WHERE action = 'game-admin.delete-member' AND success = 0";

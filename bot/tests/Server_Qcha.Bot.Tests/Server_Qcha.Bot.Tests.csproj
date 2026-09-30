@@ -20,6 +20,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Server_Qcha.Bot\Server_Qcha.Bot.csproj" />
+    <!-- Exercise the actual plugin listener with test-only log facades, without loading Unity.
+         Run again with -p:PluginTcpFlavor=LabAPI to exercise the other framework's source. -->
+    <Compile Include="../../../server/TcpCommandServer.cs" Link="PluginTcp/TcpCommandServer.cs" Condition="'$(PluginTcpFlavor)' != 'LabAPI'" />
+    <Compile Include="../../../server-labapi/TcpCommandServer.cs" Link="PluginTcp/TcpCommandServer.cs" Condition="'$(PluginTcpFlavor)' == 'LabAPI'" />
   </ItemGroup>
 
 </Project>

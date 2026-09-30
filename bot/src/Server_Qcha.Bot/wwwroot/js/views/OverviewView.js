@@ -1,9 +1,11 @@
+import { ResourceStatusCard } from '../components/ResourceStatusCard.js';
 import { useOverview } from '../modules/useOverview.js';
 import { useServers } from '../modules/useServers.js';
 import { can, fmtTime } from '../api.js';
 
 export const OverviewView = {
   name: 'OverviewView',
+  components: { ResourceStatusCard },
   template: `
         <div>
           <div class="toolbar">
@@ -244,110 +246,7 @@ export const OverviewView = {
             </el-table>
           </el-card>
 
-          <!-- 游戏服务器综合负载与运行健康监控 (紧凑美化 HUD，放置于页面底部) -->
-          <el-card class="chart-card compact-status-card" shadow="hover">
-            <template #header>
-              <div class="compact-status-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--qb-accent)">
-                  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
-                </svg>
-                <span>游戏服务器综合负载与健康评估</span>
-                <el-tag size="small" :type="getStatusTagType(overview.serverStatus.status)" effect="dark" style="margin-left:6px;font-weight:600">
-                  {{ overview.serverStatus.statusText }} ({{ overview.serverStatus.status }})
-                </el-tag>
-              </div>
-              <div class="compact-status-meta muted">
-                <span>平滑负载：<b :style="{ color: getStatusColor(overview.serverStatus.status) }">{{ overview.serverStatus.smoothLoad }}%</b></span>
-                <span class="meta-sep">·</span>
-                <span>60s 峰值：<b style="color:var(--qb-text)">{{ overview.serverStatus.peakLoad }}%</b></span>
-                <span class="meta-sep">·</span>
-                <span>加权模型与峰值保护计算</span>
-              </div>
-            </template>
-
-            <div class="compact-status-layout">
-              <!-- 左侧：微型圆环仪表与主要/次要瓶颈 -->
-              <div class="compact-gauge-box">
-                <div class="compact-gauge-ring" :style="{ borderColor: getStatusColor(overview.serverStatus.status) }">
-                  <span class="compact-gauge-val" :style="{ color: getStatusColor(overview.serverStatus.status) }">
-                    {{ overview.serverStatus.load }}<small>%</small>
-                  </span>
-                  <span class="compact-gauge-lbl">综合负载</span>
-                </div>
-                <div class="compact-bottleneck-col">
-                  <div class="compact-bottleneck-item">
-                    <span class="compact-tag primary">主瓶颈</span>
-                    <span class="compact-bottleneck-text" :title="overview.serverStatus.primaryBottleneck">{{ overview.serverStatus.primaryBottleneck || '暂无瓶颈' }}</span>
-                  </div>
-                  <div class="compact-bottleneck-item">
-                    <span class="compact-tag secondary">次瓶颈</span>
-                    <span class="compact-bottleneck-text" :title="overview.serverStatus.secondaryBottleneck">{{ overview.serverStatus.secondaryBottleneck || '暂无瓶颈' }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 中间：六维压力紧凑进度条网格 (3列 x 2行) -->
-              <div class="compact-metrics-grid">
-                <div class="compact-metric-cell">
-                  <div class="compact-metric-top">
-                    <span class="compact-metric-title">游戏主线程 (25%)</span>
-                    <span class="compact-metric-num" :style="{ color: getPressureColor(overview.serverStatus.mainThread) }">{{ overview.serverStatus.mainThread }}%</span>
-                  </div>
-                  <el-progress :percentage="overview.serverStatus.mainThread" :color="getPressureColor(overview.serverStatus.mainThread)" :show-text="false" :stroke-width="5"></el-progress>
-                </div>
-                <div class="compact-metric-cell">
-                  <div class="compact-metric-top">
-                    <span class="compact-metric-title">CPU 综合 (25%)</span>
-                    <span class="compact-metric-num" :style="{ color: getPressureColor(overview.serverStatus.cpu) }">{{ overview.serverStatus.cpu }}%</span>
-                  </div>
-                  <el-progress :percentage="overview.serverStatus.cpu" :color="getPressureColor(overview.serverStatus.cpu)" :show-text="false" :stroke-width="5"></el-progress>
-                </div>
-                <div class="compact-metric-cell">
-                  <div class="compact-metric-top">
-                    <span class="compact-metric-title">游戏业务 (15%)</span>
-                    <span class="compact-metric-num" :style="{ color: getPressureColor(overview.serverStatus.game) }">{{ overview.serverStatus.game }}%</span>
-                  </div>
-                  <el-progress :percentage="overview.serverStatus.game" :color="getPressureColor(overview.serverStatus.game)" :show-text="false" :stroke-width="5"></el-progress>
-                </div>
-                <div class="compact-metric-cell">
-                  <div class="compact-metric-top">
-                    <span class="compact-metric-title">内存压力 (15%)</span>
-                    <span class="compact-metric-num" :style="{ color: getPressureColor(overview.serverStatus.memory) }">{{ overview.serverStatus.memory }}%</span>
-                  </div>
-                  <el-progress :percentage="overview.serverStatus.memory" :color="getPressureColor(overview.serverStatus.memory)" :show-text="false" :stroke-width="5"></el-progress>
-                </div>
-                <div class="compact-metric-cell">
-                  <div class="compact-metric-top">
-                    <span class="compact-metric-title">网络传输 (10%)</span>
-                    <span class="compact-metric-num" :style="{ color: getPressureColor(overview.serverStatus.network) }">{{ overview.serverStatus.network }}%</span>
-                  </div>
-                  <el-progress :percentage="overview.serverStatus.network" :color="getPressureColor(overview.serverStatus.network)" :show-text="false" :stroke-width="5"></el-progress>
-                </div>
-                <div class="compact-metric-cell">
-                  <div class="compact-metric-top">
-                    <span class="compact-metric-title">磁盘 I/O (10%)</span>
-                    <span class="compact-metric-num" :style="{ color: getPressureColor(overview.serverStatus.disk) }">{{ overview.serverStatus.disk }}%</span>
-                  </div>
-                  <el-progress :percentage="overview.serverStatus.disk" :color="getPressureColor(overview.serverStatus.disk)" :show-text="false" :stroke-width="5"></el-progress>
-                </div>
-              </div>
-
-              <!-- 右侧：紧凑型诊断与建议卡片 -->
-              <div class="compact-diagnosis-card">
-                <div class="compact-diagnosis-head">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--qb-accent)">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                  </svg>
-                  <span>智能诊断建议</span>
-                </div>
-                <div class="compact-diagnosis-text" :title="overview.serverStatus.diagnosis">
-                  {{ overview.serverStatus.diagnosis }}
-                </div>
-              </div>
-            </div>
-          </el-card>
+          <resource-status-card :status="overview.serverStatus" :loading="overview.loading" />
         </div>
 `,
   setup() {
