@@ -80,7 +80,7 @@
     <Compile Include="../shared/*.cs" Link="GameAdmin/%(Filename)%(Extension)" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="YamlDotNet"><HintPath>$(ScpslReferences)/YamlDotNet.dll</HintPath><Private>false</Private></Reference>
-    <PackageReference Include="Lib.Harmony" Version="2.3.3" GeneratePathProperty="true" />
+    <PackageReference Include="Lib.Harmony" Version="2.4.2" GeneratePathProperty="true" />
   </ItemGroup>
   <Target Name="CopyGameAdminDependency" AfterTargets="Build">
     <MakeDir Directories="$(OutputPath)dependencies" />
