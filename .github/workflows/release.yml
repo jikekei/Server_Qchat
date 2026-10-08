@@ -25,10 +25,10 @@ jobs:
       matrix:
         runtime: [win-x64, linux-x64]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
       - name: Publish bot and standalone daemon
@@ -66,7 +66,7 @@ jobs:
           Compress-Archive -Path package/bot/* -DestinationPath "dist/$zip"
           $hash = (Get-FileHash "dist/$zip" -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $zip" | Set-Content "dist/$zip.sha256" -Encoding utf8NoBOM
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: package-${{ matrix.runtime }}
           path: dist/*
@@ -81,7 +81,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: package-*
           merge-multiple: true
