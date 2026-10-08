@@ -1,0 +1,98 @@
+name: Release packages
+
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    needs: checks
+    runs-on: windows-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [win-x64, linux-x64]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish bot and standalone daemon
+        shell: pwsh
+        env:
+          RUNTIME: ${{ matrix.runtime }}
+        run: |
+          dotnet publish bot/src/Server_Qcha.Bot/Server_Qcha.Bot.csproj -c Release -r $env:RUNTIME --self-contained true -o package/bot
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet publish bot/src/Server_Qcha.Daemon/Server_Qcha.Daemon.csproj -c Release -r $env:RUNTIME --self-contained true -o package/daemon
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Bot auto-start and the existing launch scripts expect the daemon beside the bot.
+          # Keep the bot's configuration and web resources when merging runtime files.
+          Get-ChildItem package/daemon -File | Where-Object { $_.Name -notlike 'appsettings*.json' } | Copy-Item -Destination package/bot/
+          if ($env:RUNTIME -eq 'win-x64') { Copy-Item bot/scripts/*.bat package/bot/ }
+          Copy-Item LICENSE package/bot/
+          Copy-Item README.md package/bot/
+          if (!(Test-Path package/bot/wwwroot/index.html)) { throw 'Web panel assets missing' }
+          if (!(Test-Path package/bot/Server_Qcha.Daemon.dll)) { throw 'Daemon missing' }
+      - name: Archive and checksum
+        shell: pwsh
+        env:
+          RUNTIME: ${{ matrix.runtime }}
+          RELEASE_REF: ${{ github.ref_name }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          $version = if ($env:IS_TAG -eq 'true') { $env:RELEASE_REF } else { 'preview' }
+          if ($version -notmatch '^(v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?|preview)$') { throw 'Use a semantic version tag, e.g. v2.2.1' }
+          if ($env:IS_TAG -eq 'true') {
+            [xml]$project = Get-Content bot/src/Server_Qcha.Bot/Server_Qcha.Bot.csproj
+            if ($version.Substring(1).Split('-')[0] -ne $project.Project.PropertyGroup.Version) { throw 'Tag must match the bot project Version' }
+          }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $zip = "Server_Qcha.Bot-$version-$env:RUNTIME.zip"
+          Compress-Archive -Path package/bot/* -DestinationPath "dist/$zip"
+          $hash = (Get-FileHash "dist/$zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $zip" | Set-Content "dist/$zip.sha256" -Encoding utf8NoBOM
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.runtime }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          merge-multiple: true
+          path: dist
+      - name: Create release and upload packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG" --draft
+          fi
+          gh release upload "$RELEASE_TAG" dist/* --clobber

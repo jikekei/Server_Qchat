@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '10:00'
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ['*']
+  - package-ecosystem: nuget
+    directories:
+      - /bot
+      - /Server_Qcha.Bot
+      - /Server_Qchat_API
+      - /server
+      - /server-labapi
+    schedule:
+      interval: weekly
+      day: monday
+      time: '10:00'
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    groups:
+      dotnet-patch-minor:
+        patterns: ['*']
+        update-types: [minor, patch]
