@@ -5,6 +5,7 @@
 [English](README.md) · [简体中文](docs/zh-CN/README.md)
 
 [![Release](https://img.shields.io/github/v/release/jikekei/Server_Qchat?color=blue&logo=github)](https://github.com/jikekei/Server_Qchat/releases)
+[![CI](https://github.com/jikekei/Server_Qchat/actions/workflows/ci.yml/badge.svg)](https://github.com/jikekei/Server_Qchat/actions/workflows/ci.yml)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![SCPSL](https://img.shields.io/badge/Game-SCPSL-red?logo=steam&logoColor=white)](https://scpslgame.com/)
 [![EXILED](https://img.shields.io/badge/Plugin-EXILED-blue)](https://github.com/Exiled-Team/EXILED)
@@ -88,6 +89,8 @@ graph TD
 The daemon supervises the game-server processes and retains their console pipes. The bot and panel communicate with the daemon through an internal HTTP API. Game plugins connect to the bot over separate command and notification TCP channels.
 
 ## Quick start
+
+Maintainers: see the [automation guide](docs/zh-CN/reference/automation.md) for CI, dependency updates, and release packaging.
 
 1. Download `Server_Qcha.Bot-v2.2.0.zip` from [GitHub Releases](https://github.com/jikekei/Server_Qchat/releases/latest) and extract it to a deployment directory.
 2. Back up `data/` and `appsettings.json` before an upgrade. Copy `appsettings.Example.json` to `appsettings.Local.json` and configure the QQ connection and game-server paths.
