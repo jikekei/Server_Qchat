@@ -41,56 +41,42 @@
     <Reference Include="Assembly-CSharp">
       <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\Assembly-CSharp-Publicized.dll</HintPath>
     </Reference>
-    <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Assembly-CSharp-Publicized.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>$(ScpslReferences)\Assembly-CSharp-firstpass.dll</HintPath>
     </Reference>
-    <Reference Include="CommandSystem.Core, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\CommandSystem.Core.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="CommandSystem.Core, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\CommandSystem.Core.dll</HintPath>
     </Reference>
-    <Reference Include="Exiled.API, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.API.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Exiled.API, Version=9.5.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\Exiled.API.dll</HintPath>
     </Reference>
-    <Reference Include="Exiled.CreditTags, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.CreditTags.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Exiled.CreditTags, Version=9.5.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\Exiled.CreditTags.dll</HintPath>
     </Reference>
-    <Reference Include="Exiled.CustomItems, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.CustomItems.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Exiled.CustomItems, Version=9.5.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\Exiled.CustomItems.dll</HintPath>
     </Reference>
-    <Reference Include="Exiled.CustomRoles, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.CustomRoles.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Exiled.CustomRoles, Version=9.5.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\Exiled.CustomRoles.dll</HintPath>
     </Reference>
-    <Reference Include="Exiled.Events, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.Events.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Exiled.Events, Version=9.5.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\Exiled.Events.dll</HintPath>
     </Reference>
-    <Reference Include="Exiled.Loader, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.Loader.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Exiled.Loader, Version=9.5.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\Exiled.Loader.dll</HintPath>
     </Reference>
-    <Reference Include="Exiled.Permissions, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.Permissions.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="LabApi, Version=1.1.7.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\LabApi.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Exiled.Permissions, Version=9.5.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\Exiled.Permissions.dll</HintPath>
     </Reference>
     <Reference Include="Mirror">
       <HintPath>$(ScpslReferences)\Mirror.dll</HintPath>
     </Reference>
-    <Reference Include="NorthwoodLib, Version=1.4.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\NorthwoodLib.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="NorthwoodLib, Version=1.3.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\NorthwoodLib.dll</HintPath>
+    </Reference>
+    <Reference Include="PluginAPI, Version=13.1.5.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\PluginAPI.dll</HintPath>
     </Reference>
     <Reference Include="Pooling">
       <HintPath>$(ScpslReferences)\Pooling.dll</HintPath>
@@ -115,9 +101,8 @@
     <Reference Include="UnityEngine.PhysicsModule">
       <HintPath>$(ScpslReferences)\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
-    <Reference Include="YamlDotNet, Version=11.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\YamlDotNet.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="YamlDotNet, Version=11.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e, processorArchitecture=MSIL">
+      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\YamlDotNet.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -136,10 +121,7 @@
   <ItemGroup>
     <Compile Include="../shared/*.cs" />
     <Reference Include="System.Runtime.Serialization" />
-    <PackageReference Include="Lib.Harmony" Version="2.4.2" GeneratePathProperty="true" />
-    <Reference Include="0Harmony">
-      <HintPath>$(PkgLib_Harmony)\lib\net48\0Harmony.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <PackageReference Include="Lib.Harmony" Version="2.3.3" GeneratePathProperty="true" />
+    <Reference Include="0Harmony"><HintPath>$(PkgLib_Harmony)/lib/net48/0Harmony.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 </Project>
