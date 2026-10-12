@@ -28,7 +28,7 @@ Server_Qchat_API 是本仓库提供的 **独立轻量级部署版本**。该版�
 ## 运行要求
 
 - **操作系统**：Windows 10 / 11 / Server 2016+ 或 Linux（x64 / arm64）
-- **运行环境**：[.NET 6.0 Runtime](https://dotnet.microsoft.com/download/dotnet/6.0) 或更高版本（.NET 8.0 亦兼容）
+- **运行环境**：[.NET 8.0 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)（框架依赖部署需要安装；自包含发布无需单独安装）
 - **机器人框架**：推荐使用 [NapCatQQ](https://github.com/NapNeko/NapCatQQ)（启用正向 WebSocket 端口 6700）
 - **网络连接**：运行环境需可正常访问 `https://api.scplist.kr/`
 
