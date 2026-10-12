@@ -47,7 +47,7 @@ jobs:
         run: dotnet build bot/src/Server_Qcha.Daemon/Server_Qcha.Daemon.csproj -c Release
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: tests-${{ matrix.os }}-${{ matrix.flavor }}
           path: TestResults/*.trx
@@ -67,7 +67,7 @@ jobs:
           dotnet-version: '8.0.x'
       - run: dotnet test Server_Qcha.Bot/Server_Qcha.Bot.sln -c Release --logger 'trx;LogFileName=legacy.trx' --results-directory TestResults
       - run: dotnet build Server_Qchat_API/Server_Qchat_API.csproj -c Release
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: tests-legacy
