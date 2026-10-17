@@ -114,7 +114,7 @@ The panel listens on loopback by default. To reach it from another device, set `
 
 Set random tokens of at least 24 characters and make the bot, daemon, and selected plugin agree on their respective values. For compatibility, an empty token or the legacy public default still produces a warning and allows startup. Do not expose the TCP listeners to untrusted networks. HMAC authenticates protocol messages but does not encrypt traffic; use a VPN or firewall allowlist between machines.
 
-Empty QQ administrator allowlists preserve legacy role-based behavior. Configure explicit administrator and group allowlists when strict access control is required.
+Empty QQ administrator allowlists preserve legacy role-based behavior. Configure explicit administrator and group allowlists when strict access control is required..
 
 ## License
 
