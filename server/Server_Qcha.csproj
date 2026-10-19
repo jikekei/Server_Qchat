@@ -45,51 +45,55 @@
       <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Assembly-CSharp-Publicized.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\Assembly-CSharp-Publicized.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>$(ScpslReferences)\Assembly-CSharp-firstpass.dll</HintPath>
     </Reference>
     <Reference Include="CommandSystem.Core, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\CommandSystem.Core.dll</HintPath>
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\CommandSystem.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Exiled.API, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.API.dll</HintPath>
+    <Reference Include="Exiled.API, Version=9.15.2.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\Exiled.API.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Exiled.CreditTags, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.CreditTags.dll</HintPath>
+    <Reference Include="Exiled.CreditTags, Version=9.15.2.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\Exiled.CreditTags.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Exiled.CustomItems, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.CustomItems.dll</HintPath>
+    <Reference Include="Exiled.CustomItems, Version=9.15.2.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\Exiled.CustomItems.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Exiled.CustomRoles, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.CustomRoles.dll</HintPath>
+    <Reference Include="Exiled.CustomRoles, Version=9.15.2.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\Exiled.CustomRoles.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Exiled.Events, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.Events.dll</HintPath>
+    <Reference Include="Exiled.Events, Version=9.15.2.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\Exiled.Events.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Exiled.Loader, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.Loader.dll</HintPath>
+    <Reference Include="Exiled.Loader, Version=9.15.2.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\Exiled.Loader.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Exiled.Permissions, Version=9.14.2.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Exiled.Permissions.dll</HintPath>
+    <Reference Include="Exiled.Permissions, Version=9.15.2.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\Exiled.Permissions.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="LabApi, Version=1.1.7.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\LabApi.dll</HintPath>
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\LabApi.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Mirror">
       <HintPath>$(ScpslReferences)\Mirror.dll</HintPath>
     </Reference>
     <Reference Include="NorthwoodLib, Version=1.4.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\NorthwoodLib.dll</HintPath>
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\NorthwoodLib.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Pooling">
@@ -116,7 +120,7 @@
       <HintPath>$(ScpslReferences)\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
     <Reference Include="YamlDotNet, Version=11.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\YamlDotNet.dll</HintPath>
+      <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\YamlDotNet.dll</HintPath>
       <Private>True</Private>
     </Reference>
   </ItemGroup>
