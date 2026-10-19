@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="EleCho.GoCqHttpSdk" Version="1.3.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
     <PackageReference Include="MySql.Data" Version="26.7.0" />
