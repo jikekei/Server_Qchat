@@ -38,13 +38,6 @@
       Game assemblies are read from a local SCPSL installation and are never vendored in this repository.
       EXILED's publicized API assembly is restored from the ExMod.Exiled NuGet package.
     -->
-    <Reference Include="Assembly-CSharp">
-      <HintPath>..\packages\ExMod.Exiled.9.5.0\lib\net48\Assembly-CSharp-Publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ExMod.Exiled.9.14.2\lib\net48\Assembly-CSharp-Publicized.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\packages\ExMod.Exiled.9.15.2\lib\net48\Assembly-CSharp-Publicized.dll</HintPath>
       <Private>True</Private>
