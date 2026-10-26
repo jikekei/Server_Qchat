@@ -11,10 +11,10 @@
 
   <ItemGroup>
     <PackageReference Include="EleCho.GoCqHttpSdk" Version="1.3.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.13" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.13" />
-    <PackageReference Include="MySql.Data" Version="26.7.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
+    <PackageReference Include="MySql.Data" Version="26.10.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="TWCore.Data.MySql" Version="3.1.0" />
   </ItemGroup>
