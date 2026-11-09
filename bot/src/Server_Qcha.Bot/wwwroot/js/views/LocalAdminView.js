@@ -149,7 +149,9 @@ export const LocalAdminView = {
             </div>
 
             <el-alert v-if="localUpdating" type="warning" :closable="false" show-icon
-                      title="正在通过 SteamCMD 更新服务端文件，期间无法启动 / 重启 / 修改配置，进度见「更新进度」或下方控制台"
+                      :title="local.status && local.status.running
+                        ? '服务端更新进行中：新版本在暂存目录下载，服务器照常运行，当前回合结束后自动切换（可在「更新进度」里立即更新或取消）'
+                        : '正在通过 SteamCMD 更新服务端文件，期间无法启动 / 重启 / 修改配置，进度见「更新进度」或下方控制台'"
                       style="margin-bottom:10px"></el-alert>
             <el-alert v-if="local.status && local.status.restartBudgetExhausted" type="error" :closable="false" show-icon
                       title="自动重启已达限流上限，服务器不会自动拉起，请排查后手动启动"

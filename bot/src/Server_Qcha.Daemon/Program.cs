@@ -232,6 +232,12 @@ api.MapPost("/servers/{id}/update", async (string id, string? by, LocalUpdateReq
     return Results.Json(res);
 });
 
+api.MapPost("/servers/{id}/update/{action}", async (string id, string action, string? by, ILocalAdminProvider provider, CancellationToken ct) =>
+{
+    var res = await provider.ControlUpdateAsync(id, action, by, ct);
+    return Results.Json(res);
+});
+
 api.MapGet("/servers/{id}/update", async (string id, ILocalAdminProvider provider, CancellationToken ct) =>
 {
     var status = await provider.GetUpdateStatusAsync(id, ct);

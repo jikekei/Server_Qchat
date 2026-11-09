@@ -51,6 +51,10 @@ Settings load in this order; later sources override earlier values:
 | `UpdateBetaBranch` | string | empty | Default Steam beta branch; empty or `public` = release. |
 | `UpdateValidate` | bool | `true` | Pass `validate` to `app_update`. |
 | `UpdateTimeoutMinutes` | int | `60` | SteamCMD run timeout; on timeout SteamCMD is killed and the update fails. |
+| `UpdateDefaultMode` | string | `"auto"` | Default apply timing in the update dialog: `auto` (running → wait for round end; idle/stopped → now), `roundEnd` (running → always wait for round end), `now` (stop and swap as soon as the download finishes). |
+| `UpdatePendingTimeoutMinutes` | int | `60` | How long a downloaded update waits for the round to end before it is applied anyway; `0` = wait indefinitely. |
+| `UpdateApplyWhenIdle` | bool | `true` | In `auto` mode, apply immediately when the server enters idle mode (no players). |
+| `UpdateHealthCheckSeconds` | int | `180` | Post-swap startup check: if the new build exits or never sends a heartbeat within this time, roll back automatically. |
 | `Servers` | array | `[]` | Managed server instances. |
 
 Each `Servers[]` entry:

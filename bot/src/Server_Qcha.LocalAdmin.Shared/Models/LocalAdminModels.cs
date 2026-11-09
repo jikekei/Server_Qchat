@@ -41,12 +41,14 @@ public sealed record LocalServerSaveRequest(
 /// <summary>
 /// 通过 SteamCMD 更新服务端的请求体。
 /// <para><see cref="BetaBranch"/>：null = 沿用配置；"" 或 "public" = 正式版；其它为 Steam beta 分支名。</para>
-/// <para><see cref="RestartAfter"/>：null = 更新前在运行则更新后自动启动。</para>
+/// <para><see cref="RestartAfter"/>：null = 更新前在运行则更新后自动启动（仅「立即更新」有意义；回合结束更新总会重新启动）。</para>
+/// <para><see cref="Mode"/>：auto（默认：运行中→暂存并在回合结束时切换，空闲或已停止→直接应用）/ roundEnd（总是等回合结束）/ now（立即停服更新）。</para>
 /// </summary>
 public sealed record LocalUpdateRequest(
     string? BetaBranch = null,
     bool? RestartAfter = null,
-    bool? Validate = null);
+    bool? Validate = null,
+    string? Mode = null);
 
 // ==================== 响应体 / DTO ====================
 
@@ -147,7 +149,11 @@ public sealed record UpdateLogLineDto(long Seq, DateTime Time, string Level, str
 
 /// <summary>
 /// 一台服务器最近一次（或正在进行的）更新任务状态。
-/// State：idle / queued / stopping / updating / starting / succeeded / failed。
+/// State：idle / queued / staging（复制到暂存目录）/ updating（SteamCMD 下载）/ pending（等待回合结束）/
+/// applying / stopping / starting / verifying（启动检查）/ rollingback /
+/// succeeded / failed / canceled / rolledback（新版本启动失败，已自动回滚）。
+/// Mode：staged（暂存 + 切换，可等回合结束）/ inplace（直接更新安装目录，需停服）/ rollback（手动回滚任务）/ auto（尚无任务）。
+/// TriggerReason：roundRestart / idle / timeout / forceNow / exit / userStopped / stopped / cancel。
 /// </summary>
 public sealed record LocalUpdateStatus(
     string ServerId,
@@ -166,13 +172,25 @@ public sealed record LocalUpdateStatus(
     IReadOnlyList<UpdateLogLineDto> Lines,
     string? ProgressPhase,
     double? ProgressPercent,
+    // ---- 回合结束热更新 ----
+    string Mode,
+    string? StagingDirectory,
+    string? LiveBuildId,
+    string? StagedBuildId,
+    DateTime? PendingSince,
+    DateTime? PendingDeadline,
+    string? TriggerReason,
+    bool RollbackAvailable,
+    string? RollbackDirectory,
     // ---- 环境预检（每次查询时重新计算） ----
     string SteamCmdPath,
     bool SteamCmdFound,
     string InstallDirectory,
     bool InstallDirectoryExists,
     string DefaultBetaBranch,
-    int SteamAppId);
+    int SteamAppId,
+    string DefaultMode = "auto",
+    int PendingTimeoutMinutes = 60);
 
 public sealed record LocalUpdateStartResult(
     bool Success,

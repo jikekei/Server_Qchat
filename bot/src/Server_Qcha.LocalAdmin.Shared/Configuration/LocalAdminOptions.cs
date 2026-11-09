@@ -71,6 +71,21 @@ public sealed class LocalAdminOptions
     /// <summary>单次 SteamCMD 运行的超时时间（分钟），超时将结束 SteamCMD 并判定失败。</summary>
     public int UpdateTimeoutMinutes { get; set; } = 60;
 
+    /// <summary>
+    /// 默认更新方式：<c>auto</c>（推荐：运行中的服务器先下载到暂存目录，等当前回合结束、服务器按
+    /// <c>restartnextround</c> 重启时再切换到新版本；空闲或已停止则直接应用）/ <c>roundEnd</c> / <c>now</c>（立即停服更新）。
+    /// </summary>
+    public string UpdateDefaultMode { get; set; } = "auto";
+
+    /// <summary>等待回合结束的最长时间（分钟），超时后立即停服切换。0 表示一直等待。</summary>
+    public int UpdatePendingTimeoutMinutes { get; set; } = 60;
+
+    /// <summary>等待回合结束期间，若服务器进入空闲态（没有玩家）是否立即切换（auto 模式）。</summary>
+    public bool UpdateApplyWhenIdle { get; set; } = true;
+
+    /// <summary>切换到新版本后的启动检查时间（秒）：期间未收到心跳 / 进程退出则自动回滚到旧版本。</summary>
+    public int UpdateHealthCheckSeconds { get; set; } = 180;
+
     /// <summary>由本进程托管的服务器列表。</summary>
     public List<LocalServerDefinition> Servers { get; set; } = new();
 }

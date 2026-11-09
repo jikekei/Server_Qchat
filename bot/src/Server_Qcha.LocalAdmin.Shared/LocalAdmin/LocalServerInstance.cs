@@ -35,6 +35,11 @@ public sealed record LocalServerStatus(
     string ConsoleLevel,
     bool Updating = false);
 
+/// <summary>游戏进程退出时交给 <see cref="LocalServerInstance.ExitInterceptor"/> 的信息。</summary>
+/// <param name="UserStopped">由面板「停止」触发（不应再启动）。</param>
+/// <param name="RestartRequested">本应自动重启（面板重启 / 游戏声明重启，如 restartnextround）。</param>
+public sealed record LocalExitInfo(int ExitCode, string DeclaredAction, bool UserStopped, bool RestartRequested);
+
 /// <summary>控制类操作的统一返回。</summary>
 public sealed record LocalAdminResult(bool Success, string Message, string? Error = null)
 {
@@ -121,6 +126,9 @@ public sealed class LocalServerInstance : IAsyncDisposable
     // ---- 进程 ----
     private Process? _process;
     private TaskCompletionSource<bool>? _exitTcs;
+
+    /// <summary>当前进程的「退出处理完成」信号（状态已清空、ExitInterceptor 已调用）。</summary>
+    private TaskCompletionSource<bool>? _exitHandledTcs;
     private DateTime? _startedAt;
 
     // ---- 状态机 ----
@@ -139,8 +147,14 @@ public sealed class LocalServerInstance : IAsyncDisposable
     private bool _consoleConnected;
     private volatile bool _disposed;
 
-    /// <summary>非 0 表示正在通过 SteamCMD 更新服务端文件（期间禁止启动 / 重启 / 改配置）。</summary>
+    /// <summary>非 0 表示该实例被一个更新任务占用（期间禁止改配置 / 删除 / 再次发起更新）。</summary>
     private int _updating;
+
+    /// <summary>非 0 表示服务端文件正在被改动（原地更新 / 目录切换），期间禁止启动与重启。</summary>
+    private int _startBlocked;
+
+    /// <summary>游戏是否处于空闲态（无玩家，由控制台协议 IdleEnter/IdleExit 告知）。</summary>
+    private volatile bool _idle;
 
     // ---- 日志 ----
     private StreamWriter? _logWriter;
@@ -211,8 +225,43 @@ public sealed class LocalServerInstance : IAsyncDisposable
     //  SteamCMD 更新期间的占用标记（由 ServerUpdateService 使用）
     // ==================================================================
 
-    /// <summary>是否正在更新服务端文件。</summary>
+    /// <summary>是否被更新任务占用（含下载、等待回合结束、切换文件、启动检查各阶段）。</summary>
     public bool UpdateInProgress => Volatile.Read(ref _updating) != 0;
+
+    /// <summary>是否禁止启动（服务端文件正在被改动）。</summary>
+    public bool StartBlocked => Volatile.Read(ref _startBlocked) != 0;
+
+    /// <summary>设置 / 解除禁止启动。</summary>
+    public void SetStartBlocked(bool blocked) => Interlocked.Exchange(ref _startBlocked, blocked ? 1 : 0);
+
+    private int _suppressedAutoStart;
+
+    /// <summary>
+    /// 切换文件期间被推迟的自动拉起（崩溃 / 静默崩溃重启）：返回是否有并清除标记。
+    /// 更新流程据此在完成后把服务器拉起来，避免它因为撞上更新而一直停着。
+    /// </summary>
+    public bool ConsumeSuppressedAutoStart() => Interlocked.Exchange(ref _suppressedAutoStart, 0) == 1;
+
+    /// <summary>游戏当前是否处于空闲态（没有玩家）。</summary>
+    public bool IsIdle => _idle;
+
+    /// <summary>游戏通过控制台协议报告「回合重启」时触发。</summary>
+    public event Action? RoundRestartObserved;
+
+    /// <summary>游戏报告进入空闲态时触发。</summary>
+    public event Action? IdleEntered;
+
+    /// <summary>
+    /// 进程退出拦截器：游戏进程退出、状态已清理之后、决定是否自动重启之前调用。
+    /// 返回 true 表示由调用方（更新服务）接管后续动作，本实例不再自动重启。
+    /// </summary>
+    public Func<LocalExitInfo, bool>? ExitInterceptor { get; set; }
+
+    /// <summary>当前控制台缓冲的最大序号（用于之后读取新增输出）。</summary>
+    public long LastSeq
+    {
+        get { lock (_sync) return _nextSeq - 1; }
+    }
 
     /// <summary>尝试占用该实例用于更新；已被占用时返回 false（防止同一台服务器并发更新）。</summary>
     public bool TryBeginUpdate() => Interlocked.CompareExchange(ref _updating, 1, 0) == 0;
@@ -230,33 +279,24 @@ public sealed class LocalServerInstance : IAsyncDisposable
     /// <summary>等待当前游戏进程退出；没有进程时立即返回 true，超时返回 false。</summary>
     public async Task<bool> WaitForExitAsync(TimeSpan timeout, CancellationToken ct)
     {
-        Process? process;
+        TaskCompletionSource<bool>? exitTcs;
         lock (_sync)
-            process = _process;
+            exitTcs = _process is null ? null : _exitHandledTcs;
 
-        if (process is null)
-            return true;
+        if (exitTcs is null)
+            return !Running;
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(timeout);
+        // 等的是「退出处理完成」（OnProcessExitedAsync 清空状态并调用完 ExitInterceptor），
+        // 而不只是进程退出：否则调用方紧接着 Start() 时，旧进程迟到的退出处理会把新进程的状态清掉。
         try
         {
-            await process.WaitForExitAsync(cts.Token);
+            await exitTcs.Task.WaitAsync(timeout, ct);
+            return true;
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        catch (TimeoutException)
         {
-            // 超时：交给下面的状态判断
+            return false;
         }
-        catch (InvalidOperationException)
-        {
-            // 进程对象已释放，视为已退出
-        }
-
-        // 退出处理（OnProcessExitedAsync）会在进程退出后约 120ms 清空 _process，稍等它落地
-        for (int i = 0; i < 20 && Running; i++)
-            await Task.Delay(100, ct);
-
-        return !Running;
     }
 
     // ==================================================================
@@ -629,6 +669,20 @@ public sealed class LocalServerInstance : IAsyncDisposable
         }
     }
 
+    private void RaiseSafe(Action? handler)
+    {
+        if (handler is null)
+            return;
+        try
+        {
+            handler();
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "事件处理异常（实例 {Id}）", _def.Id);
+        }
+    }
+
     private void HandleControl(ConsoleControlCode code)
     {
         switch (code)
@@ -639,13 +693,17 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
             case ConsoleControlCode.RoundRestart:
                 Info("游戏报告：回合重启。");
+                RaiseSafe(RoundRestartObserved);
                 return;
 
             case ConsoleControlCode.IdleEnter:
+                _idle = true;
                 Info("游戏进入空闲态。");
+                RaiseSafe(IdleEntered);
                 return;
 
             case ConsoleControlCode.IdleExit:
+                _idle = false;
                 Info("游戏退出空闲态。");
                 return;
 
@@ -845,7 +903,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
     public LocalAdminResult Start()
     {
-        if (UpdateInProgress)
+        if (StartBlocked)
             return LocalAdminResult.Fail("该服务器正在更新服务端文件，请等待更新完成后再启动。");
 
         lock (_sync)
@@ -968,10 +1026,12 @@ public sealed class LocalServerInstance : IAsyncDisposable
             process.BeginErrorReadLine();
         }
 
+        var exitHandled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_sync)
         {
             _process = process;
             _exitTcs = exitTcs;
+            _exitHandledTcs = exitHandled;
             _startedAt = DateTime.Now;
             _exitAction = ExitAction.Crash;
             _warningStage = 0;
@@ -980,6 +1040,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
             _lastHeartbeatAt = DateTime.Now;
 
             // 新一轮运行，恢复默认的退出语义
+            _idle = false;
             _ignoreExitSignals = false;
             _pending = PendingAction.None;
         }
@@ -987,10 +1048,10 @@ public sealed class LocalServerInstance : IAsyncDisposable
         Info($"游戏进程已启动，PID {process.Id}，游戏端口 {_def.GamePort}。");
         _log.LogInformation("游戏进程已启动 PID={Pid}（实例 {Id}）", process.Id, _def.Id);
 
-        _ = Task.Run(() => OnProcessExitedAsync(process, exitTcs));
+        _ = Task.Run(() => OnProcessExitedAsync(process, exitTcs, exitHandled));
     }
 
-    private async Task OnProcessExitedAsync(Process process, TaskCompletionSource<bool> exitTcs)
+    private async Task OnProcessExitedAsync(Process process, TaskCompletionSource<bool> exitTcs, TaskCompletionSource<bool> exitHandled)
     {
         // 等待事件真正落地，确保读流线程已把最后的输出吐出来
         try
@@ -1019,6 +1080,16 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
         lock (_sync)
         {
+            if (!ReferenceEquals(_process, process))
+            {
+                // 防御：状态已属于更新的进程，不能再清空它
+                exitTcs.TrySetResult(true);
+                exitHandled.TrySetResult(true);
+                process.Dispose();
+                _log.LogWarning("忽略过期的进程退出事件 exitCode={Code}（实例 {Id}）", exitCode, _def.Id);
+                return;
+            }
+
             declared = _exitAction;
             pending = _pending;
             ignored = _ignoreExitSignals;
@@ -1027,6 +1098,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
             _ignoreExitSignals = false;
             _process = null;
             _exitTcs = null;
+            _exitHandledTcs = null;
             _startedAt = null;
             _warningStage = 0;
             _heartbeat = HeartbeatState.Disabled;
@@ -1038,6 +1110,33 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
         Info($"游戏进程已退出（退出码 {exitCode}）。");
         _log.LogWarning("游戏进程已退出 exitCode={Code}（实例 {Id}）", exitCode, _def.Id);
+
+        var interceptor = ExitInterceptor;
+        if (interceptor is not null)
+        {
+            bool handled = false;
+            try
+            {
+                handled = interceptor(new LocalExitInfo(
+                    exitCode,
+                    declared.ToString(),
+                    UserStopped: ignored && pending == PendingAction.None,
+                    RestartRequested: pending != PendingAction.None || (!ignored && declared == ExitAction.Restart)));
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "退出拦截器异常（实例 {Id}）", _def.Id);
+            }
+
+            if (handled)
+            {
+                exitHandled.TrySetResult(true);
+                return;
+            }
+        }
+
+        // 退出处理（含拦截器）已完成：唤醒 WaitForExitAsync
+        exitHandled.TrySetResult(true);
 
         // ---- 退出动作协商：决定是否拉起新进程 ----
         bool restart;
@@ -1105,6 +1204,14 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
         if (_disposed)
             return;
+
+        if (StartBlocked)
+        {
+            // 更新正在切换服务端文件：此时拉起会读到半挪走的目录，推迟到更新结束后由更新流程拉起
+            Interlocked.Exchange(ref _suppressedAutoStart, 1);
+            Warn("服务端文件正在更新切换，自动拉起推迟到更新完成后。");
+            return;
+        }
 
         try
         {
@@ -1215,7 +1322,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
     public LocalAdminResult Restart(bool force)
     {
-        if (UpdateInProgress)
+        if (StartBlocked)
             return LocalAdminResult.Fail("该服务器正在更新服务端文件，请等待更新完成。");
 
         Process? process;

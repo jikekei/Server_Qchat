@@ -329,6 +329,34 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
         }
     }
 
+    public async Task<LocalUpdateStartResult> ControlUpdateAsync(string id, string action, string? requestedBy, CancellationToken ct = default)
+    {
+        try
+        {
+            string uri = $"api/daemon/servers/{Uri.EscapeDataString(id)}/update/{Uri.EscapeDataString(action)}";
+            if (!string.IsNullOrWhiteSpace(requestedBy))
+                uri += "?by=" + Uri.EscapeDataString(requestedBy);
+
+            var res = await _http.PostAsync(uri, null, ct);
+            if (res.StatusCode == System.Net.HttpStatusCode.NotFound && res.Content.Headers.ContentLength is 0 or null)
+                return new LocalUpdateStartResult(false, null, "守护进程版本过旧，不支持该操作：请先重启守护进程以加载新版本", null);
+
+            var body = await res.Content.ReadFromJsonAsync<LocalUpdateStartResult>(JsonOptions, ct);
+            return body ?? new LocalUpdateStartResult(false, null, "解析守护进程返回失败", null);
+        }
+        catch (HttpRequestException ex)
+        {
+            _log.LogWarning("守护进程通信失败 ({Uri})：{Message}", _options.DaemonUri, ex.Message);
+            EnsureDaemonStarted();
+            return new LocalUpdateStartResult(false, null, $"无法连接到 LocalAdmin 守护节点（{_options.DaemonUri}）", null);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "更新控制请求失败：{Message}", ex.Message);
+            return new LocalUpdateStartResult(false, null, $"守护节点请求失败：{ex.Message}", null);
+        }
+    }
+
     public Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default)
     {
         return SendAsync<LocalUpdateStatus>(() => _http.GetAsync($"api/daemon/servers/{Uri.EscapeDataString(id)}/update", ct));

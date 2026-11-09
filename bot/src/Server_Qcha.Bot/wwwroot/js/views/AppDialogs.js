@@ -193,6 +193,16 @@ export const AppDialogs = {
             <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.installDirectory || '-' }}</code>
           </el-descriptions-item>
           <el-descriptions-item label="App Id">{{ updateDialog.status.steamAppId }}</el-descriptions-item>
+          <el-descriptions-item v-if="updateDialog.status.liveBuildId || updateDialog.status.stagedBuildId" label="版本（build）">
+            {{ updateDialog.status.liveBuildId || '?' }}
+            <template v-if="updateDialog.status.stagedBuildId"> → {{ updateDialog.status.stagedBuildId }}</template>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="updateDialog.status.triggerReason" label="切换时机">
+            {{ updateTriggerText(updateDialog.status.triggerReason) }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="updateDialog.status.rollbackAvailable" label="回滚目录">
+            <code style="word-break:break-all">{{ updateDialog.status.rollbackDirectory }}</code>
+          </el-descriptions-item>
           <el-descriptions-item v-if="updateDialog.status.exitCode !== null && updateDialog.status.exitCode !== undefined" label="退出码">
             {{ updateDialog.status.exitCode }}
           </el-descriptions-item>
@@ -205,12 +215,33 @@ export const AppDialogs = {
         </div>
         <el-alert v-if="!updateDialog.status.steamCmdFound" type="error" :closable="false" show-icon style="margin-bottom:10px"
                   title="未找到 SteamCMD：请先在服务器上安装 SteamCMD，并在 appsettings.json 的 LocalAdmin:SteamCmdPath 填写 steamcmd.exe / steamcmd.sh 的路径"></el-alert>
-        <el-alert v-if="updateDialog.status.state === 'failed' && updateDialog.status.error" type="error" :closable="false" show-icon
+        <el-alert v-if="updateDialog.status.state === 'pending'" type="info" :closable="false" show-icon style="margin-bottom:10px"
+                  title="等待回合结束后更新">
+          <div style="line-height:1.7">
+            新版本已下载到暂存目录，服务器继续以当前版本运行；已对游戏下发 restartnextround，
+            当前回合结束时会自动切换到新版本并重启。
+            <template v-if="updateDialog.status.pendingDeadline">
+              最迟 <b>{{ fmtTime(updateDialog.status.pendingDeadline) }}</b> 超时后立即切换。
+            </template>
+            <br>也可以点「立即更新」不再等待（在线玩家会掉线），或「取消更新」放弃本次更新。
+          </div>
+        </el-alert>
+        <el-alert v-if="(updateDialog.status.state === 'failed' || updateDialog.status.state === 'rolledback') && updateDialog.status.error" type="error" :closable="false" show-icon
                   :title="updateDialog.status.error" style="margin-bottom:10px"></el-alert>
+        <el-alert v-if="updateDialog.status.state === 'canceled' && updateDialog.status.message" type="info" :closable="false" show-icon
+                  :title="updateDialog.status.message" style="margin-bottom:10px"></el-alert>
         <el-alert v-if="updateDialog.status.state === 'succeeded' && updateDialog.status.message" type="success" :closable="false" show-icon
                   :title="updateDialog.status.message" style="margin-bottom:10px"></el-alert>
 
         <el-form v-if="!updateActive" label-width="110px" style="margin-bottom:6px">
+          <el-form-item label="切换时机">
+            <el-radio-group v-model="updateDialog.form.mode">
+              <el-radio-button v-for="opt in UPDATE_MODE_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.value">{{ opt.label }}</el-radio-button>
+            </el-radio-group>
+            <div class="muted" style="width:100%;margin-top:4px;line-height:1.5">
+              {{ (UPDATE_MODE_OPTIONS.find(o => o.value === updateDialog.form.mode) || {}).desc }}
+            </div>
+          </el-form-item>
           <el-form-item label="更新分支">
             <el-input v-model="updateDialog.form.betaBranch" style="max-width:260px"
                       placeholder="留空 = public 正式版"></el-input>
@@ -219,7 +250,7 @@ export const AppDialogs = {
           <el-form-item label="选项">
             <div class="perm-list">
               <el-checkbox v-model="updateDialog.form.validate">校验全部文件（validate，更慢但更可靠）</el-checkbox>
-              <el-checkbox v-model="updateDialog.form.restartAfter">更新成功后自动启动服务器</el-checkbox>
+              <el-checkbox v-model="updateDialog.form.restartAfter">服务器未运行时，更新后也启动它</el-checkbox>
             </div>
           </el-form-item>
         </el-form>
@@ -235,6 +266,12 @@ export const AppDialogs = {
     </div>
     <template #footer>
       <el-button @click="closeUpdateDialog">{{ updateActive ? '后台运行，关闭窗口' : '关闭' }}</el-button>
+      <el-button v-if="updateActive && ['queued','staging','updating','pending'].includes(updateDialog.status.state)"
+                 :loading="updateDialog.acting === 'cancel'" @click="updateAction('cancel')">取消更新</el-button>
+      <el-button v-if="updateActive && ['staging','updating','pending'].includes(updateDialog.status.state) && updateDialog.status.mode !== 'inplace'"
+                 type="danger" :loading="updateDialog.acting === 'apply-now'" @click="updateAction('apply-now')">立即更新</el-button>
+      <el-button v-if="!updateActive && updateDialog.status && updateDialog.status.rollbackAvailable"
+                 :loading="updateDialog.acting === 'rollback'" @click="updateAction('rollback')">回滚到上一版本</el-button>
       <el-button v-if="!updateActive" type="warning" :loading="updateDialog.submitting"
                  :disabled="!updateDialog.status || !updateDialog.status.steamCmdFound || !updateDialog.status.installDirectoryExists"
                  @click="submitUpdate">开始更新</el-button>

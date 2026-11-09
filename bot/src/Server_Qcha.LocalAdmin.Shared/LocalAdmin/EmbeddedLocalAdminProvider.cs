@@ -159,6 +159,18 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
         return Task.FromResult(_updater.StartUpdate(id, request, requestedBy));
     }
 
+    public Task<LocalUpdateStartResult> ControlUpdateAsync(string id, string action, string? requestedBy, CancellationToken ct = default)
+    {
+        var result = action switch
+        {
+            "cancel" => _updater.CancelUpdate(id, requestedBy),
+            "apply-now" => _updater.ApplyNow(id, requestedBy),
+            "rollback" => _updater.Rollback(id, requestedBy),
+            _ => new LocalUpdateStartResult(false, null, $"不支持的更新操作：{action}", null),
+        };
+        return Task.FromResult(result);
+    }
+
     public Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default)
     {
         return Task.FromResult(_updater.GetStatus(id));

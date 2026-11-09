@@ -38,6 +38,7 @@ public static class LocalAdminEndpoints
         api.MapPost("/servers/{id}/cancel-restart", CancelRestartAsync);
         api.MapGet("/servers/{id}/update", GetUpdateStatusAsync);
         api.MapPost("/servers/{id}/update", StartUpdateAsync);
+        api.MapPost("/servers/{id}/update/{action}", ControlUpdateAsync);
         api.MapGet("/daemon/status", GetDaemonStatusAsync);
         api.MapPost("/daemon/start", StartDaemonAsync);
         api.MapPost("/daemon/stop", StopDaemonAsync);
@@ -344,9 +345,40 @@ public static class LocalAdminEndpoints
         string branch = request.BetaBranch is null ? "默认分支" : (request.BetaBranch.Trim().Length == 0 ? "public" : request.BetaBranch.Trim());
         await AuditAsync(ctx, session.Username, "localadmin.update", id,
             result.Success
-                ? $"SteamCMD 更新服务端（分支 {branch}，更新后{(request.RestartAfter == false ? "不启动" : request.RestartAfter == true ? "启动" : "恢复原状态")}）"
+                ? $"SteamCMD 更新服务端（分支 {branch}，方式 {request.Mode ?? "默认"}，更新后{(request.RestartAfter == false ? "不启动" : request.RestartAfter == true ? "启动" : "恢复原状态")}）"
                 : $"SteamCMD 更新服务端失败：{result.Error}",
             result.Success, ct);
+
+        return Results.Json(new
+        {
+            success = result.Success,
+            response = result.Response,
+            error = result.Error,
+            status = result.Status,
+        }, statusCode: result.Success ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest);
+    }
+
+    /// <summary>更新任务控制：cancel / apply-now / rollback。</summary>
+    private static async Task<IResult> ControlUpdateAsync(string id, string action, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    {
+        var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
+        if (error is not null)
+            return error;
+
+        string normalized = (action ?? "").Trim().ToLowerInvariant();
+        string? label = normalized switch
+        {
+            "cancel" => "取消更新",
+            "apply-now" => "立即应用更新（不等待回合结束）",
+            "rollback" => "回滚到上一版本",
+            _ => null,
+        };
+        if (label is null)
+            return Results.Json(new { error = $"不支持的更新操作：{action}" }, statusCode: StatusCodes.Status400BadRequest);
+
+        var result = await provider.ControlUpdateAsync(id, normalized, session!.Username, ct);
+        await AuditAsync(ctx, session.Username, "localadmin.update-" + normalized, id,
+            result.Success ? label : $"{label}失败：{result.Error}", result.Success, ct);
 
         return Results.Json(new
         {

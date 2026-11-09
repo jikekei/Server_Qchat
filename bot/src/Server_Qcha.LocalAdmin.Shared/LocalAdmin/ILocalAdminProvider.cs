@@ -54,6 +54,9 @@ public interface ILocalAdminProvider
     /// <summary>通过 SteamCMD 更新服务端文件（后台执行，立即返回）。</summary>
     Task<LocalUpdateStartResult> StartUpdateAsync(string id, LocalUpdateRequest request, string? requestedBy, CancellationToken ct = default);
 
+    /// <summary>控制更新任务：cancel（取消）/ apply-now（不等回合结束，立即切换）/ rollback（回滚到上一版本）。</summary>
+    Task<LocalUpdateStartResult> ControlUpdateAsync(string id, string action, string? requestedBy, CancellationToken ct = default);
+
     /// <summary>查询更新任务状态与环境预检；服务器不存在返回 null。</summary>
     Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default);
 

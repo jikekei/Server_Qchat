@@ -2,7 +2,7 @@
   <!--
     假游戏服务端：复刻 SCPSL 的 ServerOutput.TcpConsole 行为，
     用于在不启动真实游戏的前提下端到端验证 LocalAdmin 面板实现。
-    不属于生产代码，不加入 Server_Qcha.Bot.sln，CI 不会构建它。
+    不属于生产代码，不加入 Server_Qcha.Bot.sln；Server_Qcha.Bot.Tests 引用它以端到端测试「回合结束更新」。
   -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
