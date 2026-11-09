@@ -64,6 +64,13 @@ public class ServerUpdateServiceTests
     }
 
     [Fact]
+    public void CleanLine_StripsAnsiFromRealSteamCmdOutput()
+    {
+        Assert.Equal("Success! App '996560' fully installed.", ServerUpdateService.CleanLine("\u001b[0mSuccess! App '996560' fully installed."));
+        Assert.Equal("Unloading Steam API...OK", ServerUpdateService.CleanLine("\u001b[0mUnloading Steam API...\u001b[0mOK\r"));
+    }
+
+    [Fact]
     public async Task StartUpdate_MissingSteamCmd_FailsWithClearMessage()
     {
         var (manager, updater, root) = Create();
@@ -135,8 +142,8 @@ public class ServerUpdateServiceTests
             "#!/bin/bash\n" +
             $"printf '%s\\n' \"$@\" > '{argsFile}'\n" +
             "echo 'Redirecting stderr to log'\n" +
-            "echo ' Update state (0x61) downloading, progress: 42.00'\n" +
-            "echo \"Success! App '996560' fully installed.\"\n" +
+            "printf '\\033[0m Update state (0x61) downloading, progress: 42.00 (1 / 2)\\n'\n" +
+            "printf \"\\033[0mSuccess! App '996560' fully installed.\\n\"\n" +
             "exit 0\n");
 
         var (manager, updater, root) = Create(o =>
@@ -166,7 +173,9 @@ public class ServerUpdateServiceTests
             Assert.NotNull(status);
             Assert.Equal("succeeded", status!.State);
             Assert.Equal(0, status.ExitCode);
-            Assert.Contains(status.Lines, l => l.Text.Contains("fully installed"));
+            Assert.Contains(status.Lines, l => l.Text == "[SteamCMD] Success! App '996560' fully installed.");
+            Assert.Equal(42.0, status.ProgressPercent);
+            Assert.Equal("downloading", status.ProgressPhase);
             Assert.False(manager.Find("main")!.UpdateInProgress);
 
             string[] passed = File.ReadAllLines(argsFile);

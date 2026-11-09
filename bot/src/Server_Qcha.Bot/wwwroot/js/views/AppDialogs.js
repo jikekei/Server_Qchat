@@ -198,6 +198,11 @@ export const AppDialogs = {
           </el-descriptions-item>
         </el-descriptions>
 
+        <div v-if="updateActive && updateDialog.status.progressPercent !== null && updateDialog.status.progressPercent !== undefined"
+             style="margin-bottom:10px">
+          <div class="muted" style="margin-bottom:4px">SteamCMD：{{ updateDialog.status.progressPhase || '-' }}</div>
+          <el-progress :percentage="Math.round(updateDialog.status.progressPercent * 10) / 10" :stroke-width="14"></el-progress>
+        </div>
         <el-alert v-if="!updateDialog.status.steamCmdFound" type="error" :closable="false" show-icon style="margin-bottom:10px"
                   title="未找到 SteamCMD：请先在服务器上安装 SteamCMD，并在 appsettings.json 的 LocalAdmin:SteamCmdPath 填写 steamcmd.exe / steamcmd.sh 的路径"></el-alert>
         <el-alert v-if="updateDialog.status.state === 'failed' && updateDialog.status.error" type="error" :closable="false" show-icon

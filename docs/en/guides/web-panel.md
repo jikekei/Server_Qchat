@@ -67,7 +67,7 @@ A graphical matrix shows each local instance's PID, CPU, memory, uptime, and hea
 
 **Update server (SteamCMD):** the "更新服务器" button runs
 `steamcmd +force_install_dir <dir> +login anonymous +app_update 996560 [-beta <branch>] validate +quit`
-after a confirmation. A running server is stopped gracefully first (force-killed on timeout); SteamCMD output streams into the dialog and the server console; the server can be restarted automatically on success. Only one update per server at a time (updates across servers are queued), and start/restart/edit are blocked while updating. Requires `server.control` and is audited as `localadmin.update`. Configure `LocalAdmin:SteamCmdPath` / `UpdateBetaBranch`; per-server install directory and branch are in the server's edit dialog.
+after a confirmation. A running server is stopped gracefully first (force-killed on timeout); SteamCMD output streams into the dialog and the server console; the server can be restarted automatically afterwards (with auto-restart enabled, a failed update restarts the server on its existing files so it isn't left down). Only one update per server at a time (updates across servers are queued), and start/restart/edit are blocked while updating. Requires `server.control` and is audited as `localadmin.update`. Configure `LocalAdmin:SteamCmdPath` / `UpdateBetaBranch`; per-server install directory and branch are in the server's edit dialog.
 
 ### 4. Multi-server interaction and console
 

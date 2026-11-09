@@ -777,7 +777,7 @@ async function submitUpdate() {
         <p>分支：<b>${escapeHtml(branch || 'public（正式版）')}</b>${updateDialog.form.validate ? '，校验全部文件' : ''}</p>
         ${running ? `<div style="color:#f56c6c;margin-top:8px;background:rgba(245,108,108,0.1);padding:10px;border-radius:6px;border-left:4px solid #f56c6c;">
           <b>⚠️ 服务器正在运行：</b>更新前会先停止服务器，<b>所有在线玩家将掉线</b>；
-          更新完成后${updateDialog.form.restartAfter ? '会自动重新启动' : '<b>不会</b>自动启动'}。
+          更新完成后${updateDialog.form.restartAfter ? '会自动重新启动（更新失败也会用原有文件重新启动）' : '<b>不会</b>自动启动'}。
         </div>` : ''}
         <p style="color:#909399;font-size:12px;margin-top:6px;">更新期间无法启动、重启或修改该服务器配置；日志会实时显示在下方与控制台中。</p>
       </div>`,

@@ -164,6 +164,8 @@ public sealed record LocalUpdateStatus(
     string? Error,
     string? RequestedBy,
     IReadOnlyList<UpdateLogLineDto> Lines,
+    string? ProgressPhase,
+    double? ProgressPercent,
     // ---- 环境预检（每次查询时重新计算） ----
     string SteamCmdPath,
     bool SteamCmdFound,

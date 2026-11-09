@@ -24,6 +24,12 @@ namespace Server.Qcat.LocalAdmin;
 public sealed class ServerUpdateService : IHostedService, IDisposable
 {
     private const int MaxLogLines = 400;
+    /// <summary>SteamCMD 在 Linux 上会输出 ANSI 控制序列（如 ESC[0m），写入日志前去掉。</summary>
+    private static readonly Regex AnsiPattern = new(@"\x1B\[[0-9;?]*[A-Za-z]|\x1B[()][0-9A-Za-z]", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    /// <summary>例：Update state (0x61) downloading, progress: 41.87 (250763255 / 598962208)</summary>
+    private static readonly Regex ProgressPattern = new(@"Update state \(0x[0-9a-fA-F]+\)\s*([^,]+),\s*progress:\s*([0-9]+(?:\.[0-9]+)?)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     private static readonly Regex BranchPattern = new("^[A-Za-z0-9._-]{1,64}$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private readonly LocalAdminManager _manager;
@@ -189,6 +195,19 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
 
             if (!success)
             {
+                // 更新失败时，若更新前在运行且要求更新后启动，则用现有文件把服务器拉回来，避免因一次失败的更新（如分支名写错）长时间停服
+                if (job.WasRunning && job.RestartAfter)
+                {
+                    job.State = "starting";
+                    instance.EndUpdate();
+                    Log(instance, job, "warn", "更新失败，正在用现有文件重新启动服务器…");
+                    var restart = instance.Start();
+                    Finish(instance, job, false, null, restart.Success
+                        ? error + "；服务器已用原有文件重新启动"
+                        : error + $"；且重新启动失败：{restart.Error ?? restart.Message}");
+                    return;
+                }
+
                 Finish(instance, job, false, null, error, restartBlocked: true);
                 return;
             }
@@ -274,7 +293,21 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             if (string.IsNullOrWhiteSpace(data))
                 return;
 
-            string text = data.TrimEnd();
+            string text = CleanLine(data);
+            if (text.Length == 0)
+                return;
+
+            var progress = ProgressPattern.Match(text);
+            if (progress.Success && double.TryParse(progress.Groups[2].Value, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double pct))
+            {
+                string phase = progress.Groups[1].Value.Trim();
+                if (!phase.Equals("unknown", StringComparison.OrdinalIgnoreCase))
+                {
+                    job.ProgressPhase = phase;
+                    job.ProgressPercent = Math.Clamp(pct, 0, 100);
+                }
+            }
             if (text.Contains("Success!", StringComparison.OrdinalIgnoreCase) && text.Contains(appId, StringComparison.Ordinal))
                 sawSuccess = true;
 
@@ -573,6 +606,22 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         return null;
     }
 
+    /// <summary>去掉 ANSI 控制序列与其它不可见控制字符。</summary>
+    public static string CleanLine(string? raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return "";
+
+        string text = AnsiPattern.Replace(raw, "");
+        var sb = new StringBuilder(text.Length);
+        foreach (char c in text)
+        {
+            if (c == '\t' || !char.IsControl(c))
+                sb.Append(c);
+        }
+        return sb.ToString().Trim();
+    }
+
     private static string QuoteForDisplay(string arg) => arg.Contains(' ') ? $"\"{arg}\"" : arg;
 
     private LocalUpdateStatus BuildStatus(LocalServerInstance instance, UpdateJob? job)
@@ -596,6 +645,8 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             job?.Error,
             job?.RequestedBy,
             job?.SnapshotLines() ?? Array.Empty<UpdateLogLineDto>(),
+            job?.ProgressPhase,
+            job?.ProgressPercent,
             steamCmd,
             steamErr is null,
             installDir,
@@ -653,6 +704,8 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         public string InstallDirectory { get; init; } = "";
         public int? ExitCode { get; set; }
         public int? SteamCmdPid { get; set; }
+        public volatile string? ProgressPhase;
+        public double? ProgressPercent { get; set; }
         public string? Message { get; set; }
         public string? Error { get; set; }
 
