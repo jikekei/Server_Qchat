@@ -12,11 +12,13 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
 {
     private readonly LocalAdminManager _manager;
     private readonly LocalAdminOptions _options;
+    private readonly ServerUpdateService _updater;
 
-    public EmbeddedLocalAdminProvider(LocalAdminManager manager, IOptions<LocalAdminOptions> options)
+    public EmbeddedLocalAdminProvider(LocalAdminManager manager, IOptions<LocalAdminOptions> options, ServerUpdateService updater)
     {
         _manager = manager;
         _options = options.Value;
+        _updater = updater;
     }
 
     public string Mode => "Embedded";
@@ -150,6 +152,16 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
         }
 
         return Task.FromResult(new LocalConsoleLevelResult(result.Success, result.Message, result.Error, persistWarning));
+    }
+
+    public Task<LocalUpdateStartResult> StartUpdateAsync(string id, LocalUpdateRequest request, string? requestedBy, CancellationToken ct = default)
+    {
+        return Task.FromResult(_updater.StartUpdate(id, request, requestedBy));
+    }
+
+    public Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default)
+    {
+        return Task.FromResult(_updater.GetStatus(id));
     }
 
     public Task<LocalAdminResult> CancelRestartAsync(string id, CancellationToken ct = default)

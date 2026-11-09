@@ -234,6 +234,9 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
                     return LocalAdminResult.Fail($"游戏端口 {def.GamePort} 已被 [{other.Name}] 使用，两个实例不能共用同一端口");
             }
 
+            if (existing is not null && existing.UpdateInProgress)
+                return LocalAdminResult.Fail($"[{existing.Name}] 正在更新服务端，请等待更新完成再修改配置");
+
             if (existing is not null && existing.Running)
                 return LocalAdminResult.Fail($"[{existing.Name}] 正在运行，请先停止再修改配置");
 
@@ -285,6 +288,9 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
 
             if (!_byId.TryGetValue(target, out var existing))
                 return LocalAdminResult.Fail($"要删除的服务器不存在：{id}");
+
+            if (existing.UpdateInProgress)
+                return LocalAdminResult.Fail($"[{existing.Name}] 正在更新服务端，请等待更新完成再删除");
 
             if (existing.Running)
                 return LocalAdminResult.Fail($"[{existing.Name}] 正在运行，请先停止再删除");
@@ -350,6 +356,8 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
         DisableAnsiColors = d.DisableAnsiColors,
         RedirectStandardStreams = d.RedirectStandardStreams,
         ConsoleLevel = d.ConsoleLevel,
+        InstallDirectory = d.InstallDirectory,
+        BetaBranch = d.BetaBranch,
     };
 
     /// <summary>

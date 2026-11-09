@@ -8,7 +8,7 @@ namespace Server.Qcat.Web;
 /// LocalAdmin 能力的 Web 面板接口。
 ///
 /// 权限：全部要求 <see cref="PanelPermission.ServerControl"/>（server.control）。
-/// 审计：所有会产生副作用的操作（启停/重启/下发命令/切换心跳/增删改服务器）都会写入审计日志。
+/// 审计：所有会产生副作用的操作（启停/重启/下发命令/切换心跳/增删改服务器/更新服务端）都会写入审计日志。
 /// 架构：通过 <see cref="ILocalAdminProvider"/> 统一支持 Daemon 独立守护模式与 Embedded 内嵌模式。
 /// </summary>
 public static class LocalAdminEndpoints
@@ -36,6 +36,8 @@ public static class LocalAdminEndpoints
         api.MapPost("/servers/{id}/heartbeat", HeartbeatAsync);
         api.MapPost("/servers/{id}/console-level", ConsoleLevelAsync);
         api.MapPost("/servers/{id}/cancel-restart", CancelRestartAsync);
+        api.MapGet("/servers/{id}/update", GetUpdateStatusAsync);
+        api.MapPost("/servers/{id}/update", StartUpdateAsync);
         api.MapGet("/daemon/status", GetDaemonStatusAsync);
         api.MapPost("/daemon/start", StartDaemonAsync);
         api.MapPost("/daemon/stop", StopDaemonAsync);
@@ -308,6 +310,51 @@ public static class LocalAdminEndpoints
         var result = await provider.CancelRestartAsync(id, ct);
         await AuditAsync(ctx, session!.Username, "localadmin.cancel-restart", id, "中止重启倒计时", result.Success, ct);
         return ToActionResult(result);
+    }
+
+    // ==================== SteamCMD 更新服务端 ====================
+
+    /// <summary>查询更新任务状态（含 SteamCMD / 安装目录预检与最近的更新日志）。</summary>
+    private static async Task<IResult> GetUpdateStatusAsync(string id, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    {
+        var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
+        if (error is not null)
+            return error;
+
+        var status = await provider.GetUpdateStatusAsync(id, ct);
+        if (status is null)
+            return NotFound(id);
+
+        return Results.Json(status);
+    }
+
+    /// <summary>
+    /// 通过 SteamCMD 更新 SCP:SL 服务端：若在运行会先停止，更新完成后按需重新启动。
+    /// 立即返回，进度通过 GET 同一路径轮询。同一台服务器不允许并发更新。
+    /// </summary>
+    private static async Task<IResult> StartUpdateAsync(string id, LocalUpdateRequest? request, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    {
+        var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
+        if (error is not null)
+            return error;
+
+        request ??= new LocalUpdateRequest();
+        var result = await provider.StartUpdateAsync(id, request, session!.Username, ct);
+
+        string branch = request.BetaBranch is null ? "默认分支" : (request.BetaBranch.Trim().Length == 0 ? "public" : request.BetaBranch.Trim());
+        await AuditAsync(ctx, session.Username, "localadmin.update", id,
+            result.Success
+                ? $"SteamCMD 更新服务端（分支 {branch}，更新后{(request.RestartAfter == false ? "不启动" : request.RestartAfter == true ? "启动" : "恢复原状态")}）"
+                : $"SteamCMD 更新服务端失败：{result.Error}",
+            result.Success, ct);
+
+        return Results.Json(new
+        {
+            success = result.Success,
+            response = result.Response,
+            error = result.Error,
+            status = result.Status,
+        }, statusCode: result.Success ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest);
     }
 
     private static async Task<IResult> GetDaemonStatusAsync(HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)

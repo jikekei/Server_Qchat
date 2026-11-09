@@ -50,6 +50,27 @@ public sealed class LocalAdminOptions
     /// </summary>
     public int LogExpirationDays { get; set; }
 
+    // ---------- SteamCMD 更新服务端 ----------
+
+    /// <summary>
+    /// SteamCMD 可执行文件路径（Windows 为 steamcmd.exe，Linux 为 steamcmd.sh 或 steamcmd），
+    /// 也可以填 SteamCMD 所在目录。留空时自动在 PATH 与常见安装位置查找。
+    /// 出于安全考虑只能在配置文件里修改，面板无法改写。
+    /// </summary>
+    public string SteamCmdPath { get; set; } = "";
+
+    /// <summary>SCP:SL 专用服务器的 Steam App Id（默认 996560）。</summary>
+    public int SteamAppId { get; set; } = 996560;
+
+    /// <summary>默认更新分支（Steam beta 名）。留空或 "public" 表示正式版；单台服务器可在定义里覆盖。</summary>
+    public string UpdateBetaBranch { get; set; } = "";
+
+    /// <summary>更新时是否附带 <c>validate</c>（校验全部文件，更慢但更可靠）。</summary>
+    public bool UpdateValidate { get; set; } = true;
+
+    /// <summary>单次 SteamCMD 运行的超时时间（分钟），超时将结束 SteamCMD 并判定失败。</summary>
+    public int UpdateTimeoutMinutes { get; set; } = 60;
+
     /// <summary>由本进程托管的服务器列表。</summary>
     public List<LocalServerDefinition> Servers { get; set; } = new();
 }
@@ -77,6 +98,14 @@ public sealed class LocalServerDefinition
 
     /// <summary>进程管理器启动时是否自动拉起该服务器。</summary>
     public bool AutoStart { get; set; }
+
+    // ---------- SteamCMD 更新 ----------
+
+    /// <summary>SteamCMD 的安装目录（<c>+force_install_dir</c>）。留空则取可执行文件所在目录。</summary>
+    public string InstallDirectory { get; set; } = "";
+
+    /// <summary>该服务器的更新分支（Steam beta 名），留空则沿用全局 <c>LocalAdmin:UpdateBetaBranch</c>。</summary>
+    public string BetaBranch { get; set; } = "";
 
     // ---------- 心跳 / 静默崩溃检测 ----------
 

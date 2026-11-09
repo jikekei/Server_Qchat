@@ -46,6 +46,11 @@ Settings load in this order; later sources override earlier values:
 | `LogDirectory` | string | `localadmin-logs` | Console log archive directory. |
 | `WriteLogFiles` | bool | `true` | Write console output to files. |
 | `LogExpirationDays` | int | `0` | Log retention; zero disables automatic cleanup. |
+| `SteamCmdPath` | string | empty | SteamCMD used by "Update server" (`steamcmd.exe` on Windows, `steamcmd.sh`/`steamcmd` on Linux) or its folder. Empty = search PATH and common locations. Config-file only. |
+| `SteamAppId` | int | `996560` | Steam app ID of the SCP:SL dedicated server. |
+| `UpdateBetaBranch` | string | empty | Default Steam beta branch; empty or `public` = release. |
+| `UpdateValidate` | bool | `true` | Pass `validate` to `app_update`. |
+| `UpdateTimeoutMinutes` | int | `60` | SteamCMD run timeout; on timeout SteamCMD is killed and the update fails. |
 | `Servers` | array | `[]` | Managed server instances. |
 
 Each `Servers[]` entry:
@@ -58,6 +63,8 @@ Each `Servers[]` entry:
 | `WorkingDirectory` | string | empty | Working directory; defaults to the executable directory. |
 | `GamePort` | int | `7777` | Game port. |
 | `ExtraArguments` | string | empty | Additional command-line arguments. |
+| `InstallDirectory` | string | empty | SteamCMD `+force_install_dir` for updates; defaults to the executable directory (must exist). |
+| `BetaBranch` | string | empty | Per-server update branch; empty = global `UpdateBetaBranch`. |
 | `AutoStart` | bool | `false` | Launch this instance with the daemon. |
 | `EnableHeartbeat` | bool | `true` | Heartbeat and silent-crash detection. |
 | `HeartbeatSpanMaxThreshold` | int | `30` | Seconds before a heartbeat is considered missing. |

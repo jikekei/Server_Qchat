@@ -130,7 +130,13 @@ graph LR
 ### 3. 服务器进程管理 (Local Admin)
 - 本地托管 SCPSL 进程的图形化控制矩阵；
 - 实时展示各实例的 PID、CPU 占用、内存消耗、运行时长与心跳自愈状态；
-- 支持一键执行启动、停止、安全重启与强制终止。
+- 支持一键执行启动、停止、安全重启与强制终止；
+- **更新服务器（SteamCMD）**：点击「更新服务器」，确认后自动执行
+  `steamcmd +force_install_dir <目录> +login anonymous +app_update 996560 [-beta <分支>] validate +quit`。
+  服务器在运行时会先优雅停止（超时强杀），更新输出实时显示在弹窗与控制台中，成功后可自动重新启动；
+  同一台服务器不允许并发更新，多台服务器的更新排队执行，更新期间禁止启动 / 重启 / 修改配置。
+  需要 `server.control` 权限并写入审计日志（`localadmin.update`）。SteamCMD 路径与默认分支见配置文档
+  `LocalAdmin:SteamCmdPath` / `UpdateBetaBranch`，单台服务器可在「编辑」里设置安装目录与分支。
 
 ### 4. 多服交互与实时控制台 (Servers)
 - 支持选中任意服务器下发管理指令，并在界面中实时查看返回回显；

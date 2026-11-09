@@ -164,6 +164,78 @@ export const AppDialogs = {
     </template>
   </el-dialog>
 
+  <!-- ==================== 更新服务器（SteamCMD） ==================== -->
+  <el-dialog v-model="updateDialog.visible" :title="'更新服务器 · ' + updateDialog.serverName"
+             width="min(760px, 94vw)" :close-on-click-modal="false" :before-close="closeUpdateDialog">
+    <div v-loading="updateDialog.loading">
+      <template v-if="updateDialog.status">
+        <el-descriptions :column="1" border size="small" style="margin-bottom:12px">
+          <el-descriptions-item label="状态">
+            <el-tag :type="updateStateType(updateDialog.status.state)" effect="dark" size="small">
+              {{ updateStateText(updateDialog.status.state) }}
+            </el-tag>
+            <span v-if="updateDialog.status.startedAt" class="muted" style="margin-left:8px">
+              {{ fmtTime(updateDialog.status.startedAt) }}
+              <template v-if="updateDialog.status.finishedAt"> → {{ fmtTime(updateDialog.status.finishedAt) }}</template>
+              <template v-if="updateDialog.status.requestedBy">（{{ updateDialog.status.requestedBy }}）</template>
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="SteamCMD">
+            <el-tag size="small" :type="updateDialog.status.steamCmdFound ? 'success' : 'danger'">
+              {{ updateDialog.status.steamCmdFound ? '已找到' : '未找到' }}
+            </el-tag>
+            <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.steamCmdPath || '（未配置 LocalAdmin:SteamCmdPath）' }}</code>
+          </el-descriptions-item>
+          <el-descriptions-item label="安装目录">
+            <el-tag size="small" :type="updateDialog.status.installDirectoryExists ? 'success' : 'danger'">
+              {{ updateDialog.status.installDirectoryExists ? '存在' : '不存在' }}
+            </el-tag>
+            <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.installDirectory || '-' }}</code>
+          </el-descriptions-item>
+          <el-descriptions-item label="App Id">{{ updateDialog.status.steamAppId }}</el-descriptions-item>
+          <el-descriptions-item v-if="updateDialog.status.exitCode !== null && updateDialog.status.exitCode !== undefined" label="退出码">
+            {{ updateDialog.status.exitCode }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <el-alert v-if="!updateDialog.status.steamCmdFound" type="error" :closable="false" show-icon style="margin-bottom:10px"
+                  title="未找到 SteamCMD：请先在服务器上安装 SteamCMD，并在 appsettings.json 的 LocalAdmin:SteamCmdPath 填写 steamcmd.exe / steamcmd.sh 的路径"></el-alert>
+        <el-alert v-if="updateDialog.status.state === 'failed' && updateDialog.status.error" type="error" :closable="false" show-icon
+                  :title="updateDialog.status.error" style="margin-bottom:10px"></el-alert>
+        <el-alert v-if="updateDialog.status.state === 'succeeded' && updateDialog.status.message" type="success" :closable="false" show-icon
+                  :title="updateDialog.status.message" style="margin-bottom:10px"></el-alert>
+
+        <el-form v-if="!updateActive" label-width="110px" style="margin-bottom:6px">
+          <el-form-item label="更新分支">
+            <el-input v-model="updateDialog.form.betaBranch" style="max-width:260px"
+                      placeholder="留空 = public 正式版"></el-input>
+            <span class="muted" style="margin-left:10px">Steam beta 分支名（-beta），默认：{{ updateDialog.status.defaultBetaBranch }}</span>
+          </el-form-item>
+          <el-form-item label="选项">
+            <div class="perm-list">
+              <el-checkbox v-model="updateDialog.form.validate">校验全部文件（validate，更慢但更可靠）</el-checkbox>
+              <el-checkbox v-model="updateDialog.form.restartAfter">更新成功后自动启动服务器</el-checkbox>
+            </div>
+          </el-form-item>
+        </el-form>
+
+        <div class="terminal" ref="updateLogRef" style="height:260px">
+          <div v-if="!updateDialog.status.lines || updateDialog.status.lines.length === 0" class="terminal-empty">（暂无更新日志）</div>
+          <div v-for="line in updateDialog.status.lines" :key="line.seq" class="term-line">
+            <span class="term-time">{{ timeOnly(line.time) }}</span>
+            <span :style="{ color: updateLineColor(line.level) }">{{ line.text }}</span>
+          </div>
+        </div>
+      </template>
+    </div>
+    <template #footer>
+      <el-button @click="closeUpdateDialog">{{ updateActive ? '后台运行，关闭窗口' : '关闭' }}</el-button>
+      <el-button v-if="!updateActive" type="warning" :loading="updateDialog.submitting"
+                 :disabled="!updateDialog.status || !updateDialog.status.steamCmdFound || !updateDialog.status.installDirectoryExists"
+                 @click="submitUpdate">开始更新</el-button>
+    </template>
+  </el-dialog>
+
   <!-- ==================== 服务器配置（LocalAdmin） ==================== -->
   <el-dialog v-model="serverDialog.visible"
              :title="serverDialog.isEdit ? '编辑服务器' : '添加服务器'" width="720px">
@@ -224,6 +296,17 @@ export const AppDialogs = {
         <el-input-number v-model="serverDialog.form.restartLimit" :min="0" :max="100"
                          controls-position="right"></el-input-number>
         <span class="muted" style="margin-left:10px">时间窗口内最多自动拉起几次，0 = 不自动重启</span>
+      </el-form-item>
+
+      <el-form-item label="SteamCMD 安装目录">
+        <el-input v-model="serverDialog.form.installDirectory"
+                  placeholder="「更新服务器」时的 force_install_dir，留空则用可执行文件所在目录"></el-input>
+      </el-form-item>
+
+      <el-form-item label="更新分支">
+        <el-input v-model="serverDialog.form.betaBranch" style="width:220px"
+                  placeholder="留空沿用全局配置"></el-input>
+        <span class="muted" style="margin-left:10px">Steam beta 分支名，public = 正式版</span>
       </el-form-item>
 
       <el-form-item label="控制台显示">

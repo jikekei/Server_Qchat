@@ -69,6 +69,8 @@ builder.WebHost.UseUrls(listenUri);
 // 注册 LocalAdmin 管理器与内嵌提供方
 builder.Services.AddSingleton<LocalAdminManager>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LocalAdminManager>());
+builder.Services.AddSingleton<ServerUpdateService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ServerUpdateService>());
 builder.Services.AddSingleton<ILocalAdminProvider, EmbeddedLocalAdminProvider>();
 
 var app = builder.Build();
@@ -222,6 +224,18 @@ api.MapPost("/servers/{id}/cancel-restart", async (string id, ILocalAdminProvide
 {
     var res = await provider.CancelRestartAsync(id, ct);
     return Results.Json(new { success = res.Success, response = res.Message, error = res.Error });
+});
+
+api.MapPost("/servers/{id}/update", async (string id, string? by, LocalUpdateRequest? req, ILocalAdminProvider provider, CancellationToken ct) =>
+{
+    var res = await provider.StartUpdateAsync(id, req ?? new LocalUpdateRequest(), by, ct);
+    return Results.Json(res);
+});
+
+api.MapGet("/servers/{id}/update", async (string id, ILocalAdminProvider provider, CancellationToken ct) =>
+{
+    var status = await provider.GetUpdateStatusAsync(id, ct);
+    return status is not null ? Results.Json(status) : Results.NotFound(new { error = $"服务器不存在：{id}" });
 });
 
 api.MapGet("/config", async (ILocalAdminProvider provider, CancellationToken ct) =>

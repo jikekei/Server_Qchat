@@ -32,7 +32,8 @@ public sealed record LocalServerStatus(
     double UptimeSeconds,
     bool AutoStart,
     string? LastError,
-    string ConsoleLevel);
+    string ConsoleLevel,
+    bool Updating = false);
 
 /// <summary>控制类操作的统一返回。</summary>
 public sealed record LocalAdminResult(bool Success, string Message, string? Error = null)
@@ -138,6 +139,9 @@ public sealed class LocalServerInstance : IAsyncDisposable
     private bool _consoleConnected;
     private volatile bool _disposed;
 
+    /// <summary>非 0 表示正在通过 SteamCMD 更新服务端文件（期间禁止启动 / 重启 / 改配置）。</summary>
+    private int _updating;
+
     // ---- 日志 ----
     private StreamWriter? _logWriter;
     private DateTime _logDate = DateTime.MinValue;
@@ -202,6 +206,58 @@ public sealed class LocalServerInstance : IAsyncDisposable
     public LocalServerDefinition Definition => _def;
 
     public bool Running => GetStatus().Running;
+
+    // ==================================================================
+    //  SteamCMD 更新期间的占用标记（由 ServerUpdateService 使用）
+    // ==================================================================
+
+    /// <summary>是否正在更新服务端文件。</summary>
+    public bool UpdateInProgress => Volatile.Read(ref _updating) != 0;
+
+    /// <summary>尝试占用该实例用于更新；已被占用时返回 false（防止同一台服务器并发更新）。</summary>
+    public bool TryBeginUpdate() => Interlocked.CompareExchange(ref _updating, 1, 0) == 0;
+
+    /// <summary>释放更新占用。</summary>
+    public void EndUpdate() => Interlocked.Exchange(ref _updating, 0);
+
+    /// <summary>把更新流程的输出写进该服务器的控制台缓冲（面板「服务器进程」页可实时看到）。</summary>
+    public void AppendUpdateLine(string text, bool isError = false, bool isWarning = false)
+    {
+        byte color = isError ? (byte)12 : isWarning ? (byte)14 : (byte)11;
+        Append(ConsoleLineKind.System, color, $"[更新] {text}");
+    }
+
+    /// <summary>等待当前游戏进程退出；没有进程时立即返回 true，超时返回 false。</summary>
+    public async Task<bool> WaitForExitAsync(TimeSpan timeout, CancellationToken ct)
+    {
+        Process? process;
+        lock (_sync)
+            process = _process;
+
+        if (process is null)
+            return true;
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(timeout);
+        try
+        {
+            await process.WaitForExitAsync(cts.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // 超时：交给下面的状态判断
+        }
+        catch (InvalidOperationException)
+        {
+            // 进程对象已释放，视为已退出
+        }
+
+        // 退出处理（OnProcessExitedAsync）会在进程退出后约 120ms 清空 _process，稍等它落地
+        for (int i = 0; i < 20 && Running; i++)
+            await Task.Delay(100, ct);
+
+        return !Running;
+    }
 
     // ==================================================================
     //  状态
@@ -270,7 +326,8 @@ public sealed class LocalServerInstance : IAsyncDisposable
                 Math.Round(uptime, 1),
                 _def.AutoStart,
                 _lastError,
-                ConsoleCaptureLevels.ToKey((ConsoleCaptureLevel)Volatile.Read(ref _captureLevel)));
+                ConsoleCaptureLevels.ToKey((ConsoleCaptureLevel)Volatile.Read(ref _captureLevel)),
+                Volatile.Read(ref _updating) != 0);
         }
     }
 
@@ -788,6 +845,9 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
     public LocalAdminResult Start()
     {
+        if (UpdateInProgress)
+            return LocalAdminResult.Fail("该服务器正在更新服务端文件，请等待更新完成后再启动。");
+
         lock (_sync)
         {
             if (_process is { HasExited: false })
@@ -1155,6 +1215,9 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
     public LocalAdminResult Restart(bool force)
     {
+        if (UpdateInProgress)
+            return LocalAdminResult.Fail("该服务器正在更新服务端文件，请等待更新完成。");
+
         Process? process;
         lock (_sync)
         {

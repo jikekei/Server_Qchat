@@ -191,6 +191,7 @@ function defaultServerForm() {
     laToSlBufferSize: 25000, slToLaBufferSize: 200000,
     disableAnsiColors: true, redirectStandardStreams: true,
     consoleLevel: 'all',
+    installDirectory: '', betaBranch: '',
   };
 }
 
@@ -664,8 +665,158 @@ async function localSendCommand() {
   }
 }
 
+// ---- 更新服务器（SteamCMD app_update 996560） ----
+const updateDialog = reactive({
+  visible: false, loading: false, submitting: false,
+  serverId: '', serverName: '',
+  form: { betaBranch: '', restartAfter: true, validate: true },
+  status: null,
+});
+let updateTimer = null;
+const updateLogRef = ref(null);
+
+const UPDATE_STATE_TEXT = {
+  idle: '尚未更新', queued: '排队中（等待 SteamCMD 空闲）', stopping: '正在停止服务器',
+  updating: '正在通过 SteamCMD 下载 / 校验文件', starting: '正在重新启动服务器',
+  succeeded: '更新成功', failed: '更新失败',
+};
+
+function updateStateText(state) {
+  return UPDATE_STATE_TEXT[state] || state || '-';
+}
+
+function updateStateType(state) {
+  if (state === 'succeeded') return 'success';
+  if (state === 'failed') return 'danger';
+  if (state === 'idle' || !state) return 'info';
+  return 'warning';
+}
+
+function updateLineColor(level) {
+  if (level === 'error') return '#e74c3c';
+  if (level === 'warn') return '#f1c40f';
+  if (level === 'steam') return '#bdc3c7';
+  return '#22d3ee';
+}
+
+const updateActive = computed(() => !!(updateDialog.status && updateDialog.status.active));
+const localUpdating = computed(() => !!(local.status && local.status.updating));
+
+function stopUpdatePolling() {
+  if (updateTimer) { clearInterval(updateTimer); updateTimer = null; }
+}
+
+async function fetchUpdateStatus() {
+  if (!updateDialog.serverId) return;
+  try {
+    const st = await api('/local/servers/' + encodeURIComponent(updateDialog.serverId) + '/update');
+    const prevCount = updateDialog.status && updateDialog.status.lines ? updateDialog.status.lines.length : 0;
+    const wasActive = updateActive.value;
+    updateDialog.status = st;
+    if ((st.lines || []).length !== prevCount) {
+      await nextTick();
+      const el = updateLogRef.value;
+      if (el) el.scrollTop = el.scrollHeight;
+    }
+    if (wasActive && !st.active) {
+      stopUpdatePolling();
+      if (st.state === 'succeeded') ElMessage.success(st.message || '更新成功');
+      else if (st.state === 'failed') ElMessage.error(st.error || '更新失败');
+      await pollLocal();
+    }
+  } catch (e) {
+    // 轮询失败静默处理
+  }
+}
+
+function startUpdatePolling() {
+  stopUpdatePolling();
+  updateTimer = setInterval(() => {
+    if (!updateDialog.visible && !updateActive.value) { stopUpdatePolling(); return; }
+    fetchUpdateStatus();
+  }, 1500);
+}
+
+async function openUpdateDialog() {
+  if (!local.selectedId) { ElMessage.warning('请先选择一个服务器'); return; }
+  updateDialog.serverId = local.selectedId;
+  updateDialog.serverName = (local.status && local.status.name) ? local.status.name : local.selectedId;
+  updateDialog.status = null;
+  updateDialog.visible = true;
+  updateDialog.loading = true;
+  try {
+    const st = await api('/local/servers/' + encodeURIComponent(updateDialog.serverId) + '/update');
+    updateDialog.status = st;
+    if (!st.active) {
+      updateDialog.form.betaBranch = st.defaultBetaBranch && st.defaultBetaBranch !== 'public' ? st.defaultBetaBranch : '';
+      updateDialog.form.restartAfter = localRunning.value;
+      updateDialog.form.validate = st.validate !== false;
+    }
+    if (st.active) startUpdatePolling();
+  } catch (e) {
+    ElMessage.error(e.message);
+  } finally {
+    updateDialog.loading = false;
+  }
+}
+
+function closeUpdateDialog() {
+  updateDialog.visible = false;
+  // 正在更新时保留后台轮询，以便完成后弹出结果提示
+  if (!updateActive.value) stopUpdatePolling();
+}
+
+async function submitUpdate() {
+  const name = updateDialog.serverName;
+  const branch = (updateDialog.form.betaBranch || '').trim();
+  const running = localRunning.value && local.selectedId === updateDialog.serverId;
+  try {
+    await ElMessageBox.confirm(
+      `<div style="line-height:1.7;">
+        <p>确定要通过 SteamCMD 更新【<b>${escapeHtml(name)}</b>】吗？</p>
+        <p>分支：<b>${escapeHtml(branch || 'public（正式版）')}</b>${updateDialog.form.validate ? '，校验全部文件' : ''}</p>
+        ${running ? `<div style="color:#f56c6c;margin-top:8px;background:rgba(245,108,108,0.1);padding:10px;border-radius:6px;border-left:4px solid #f56c6c;">
+          <b>⚠️ 服务器正在运行：</b>更新前会先停止服务器，<b>所有在线玩家将掉线</b>；
+          更新完成后${updateDialog.form.restartAfter ? '会自动重新启动' : '<b>不会</b>自动启动'}。
+        </div>` : ''}
+        <p style="color:#909399;font-size:12px;margin-top:6px;">更新期间无法启动、重启或修改该服务器配置；日志会实时显示在下方与控制台中。</p>
+      </div>`,
+      '更新服务器确认',
+      {
+        dangerouslyUseHTMLString: true,
+        type: 'warning',
+        confirmButtonText: running ? '确认停止并更新' : '开始更新',
+        cancelButtonText: '取消',
+      }
+    );
+  } catch (e) { return; }
+
+  updateDialog.submitting = true;
+  try {
+    const r = await api('/local/servers/' + encodeURIComponent(updateDialog.serverId) + '/update', {
+      method: 'POST',
+      body: JSON.stringify({
+        betaBranch: branch,
+        restartAfter: !!updateDialog.form.restartAfter,
+        validate: !!updateDialog.form.validate,
+      }),
+    });
+    if (r.status) updateDialog.status = r.status;
+    ElMessage.success(r.response || '已开始更新');
+    startUpdatePolling();
+    await fetchUpdateStatus();
+    await pollLocal();
+  } catch (e) {
+    ElMessage.error(e.message);
+    await fetchUpdateStatus();
+  } finally {
+    updateDialog.submitting = false;
+  }
+}
+
 function localStatusText(s) {
   if (!s) return '未知';
+  if (s.updating) return '更新中';
   if (s.running) return '运行中';
   if (s.restartBudgetExhausted) return '已停止（重启限流）';
   return '已停止';
@@ -673,6 +824,7 @@ function localStatusText(s) {
 
 function localStatusType(s) {
   if (!s) return 'info';
+  if (s.updating) return 'warning';
   if (s.running) return 'success';
   if (s.restartBudgetExhausted) return 'danger';
   return 'info';
@@ -765,6 +917,17 @@ export function useLocalAdmin() {
     formatUptime,
     timeOnly,
     lineLabel,
+    updateDialog,
+    updateLogRef,
+    updateActive,
+    localUpdating,
+    openUpdateDialog,
+    closeUpdateDialog,
+    submitUpdate,
+    fetchUpdateStatus,
+    updateStateText,
+    updateStateType,
+    updateLineColor,
     daemon,
     fetchDaemonStatus,
     startDaemon,

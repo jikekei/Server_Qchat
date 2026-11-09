@@ -147,6 +147,8 @@ else
     // 内嵌模式：单进程运行，LocalAdmin 随 Bot 进程退出
     builder.Services.AddSingleton<LocalAdminManager>();
     builder.Services.AddHostedService(sp => sp.GetRequiredService<LocalAdminManager>());
+    builder.Services.AddSingleton<ServerUpdateService>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<ServerUpdateService>());
     builder.Services.AddSingleton<ILocalAdminProvider, EmbeddedLocalAdminProvider>();
 }
 

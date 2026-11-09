@@ -51,6 +51,12 @@ public interface ILocalAdminProvider
     /// <summary>设置并持久化控制台捕获级别。</summary>
     Task<LocalConsoleLevelResult> SetConsoleLevelAsync(string id, string? level, CancellationToken ct = default);
 
+    /// <summary>通过 SteamCMD 更新服务端文件（后台执行，立即返回）。</summary>
+    Task<LocalUpdateStartResult> StartUpdateAsync(string id, LocalUpdateRequest request, string? requestedBy, CancellationToken ct = default);
+
+    /// <summary>查询更新任务状态与环境预检；服务器不存在返回 null。</summary>
+    Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default);
+
     /// <summary>取消重启倒计时。</summary>
     Task<LocalAdminResult> CancelRestartAsync(string id, CancellationToken ct = default);
 
