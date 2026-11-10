@@ -413,10 +413,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
         if (text is null)
             return;
 
-        // 捕获级别过滤：放在最前面，被过滤的行既不进缓冲、也不落盘、也不会发给面板
-        var level = (ConsoleCaptureLevel)Volatile.Read(ref _captureLevel);
-        if (!ConsoleCaptureLevels.ShouldCapture(level, kind, color))
-            return;
+        // 缓冲与文件完整采集；实时面板在响应时应用显示过滤。
 
         // 控制台输出可能自带换行，逐行拆开更贴近终端观感；保留中间的空行（游戏用它们排版）
         foreach (string piece in SplitLines(text))
@@ -427,6 +424,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
             lock (_sync)
             {
                 line = new ConsoleLine(_nextSeq++, DateTime.Now, kind, color, piece, hex);
+                WriteLogLine(line);
                 _lines.Add(line);
 
                 int capacity = _options.ConsoleBufferLines;
@@ -438,7 +436,6 @@ public sealed class LocalServerInstance : IAsyncDisposable
                 }
             }
 
-            WriteLogLine(line);
         }
     }
 
@@ -446,7 +443,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
     private static List<string> SplitLines(string text)
     {
         if (text.IndexOf('\n') < 0 && text.IndexOf('\r') < 0)
-            return new List<string> { text.TrimEnd() };
+            return new List<string> { text };
 
         var pieces = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None).ToList();
         if (pieces.Count > 1 && pieces[^1].Length == 0)
@@ -478,9 +475,11 @@ public sealed class LocalServerInstance : IAsyncDisposable
                 if (_logWriter is null || _logDate != DateTime.Now.Date)
                 {
                     _logWriter?.Dispose();
-                    Directory.CreateDirectory(_logDirectory);
-                    string path = Path.Combine(_logDirectory, $"{DateTime.Now:yyyy-MM-dd}.log");
-                    _logWriter = new StreamWriter(new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite), Encoding.UTF8)
+                    var now = DateTime.Now;
+                    string directory = Path.Combine(_logDirectory, now.ToString("yyyy-MM"), now.ToString("yyyy-MM-dd"));
+                    Directory.CreateDirectory(directory);
+                    string path = Path.Combine(directory, $"{now:HH-mm-ss-fffffff}-{Guid.NewGuid():N}.txt");
+                    _logWriter = new StreamWriter(new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite), Encoding.UTF8)
                     {
                         AutoFlush = true,
                     };
@@ -947,6 +946,11 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
     private void SpawnProcess()
     {
+        lock (_sync)
+        {
+            _logWriter?.Dispose();
+            _logWriter = null;
+        }
         int consolePort;
         lock (_sync)
             consolePort = _consolePort;
@@ -959,11 +963,10 @@ public sealed class LocalServerInstance : IAsyncDisposable
                 : _def.WorkingDirectory,
             CreateNoWindow = true,
             UseShellExecute = false,
-            RedirectStandardOutput = _def.RedirectStandardStreams,
-            RedirectStandardError = _def.RedirectStandardStreams,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
         };
 
-        if (_def.RedirectStandardStreams)
         {
             psi.StandardOutputEncoding = new UTF8Encoding(false);
             psi.StandardErrorEncoding = new UTF8Encoding(false);
@@ -1003,16 +1006,15 @@ public sealed class LocalServerInstance : IAsyncDisposable
         var exitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         process.Exited += (_, _) => exitTcs.TrySetResult(true);
 
-        if (_def.RedirectStandardStreams)
         {
             process.OutputDataReceived += (_, e) =>
             {
-                if (!string.IsNullOrWhiteSpace(e.Data))
+                if (e.Data is not null)
                     Append(ConsoleLineKind.Stdout, 7, $"[STDOUT] {e.Data}");
             };
             process.ErrorDataReceived += (_, e) =>
             {
-                if (!string.IsNullOrWhiteSpace(e.Data))
+                if (e.Data is not null)
                     Append(ConsoleLineKind.Stderr, 5, $"[STDERR] {e.Data}");
             };
         }
@@ -1020,7 +1022,6 @@ public sealed class LocalServerInstance : IAsyncDisposable
         if (!process.Start())
             throw new InvalidOperationException("Process.Start 返回 false");
 
-        if (_def.RedirectStandardStreams)
         {
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();

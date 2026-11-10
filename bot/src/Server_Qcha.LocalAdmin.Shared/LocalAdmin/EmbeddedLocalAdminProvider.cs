@@ -22,6 +22,13 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
     }
 
     public string Mode => "Embedded";
+    public Task<LogArchiveResult?> ReadArchiveAsync(string id, string? file, long offset, CancellationToken ct = default)
+    {
+        if (!LocalServerGuard.IsSafeId(id) || _manager.Find(id) is null) return Task.FromResult<LogArchiveResult?>(null);
+        var config = _manager.GetConfigInfo();
+        string root = Path.IsPathRooted(_options.LogDirectory) ? _options.LogDirectory : Path.Combine(config.ContentRoot, _options.LogDirectory);
+        return Task.FromResult<LogArchiveResult?>(LogArchive.Read(Path.Combine(root, id), file, offset, ct));
+    }
 
     public Task<LocalAdminListResult> ListServersAsync(CancellationToken ct = default)
     {

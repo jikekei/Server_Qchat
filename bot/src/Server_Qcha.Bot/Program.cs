@@ -53,6 +53,10 @@ catch
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
+var panelLogs = new PanelLogBuffer();
+builder.Logging.AddProvider(panelLogs);
+builder.Services.AddSingleton(panelLogs);
+builder.Services.AddSingleton<OperationsApiStore>();
 builder.Logging.AddSimpleConsole(o =>
 {
     o.SingleLine = true;
@@ -223,6 +227,7 @@ if (webOptions.Enabled)
     app.UseStaticFiles();
 
     app.MapPanelApi();
+    app.MapOperationsApi();
     app.MapGameAdminApi();
     app.MapLocalAdminApi();
     app.MapLoggingApi();

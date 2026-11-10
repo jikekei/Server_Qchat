@@ -445,6 +445,7 @@ async function loadLocalServers() {
       local.status = null;
     }
 
+    if (data.nextSeq != null) local.nextSeq = data.nextSeq;
     const match = local.servers.find(s => s.id === local.selectedId);
     if (match) {
       local.status = match;

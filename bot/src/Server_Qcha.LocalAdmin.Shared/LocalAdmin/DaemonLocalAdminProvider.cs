@@ -220,6 +220,12 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
         string uri = $"api/daemon/servers/{Uri.EscapeDataString(id)}/poll?after={after.GetValueOrDefault()}&limit={limit.GetValueOrDefault(400)}";
         return SendAsync<LocalPollResult>(() => _http.GetAsync(uri, ct));
     }
+    public Task<LogArchiveResult?> ReadArchiveAsync(string id, string? file, long offset, CancellationToken ct = default)
+    {
+        string uri = $"api/daemon/servers/{Uri.EscapeDataString(id)}/archive?offset={offset}";
+        if (file is not null) uri += "&file=" + Uri.EscapeDataString(file);
+        return SendAsync<LogArchiveResult>(() => _http.GetAsync(uri, ct));
+    }
 
     public async Task<LocalSaveResult> CreateServerAsync(LocalServerSaveRequest request, CancellationToken ct = default)
     {

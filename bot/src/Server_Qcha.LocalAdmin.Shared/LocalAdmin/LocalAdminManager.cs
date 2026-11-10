@@ -550,6 +550,30 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
                     File.Delete(file);
                     removed++;
                 }
+
+                // 新格式：实例/yyyy-MM/yyyy-MM-dd/时间-随机标识.txt。
+                foreach (string month in Directory.GetDirectories(dir))
+                {
+                    if (!DateTime.TryParseExact(Path.GetFileName(month), "yyyy-MM", null,
+                            System.Globalization.DateTimeStyles.None, out var monthDate)) continue;
+                    foreach (string day in Directory.GetDirectories(month))
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        if (!DateTime.TryParseExact(Path.GetFileName(day), "yyyy-MM-dd", null,
+                                System.Globalization.DateTimeStyles.None, out var dayDate) ||
+                            dayDate >= cutoff || dayDate.Year != monthDate.Year || dayDate.Month != monthDate.Month) continue;
+                        foreach (string file in Directory.GetFiles(day, "*.txt", SearchOption.TopDirectoryOnly))
+                        {
+                            string name = Path.GetFileNameWithoutExtension(file);
+                            if (name.Length != 49 || name[16] != '-' ||
+                                !DateTime.TryParseExact(name[..16], "HH-mm-ss-fffffff", null,
+                                    System.Globalization.DateTimeStyles.None, out _) ||
+                                !Guid.TryParseExact(name[17..], "N", out _)) continue;
+                            File.Delete(file);
+                            removed++;
+                        }
+                    }
+                }
             }
 
             if (removed > 0)

@@ -15,6 +15,7 @@ import { DatabaseView } from './views/DatabaseView.js';
 import { AccountsView } from './views/AccountsView.js';
 import { AuditView } from './views/AuditView.js';
 import { LoggingView } from './views/LoggingView.js';
+import { OperationsView } from './views/OperationsView.js';
 import { AppDialogs } from './views/AppDialogs.js';
 
 const app = createApp({
@@ -58,6 +59,7 @@ app.component('accounts-view', AccountsView);
 app.component('game-admin-view', GameAdminView);
 app.component('audit-view', AuditView);
 app.component('logging-view', LoggingView);
+app.component('operations-view', OperationsView);
 app.component('app-dialogs', AppDialogs);
 
 app.use(window.ElementPlus).mount('#app');

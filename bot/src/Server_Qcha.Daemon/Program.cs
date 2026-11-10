@@ -149,6 +149,11 @@ api.MapGet("/servers/{id}", async (string id, ILocalAdminProvider provider, Canc
     return status is not null ? Results.Json(status) : Results.NotFound(new { error = $"服务器不存在：{id}" });
 });
 
+api.MapGet("/servers/{id}/archive", async (string id, string? file, long? offset, ILocalAdminProvider provider, CancellationToken ct) =>
+{
+    try { var archive = await provider.ReadArchiveAsync(id, file, offset ?? 0, ct); return archive is null ? Results.NotFound() : Results.Json(archive); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
 api.MapGet("/servers/{id}/poll", async (string id, long? after, int? limit, ILocalAdminProvider provider, CancellationToken ct) =>
 {
     var poll = await provider.PollAsync(id, after, limit, ct);

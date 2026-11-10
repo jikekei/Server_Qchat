@@ -116,7 +116,10 @@ public static class LocalAdminEndpoints
             firstSeq = poll.FirstSeq,
             lastSeq = poll.LastSeq,
             truncated = poll.Truncated,
-            lines = poll.Lines.Select(ToLineDto).ToList(),
+            nextSeq = poll.Lines.LastOrDefault()?.Seq ?? poll.LastSeq,
+            lines = poll.Lines.Where(line => !ConsoleCaptureLevels.TryParseKey(poll.Status.ConsoleLevel, out var level) ||
+                !Enum.TryParse<ConsoleLineKind>(line.Kind, true, out var kind) || ConsoleCaptureLevels.ShouldCapture(level, kind, line.Color))
+                .Select(ToLineDto).ToList(),
         });
     }
 

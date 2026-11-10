@@ -9,6 +9,7 @@ namespace Server.Qcat.LocalAdmin;
 /// </summary>
 public interface ILocalAdminProvider
 {
+    Task<LogArchiveResult?> ReadArchiveAsync(string id, string? file, long offset, CancellationToken ct = default) => Task.FromResult<LogArchiveResult?>(null);
     /// <summary>运行模式：Daemon 或 Embedded。</summary>
     string Mode { get; }
 

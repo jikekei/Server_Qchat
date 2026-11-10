@@ -21,6 +21,7 @@ export const AppSidebar = {
           <el-menu-item v-if="can('bot.manage')" index="bot">QQ 机器人</el-menu-item>
           <el-menu-item v-if="can('database.manage')" index="database">数据库管理</el-menu-item>
           <el-menu-item v-if="can('logging.manage')" index="logging">日志级别</el-menu-item>
+          <el-menu-item v-if="can('accounts.manage')" index="operations">API 接口</el-menu-item>
           <el-menu-item v-if="can('game-admin.manage')" index="game-admin">游戏管理员</el-menu-item>
           <el-menu-item v-if="can('accounts.manage')" index="accounts">账号管理</el-menu-item>
           <el-menu-item v-if="can('audit.view')" index="audit">审计日志</el-menu-item>
@@ -83,6 +84,7 @@ export const AppSidebar = {
               <el-menu-item v-if="can('database.manage')" index="database">
                 <span class="menu-text">数据库管理</span>
               </el-menu-item>
+              <el-menu-item v-if="can('accounts.manage')" index="operations">API 接口</el-menu-item>
               <el-menu-item v-if="can('logging.manage')" index="logging">
                 <span class="menu-text">日志级别</span>
               </el-menu-item>

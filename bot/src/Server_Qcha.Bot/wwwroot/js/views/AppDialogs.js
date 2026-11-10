@@ -390,7 +390,7 @@ export const AppDialogs = {
             <el-form-item label="输出选项">
               <div class="perm-list">
                 <el-checkbox v-model="serverDialog.form.disableAnsiColors">禁用游戏端 ANSI 颜色</el-checkbox>
-                <el-checkbox v-model="serverDialog.form.redirectStandardStreams">把 stdout/stderr 转发到面板</el-checkbox>
+              <span class="muted">stdout/stderr 始终完整采集；实时显示由控制台级别决定</span>
               </div>
             </el-form-item>
           </el-form>
