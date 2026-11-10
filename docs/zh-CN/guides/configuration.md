@@ -67,6 +67,15 @@
 | `LogDirectory` | string | `"localadmin-logs"` | 控制台输出日志本地归档目录 |
 | `WriteLogFiles` | bool | `true` | 是否自动将控制台输出写入本地日志文件 |
 | `LogExpirationDays` | int | `0` | 历史日志自动清理保留天数，`0` 表示不自动清理 |
+| `SteamCmdPath` | string | `""` | 「更新服务器」使用的 SteamCMD 路径（Windows：`steamcmd.exe`；Linux：`steamcmd.sh` / `steamcmd`），也可填所在目录。留空自动在 PATH 与常见位置查找。只能在配置文件里修改 |
+| `SteamAppId` | int | `996560` | SCP:SL 专用服务器的 Steam App Id |
+| `UpdateBetaBranch` | string | `""` | 默认更新分支（Steam beta 名），留空或 `public` 为正式版 |
+| `UpdateValidate` | bool | `true` | 更新时是否附带 `validate` 校验全部文件 |
+| `UpdateTimeoutMinutes` | int | `60` | 单次 SteamCMD 运行超时（分钟），超时结束 SteamCMD 并判定失败 |
+| `UpdateDefaultMode` | string | `"auto"` | 更新弹窗默认的切换时机：`auto`（运行中等回合结束，空闲 / 已停止立即）、`roundEnd`（运行中一律等回合结束）、`now`（下载完立即停服切换） |
+| `UpdatePendingTimeoutMinutes` | int | `60` | 新版本下载好后等待回合结束的最长时间（分钟），超时立即切换；`0` = 一直等待 |
+| `UpdateApplyWhenIdle` | bool | `true` | `auto` 模式下服务器进入空闲态（没有玩家）时立即切换，不再等回合结束 |
+| `UpdateHealthCheckSeconds` | int | `180` | 切换后启动检查的最长时间（秒）：期间进程退出或没有收到心跳则自动回滚到旧版本 |
 | `Servers` | array | `[]` | 托管的游戏服务器实例列表（结构见下表） |
 
 #### `Servers` 数组内每个游戏实例配置项：
@@ -78,6 +87,8 @@
 | `WorkingDirectory` | string | `""` | 实例运行工作目录，留空则自动取程序所在目录 |
 | `GamePort` | int | `7777` | 游戏服务监听端口 |
 | `ExtraArguments` | string | `""` | 传递给 SCPSL 的附加命令行参数 |
+| `InstallDirectory` | string | `""` | 「更新服务器」时 SteamCMD 的 `+force_install_dir`，留空取可执行文件所在目录（必须已存在） |
+| `BetaBranch` | string | `""` | 本实例的更新分支，留空沿用全局 `UpdateBetaBranch` |
 | `AutoStart` | bool | `false` | 守护进程启动时是否自动拉起本实例 |
 | `EnableHeartbeat` | bool | `true` | 是否开启心跳检测与静默崩溃检测自愈 |
 | `HeartbeatSpanMaxThreshold`| int | `30` | 判定心跳超时失联的等待阈值（秒） |

@@ -65,6 +65,12 @@ The dashboard summarizes total players, today's peak, and managed-server count. 
 
 A graphical matrix shows each local instance's PID, CPU, memory, uptime, and heartbeat recovery state. Controls include start, stop, safe restart, and force termination.
 
+**Update server (SteamCMD):** the "更新服务器" button runs
+`steamcmd +force_install_dir <dir> +login anonymous +app_update 996560 [-beta <branch>] validate +quit`
+after a confirmation, against a staging copy of the install (`<install>.qcha-staging`) so a running server keeps serving players during the download. Once downloaded, the "切换时机" (apply timing) decides when to swap: **auto** (default) applies immediately if the server is idle (no players) or stopped, otherwise sends `restartnextround` and shows "等待回合结束后更新" until the current round ends and the game restarts itself, at which point the staging directory is swapped in and the new build is started; **roundEnd** always waits for the round end; **now** stops and swaps right away. While pending you can "立即更新" (apply now; players disconnect) or "取消更新" (undo `restartnextround`, delete staging); after `UpdatePendingTimeoutMinutes` it applies anyway. If the downloaded build equals the live one, nothing restarts.
+
+The previous build is kept in `<install>.qcha-rollback`. If the new build exits or never heartbeats within `UpdateHealthCheckSeconds`, it is rolled back and restarted automatically (the failed build is left in `.qcha-failed`); "回滚到上一版本" swaps back manually at any time. Needs ~2–3× the install size on disk; if the executable is not inside the install directory, the old stop-then-update-in-place flow is used. Changes written into the install directory between staging and the swap are lost (SCP:SL configs and plugins live under `~/.config/SCP Secret Laboratory` and are unaffected). SteamCMD output streams into the dialog and the server console. Only one update per server at a time (SteamCMD runs across servers are queued), and manual start/restart/edit are blocked while updating. Requires `server.control`; audited as `localadmin.update` and `localadmin.update-cancel` / `-apply-now` / `-rollback`. Configure `LocalAdmin:SteamCmdPath` / `UpdateBetaBranch`; per-server install directory and branch are in the server's edit dialog.
+
 ### 4. Multi-server interaction and console
 
 Select a server to send an operation and view its response. The online-player dialog shows nickname, role, latency, and SteamID. Quick operations support kicking/banning a player and broadcasting to a server.

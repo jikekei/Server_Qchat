@@ -191,6 +191,7 @@ function defaultServerForm() {
     laToSlBufferSize: 25000, slToLaBufferSize: 200000,
     disableAnsiColors: true, redirectStandardStreams: true,
     consoleLevel: 'all',
+    installDirectory: '', betaBranch: '',
   };
 }
 
@@ -664,8 +665,226 @@ async function localSendCommand() {
   }
 }
 
+// ---- 更新服务器（SteamCMD app_update 996560） ----
+const updateDialog = reactive({
+  visible: false, loading: false, submitting: false,
+  serverId: '', serverName: '',
+  form: { betaBranch: '', restartAfter: true, validate: true, mode: 'auto' },
+  status: null,
+  acting: '',
+});
+let updateTimer = null;
+const updateLogRef = ref(null);
+
+const UPDATE_STATE_TEXT = {
+  idle: '尚未更新', queued: '排队中（等待 SteamCMD 空闲）',
+  staging: '正在准备暂存目录（服务器照常运行）',
+  updating: '正在通过 SteamCMD 下载 / 校验文件',
+  pending: '等待回合结束后更新',
+  applying: '正在切换到新版本', stopping: '正在停止服务器', starting: '正在启动服务器',
+  verifying: '启动检查中', rollingback: '正在回滚',
+  succeeded: '更新成功', failed: '更新失败', canceled: '已取消', rolledback: '新版本启动失败，已回滚',
+};
+
+const UPDATE_MODE_OPTIONS = [
+  { value: 'auto', label: '自动（推荐）', desc: '运行中：先在暂存目录下载，等当前回合结束再切换；服务器空闲（没有玩家）或已停止时立即切换' },
+  { value: 'roundEnd', label: '回合结束后', desc: '运行中一律等当前回合结束（restartnextround）再切换，即使服务器空闲' },
+  { value: 'now', label: '立即', desc: '下载完成后马上停止服务器并切换，在线玩家会掉线' },
+];
+
+const UPDATE_TRIGGER_TEXT = {
+  roundRestart: '回合结束', idle: '服务器空闲', timeout: '等待超时', forceNow: '手动立即更新',
+  exit: '游戏进程退出', userStopped: '服务器被手动停止', stopped: '服务器未运行', cancel: '已取消',
+};
+
+function updateTriggerText(reason) {
+  return UPDATE_TRIGGER_TEXT[reason] || reason || '-';
+}
+
+function updateStateText(state) {
+  return UPDATE_STATE_TEXT[state] || state || '-';
+}
+
+function updateStateType(state) {
+  if (state === 'succeeded') return 'success';
+  if (state === 'failed' || state === 'rolledback') return 'danger';
+  if (state === 'idle' || state === 'canceled' || !state) return 'info';
+  if (state === 'pending') return 'primary';
+  return 'warning';
+}
+
+function updateLineColor(level) {
+  if (level === 'error') return '#e74c3c';
+  if (level === 'warn') return '#f1c40f';
+  if (level === 'steam') return '#bdc3c7';
+  return '#22d3ee';
+}
+
+const updateActive = computed(() => !!(updateDialog.status && updateDialog.status.active));
+const localUpdating = computed(() => !!(local.status && local.status.updating));
+
+function stopUpdatePolling() {
+  if (updateTimer) { clearInterval(updateTimer); updateTimer = null; }
+}
+
+async function fetchUpdateStatus() {
+  if (!updateDialog.serverId) return;
+  try {
+    const st = await api('/local/servers/' + encodeURIComponent(updateDialog.serverId) + '/update');
+    const prevCount = updateDialog.status && updateDialog.status.lines ? updateDialog.status.lines.length : 0;
+    const wasActive = updateActive.value;
+    updateDialog.status = st;
+    if ((st.lines || []).length !== prevCount) {
+      await nextTick();
+      const el = updateLogRef.value;
+      if (el) el.scrollTop = el.scrollHeight;
+    }
+    if (wasActive && !st.active) {
+      stopUpdatePolling();
+      if (st.state === 'succeeded') ElMessage.success(st.message || '更新成功');
+      else if (st.state === 'failed' || st.state === 'rolledback') ElMessage.error(st.error || '更新失败');
+      else if (st.state === 'canceled') ElMessage.info(st.message || '更新已取消');
+      await pollLocal();
+    }
+  } catch (e) {
+    // 轮询失败静默处理
+  }
+}
+
+function startUpdatePolling() {
+  stopUpdatePolling();
+  updateTimer = setInterval(() => {
+    if (!updateDialog.visible && !updateActive.value) { stopUpdatePolling(); return; }
+    fetchUpdateStatus();
+  }, 1500);
+}
+
+async function openUpdateDialog() {
+  if (!local.selectedId) { ElMessage.warning('请先选择一个服务器'); return; }
+  updateDialog.serverId = local.selectedId;
+  updateDialog.serverName = (local.status && local.status.name) ? local.status.name : local.selectedId;
+  updateDialog.status = null;
+  updateDialog.visible = true;
+  updateDialog.loading = true;
+  try {
+    const st = await api('/local/servers/' + encodeURIComponent(updateDialog.serverId) + '/update');
+    updateDialog.status = st;
+    if (!st.active) {
+      updateDialog.form.betaBranch = st.defaultBetaBranch && st.defaultBetaBranch !== 'public' ? st.defaultBetaBranch : '';
+      updateDialog.form.restartAfter = localRunning.value;
+      updateDialog.form.validate = st.validate !== false;
+      updateDialog.form.mode = st.defaultMode || 'auto';
+    }
+    if (st.active) startUpdatePolling();
+  } catch (e) {
+    ElMessage.error(e.message);
+  } finally {
+    updateDialog.loading = false;
+  }
+}
+
+function closeUpdateDialog() {
+  updateDialog.visible = false;
+  // 正在更新时保留后台轮询，以便完成后弹出结果提示
+  if (!updateActive.value) stopUpdatePolling();
+}
+
+function modeConfirmText(mode) {
+  if (mode === 'now') {
+    return '<b>⚠️ 服务器正在运行：</b>下载完成后会<b>立即</b>停止服务器并切换版本，<b>所有在线玩家将掉线</b>，随后自动启动新版本。';
+  }
+  if (mode === 'roundEnd') {
+    return '<b>服务器正在运行：</b>下载期间服务器照常运行；下载完成后会等待<b>当前回合结束</b>（restartnextround）再切换并重启，'
+      + `最长等待 ${updateDialog.status ? updateDialog.status.pendingTimeoutMinutes : 60} 分钟，超时后立即切换。等待期间可以「立即更新」或「取消更新」。`;
+  }
+  return '<b>服务器正在运行：</b>下载期间服务器照常运行；下载完成后若服务器空闲（没有玩家）则立即切换，'
+    + `否则等待<b>当前回合结束</b>再切换并重启（最长 ${updateDialog.status ? updateDialog.status.pendingTimeoutMinutes : 60} 分钟）。`;
+}
+
+async function updateAction(action) {
+  const id = updateDialog.serverId;
+  if (!id) return;
+  const confirmText = {
+    cancel: ['确定取消本次更新吗？已下载的暂存文件会被删除，服务器继续以当前版本运行。', '取消更新'],
+    'apply-now': ['确定不再等待回合结束、立即切换到新版本吗？服务器会马上重启，<b>所有在线玩家将掉线</b>。', '立即更新'],
+    rollback: ['确定回滚到上一版本吗？当前版本与回滚目录互换；服务器正在运行时会重启，<b>在线玩家将掉线</b>。', '回滚到上一版本'],
+  }[action];
+  if (!confirmText) return;
+  try {
+    await ElMessageBox.confirm(confirmText[0], confirmText[1], {
+      dangerouslyUseHTMLString: true, type: 'warning',
+      confirmButtonText: confirmText[1], cancelButtonText: '返回',
+    });
+  } catch (e) { return; }
+
+  updateDialog.acting = action;
+  try {
+    const r = await api('/local/servers/' + encodeURIComponent(id) + '/update/' + action, { method: 'POST' });
+    if (r.status) updateDialog.status = r.status;
+    ElMessage.success(r.response || '已提交');
+    startUpdatePolling();
+    await fetchUpdateStatus();
+    await pollLocal();
+  } catch (e) {
+    ElMessage.error(e.message);
+    await fetchUpdateStatus();
+  } finally {
+    updateDialog.acting = '';
+  }
+}
+
+async function submitUpdate() {
+  const name = updateDialog.serverName;
+  const branch = (updateDialog.form.betaBranch || '').trim();
+  const running = localRunning.value && local.selectedId === updateDialog.serverId;
+  try {
+    await ElMessageBox.confirm(
+      `<div style="line-height:1.7;">
+        <p>确定要通过 SteamCMD 更新【<b>${escapeHtml(name)}</b>】吗？</p>
+        <p>分支：<b>${escapeHtml(branch || 'public（正式版）')}</b>${updateDialog.form.validate ? '，校验全部文件' : ''}</p>
+        ${running ? `<div style="color:#f56c6c;margin-top:8px;background:rgba(245,108,108,0.1);padding:10px;border-radius:6px;border-left:4px solid #f56c6c;">
+          ${modeConfirmText(updateDialog.form.mode)}
+        </div>` : ''}
+        <p style="color:#909399;font-size:12px;margin-top:6px;">新版本先下载到暂存目录，旧版本保留为回滚目录；新版本启动失败会自动回滚。
+        更新期间无法手动启动、重启或修改该服务器配置；日志会实时显示在下方与控制台中。</p>
+      </div>`,
+      '更新服务器确认',
+      {
+        dangerouslyUseHTMLString: true,
+        type: 'warning',
+        confirmButtonText: running && updateDialog.form.mode === 'now' ? '确认停止并更新' : '开始更新',
+        cancelButtonText: '取消',
+      }
+    );
+  } catch (e) { return; }
+
+  updateDialog.submitting = true;
+  try {
+    const r = await api('/local/servers/' + encodeURIComponent(updateDialog.serverId) + '/update', {
+      method: 'POST',
+      body: JSON.stringify({
+        betaBranch: branch,
+        restartAfter: !!updateDialog.form.restartAfter,
+        validate: !!updateDialog.form.validate,
+        mode: updateDialog.form.mode || 'auto',
+      }),
+    });
+    if (r.status) updateDialog.status = r.status;
+    ElMessage.success(r.response || '已开始更新');
+    startUpdatePolling();
+    await fetchUpdateStatus();
+    await pollLocal();
+  } catch (e) {
+    ElMessage.error(e.message);
+    await fetchUpdateStatus();
+  } finally {
+    updateDialog.submitting = false;
+  }
+}
+
 function localStatusText(s) {
   if (!s) return '未知';
+  if (s.updating) return '更新中';
   if (s.running) return '运行中';
   if (s.restartBudgetExhausted) return '已停止（重启限流）';
   return '已停止';
@@ -673,6 +892,7 @@ function localStatusText(s) {
 
 function localStatusType(s) {
   if (!s) return 'info';
+  if (s.updating) return 'warning';
   if (s.running) return 'success';
   if (s.restartBudgetExhausted) return 'danger';
   return 'info';
@@ -765,6 +985,20 @@ export function useLocalAdmin() {
     formatUptime,
     timeOnly,
     lineLabel,
+    updateDialog,
+    updateLogRef,
+    updateActive,
+    localUpdating,
+    openUpdateDialog,
+    closeUpdateDialog,
+    submitUpdate,
+    updateAction,
+    updateTriggerText,
+    UPDATE_MODE_OPTIONS,
+    fetchUpdateStatus,
+    updateStateText,
+    updateStateType,
+    updateLineColor,
     daemon,
     fetchDaemonStatus,
     startDaemon,

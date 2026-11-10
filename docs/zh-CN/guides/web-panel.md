@@ -130,7 +130,22 @@ graph LR
 ### 3. 服务器进程管理 (Local Admin)
 - 本地托管 SCPSL 进程的图形化控制矩阵；
 - 实时展示各实例的 PID、CPU 占用、内存消耗、运行时长与心跳自愈状态；
-- 支持一键执行启动、停止、安全重启与强制终止。
+- 支持一键执行启动、停止、安全重启与强制终止；
+- **更新服务器（SteamCMD）**：点击「更新服务器」，确认后自动执行
+  `steamcmd +force_install_dir <目录> +login anonymous +app_update 996560 [-beta <分支>] validate +quit`。
+  - **不停服下载 + 回合结束切换**：先把现有安装复制到暂存目录 `<安装目录>.qcha-staging`，SteamCMD 只更新暂存目录，
+    服务器全程照常运行。下载完成后按「切换时机」处理：
+    `自动（推荐）`——服务器空闲（没有玩家）或未运行时立即切换，否则对游戏下发 `restartnextround`，状态显示「等待回合结束后更新」，
+    当前回合结束、游戏按计划重启时把暂存目录换成正式目录并以新版本启动；`回合结束后`——运行中一律等回合结束；`立即`——下载完马上停服切换。
+    等待期间可以点「立即更新」（不再等待，玩家会掉线）或「取消更新」（撤销 restartnextround、删除暂存目录）；
+    超过 `UpdatePendingTimeoutMinutes` 仍未结束回合则直接切换。下载到的 build 与当前一致时不会重启。
+  - **回滚**：切换时旧版本保留在 `<安装目录>.qcha-rollback`。新版本启动后在 `UpdateHealthCheckSeconds` 内进程退出或收不到心跳，
+    会自动换回旧版本并启动（失败的新版本留在 `.qcha-failed` 供排查）；也可以随时在弹窗点「回滚到上一版本」手动互换。
+  - 磁盘需要约 2～3 倍安装体积（正式 + 暂存 + 回滚）；可执行文件不在安装目录内时退回旧的「停服后原地更新」方式。
+    从复制暂存到切换之间写入安装目录的改动会随切换丢失（SCPSL 的配置与插件在 `~/.config/SCP Secret Laboratory`，不受影响）。
+  更新输出实时显示在弹窗与控制台中；同一台服务器不允许并发更新，多台服务器的 SteamCMD 下载排队执行，更新期间禁止手动启动 / 重启 / 修改配置。
+  需要 `server.control` 权限并写入审计日志（`localadmin.update`、`localadmin.update-cancel` / `-apply-now` / `-rollback`）。SteamCMD 路径与默认分支见配置文档
+  `LocalAdmin:SteamCmdPath` / `UpdateBetaBranch`，单台服务器可在「编辑」里设置安装目录与分支。
 
 ### 4. 多服交互与实时控制台 (Servers)
 - 支持选中任意服务器下发管理指令，并在界面中实时查看返回回显；
