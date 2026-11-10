@@ -32,6 +32,8 @@ public static class LocalAdminMappingExtensions
         if (r.DisableAnsiColors is not null) d.DisableAnsiColors = r.DisableAnsiColors.Value;
         if (r.RedirectStandardStreams is not null) d.RedirectStandardStreams = r.RedirectStandardStreams.Value;
         if (r.ConsoleLevel is not null) d.ConsoleLevel = ConsoleCaptureLevels.NormalizeKey(r.ConsoleLevel);
+        if (r.InstallDirectory is not null) d.InstallDirectory = r.InstallDirectory.Trim();
+        if (r.BetaBranch is not null) d.BetaBranch = r.BetaBranch.Trim();
 
         return d;
     }

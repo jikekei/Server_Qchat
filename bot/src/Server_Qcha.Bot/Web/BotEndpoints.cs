@@ -13,6 +13,7 @@ public sealed record UpdateBotSettingsRequest(
     int? ReconnectDelaySeconds,
     int? MaxReconnectDelaySeconds,
     long[]? AllowedGroupIds,
+    long[]? AdminUserIds,
     long[]? NotifyGroupIds,
     long[]? NotifyPrivateUserIds,
     long? AcTargetGroupId,
@@ -115,6 +116,7 @@ public static class BotEndpoints
                 reconnectDelaySeconds = settings.GoCqHttp.ReconnectDelaySeconds,
                 maxReconnectDelaySeconds = settings.GoCqHttp.MaxReconnectDelaySeconds,
                 allowedGroupIds = settings.Bot.AllowedGroupIds,
+                adminUserIds = settings.Bot.AdminUserIds,
                 notifyGroupIds = settings.Bot.NotifyGroupIds,
                 notifyPrivateUserIds = settings.Bot.NotifyPrivateUserIds,
                 acTargetGroupId = settings.Bot.AcTargetGroupId,
@@ -207,10 +209,7 @@ public static class BotEndpoints
                 ? current.OfficialQq.ApiBase
                 : request.OfficialApiBase.Trim().TrimEnd('/'),
             AppId = request.OfficialAppId is null ? current.OfficialQq.AppId : request.OfficialAppId.Trim(),
-            // 前端不回显密钥，留空即视为保持原值
-            ClientSecret = string.IsNullOrWhiteSpace(request.OfficialClientSecret)
-                ? current.OfficialQq.ClientSecret
-                : request.OfficialClientSecret.Trim(),
+            ClientSecret = "",
             Sandbox = request.OfficialSandbox ?? current.OfficialQq.Sandbox,
             Intents = request.OfficialIntents is > 0 ? request.OfficialIntents.Value : current.OfficialQq.Intents,
             MaxTextLength = request.OfficialMaxTextLength is >= 100 and <= 4000
@@ -237,6 +236,19 @@ public static class BotEndpoints
             return Results.Json(new { error = "开放平台 API 地址不合法，必须以 http:// 或 https:// 开头" }, statusCode: StatusCodes.Status400BadRequest);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.OfficialClientSecret))
+        {
+            official.ClientSecret = request.OfficialClientSecret.Trim();
+        }
+        else if (OfficialSecretPolicy.CanReuse(current.OfficialQq, official.ApiBase, official.AppId, official.Sandbox))
+        {
+            official.ClientSecret = current.OfficialQq.ClientSecret;
+        }
+        else if (!string.IsNullOrEmpty(current.OfficialQq.ClientSecret))
+        {
+            return Results.Json(new { error = "API 地址、AppID 或沙箱开关已变更，不能沿用已保存的 AppSecret，请重新填写。" }, statusCode: StatusCodes.Status400BadRequest);
+        }
+
         if (mode == BotPlatform.OfficialQq && !official.IsConfigured)
         {
             return Results.Json(new { error = "切换为官方模式前，请先填写 AppID 与 AppSecret" }, statusCode: StatusCodes.Status400BadRequest);
@@ -252,6 +264,7 @@ public static class BotEndpoints
             {
                 Mode = mode,
                 AllowedGroupIds = NormalizeLongs(request.AllowedGroupIds) ?? current.Bot.AllowedGroupIds,
+                AdminUserIds = NormalizeLongs(request.AdminUserIds) ?? current.Bot.AdminUserIds,
                 NotifyGroupIds = NormalizeLongs(request.NotifyGroupIds) ?? current.Bot.NotifyGroupIds,
                 NotifyPrivateUserIds = NormalizeLongs(request.NotifyPrivateUserIds) ?? current.Bot.NotifyPrivateUserIds,
                 AcTargetGroupId = request.AcTargetGroupId is > 0
@@ -423,8 +436,24 @@ public static class BotEndpoints
 
         string apiBase = string.IsNullOrWhiteSpace(request.ApiBase) ? saved.ApiBase : request.ApiBase.Trim();
         string appId = string.IsNullOrWhiteSpace(request.AppId) ? saved.AppId : request.AppId.Trim();
-        string clientSecret = string.IsNullOrWhiteSpace(request.ClientSecret) ? saved.ClientSecret : request.ClientSecret.Trim();
         bool sandbox = request.Sandbox ?? saved.Sandbox;
+        string clientSecret;
+        if (!string.IsNullOrWhiteSpace(request.ClientSecret))
+        {
+            clientSecret = request.ClientSecret.Trim();
+        }
+        else if (OfficialSecretPolicy.CanReuse(saved, apiBase, appId, sandbox))
+        {
+            clientSecret = saved.ClientSecret;
+        }
+        else if (!string.IsNullOrEmpty(saved.ClientSecret))
+        {
+            return Results.Json(new { success = false, error = "API 地址、AppID 或沙箱环境与已保存配置不一致，请重新填写 AppSecret。" }, statusCode: StatusCodes.Status400BadRequest);
+        }
+        else
+        {
+            clientSecret = "";
+        }
 
         if (appId.Length == 0)
             return Results.Json(new { success = false, error = "未填写 AppID" }, statusCode: StatusCodes.Status400BadRequest);

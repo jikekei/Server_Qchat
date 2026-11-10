@@ -23,8 +23,8 @@ public sealed class LocalAdminOptions
     /// <summary>独立守护节点的 HTTP 监听地址（仅在 Mode = "Daemon" 时生效）。默认 http://127.0.0.1:10090</summary>
     public string DaemonUri { get; set; } = "http://127.0.0.1:10090";
 
-    /// <summary>与守护节点通信的共享凭证 Token（防止未授权调用）。</summary>
-    public string DaemonToken { get; set; } = "QchaSecret_123";
+    /// <summary>与守护节点通信的共享凭证。为空或仍是旧默认值时启动会输出安全警告，但不阻止运行；为空时守护进程不校验 Token。</summary>
+    public string DaemonToken { get; set; } = "";
 
     /// <summary>当守护节点未运行时，是否由 Bot 尝试自动后台拉起 Server_Qcha.Daemon.exe。</summary>
     public bool AutoStartDaemon { get; set; } = true;
@@ -49,6 +49,42 @@ public sealed class LocalAdminOptions
     /// 设为正数后，启动时与每天一次清理超过该天数的日志文件。
     /// </summary>
     public int LogExpirationDays { get; set; }
+
+    // ---------- SteamCMD 更新服务端 ----------
+
+    /// <summary>
+    /// SteamCMD 可执行文件路径（Windows 为 steamcmd.exe，Linux 为 steamcmd.sh 或 steamcmd），
+    /// 也可以填 SteamCMD 所在目录。留空时自动在 PATH 与常见安装位置查找。
+    /// 出于安全考虑只能在配置文件里修改，面板无法改写。
+    /// </summary>
+    public string SteamCmdPath { get; set; } = "";
+
+    /// <summary>SCP:SL 专用服务器的 Steam App Id（默认 996560）。</summary>
+    public int SteamAppId { get; set; } = 996560;
+
+    /// <summary>默认更新分支（Steam beta 名）。留空或 "public" 表示正式版；单台服务器可在定义里覆盖。</summary>
+    public string UpdateBetaBranch { get; set; } = "";
+
+    /// <summary>更新时是否附带 <c>validate</c>（校验全部文件，更慢但更可靠）。</summary>
+    public bool UpdateValidate { get; set; } = true;
+
+    /// <summary>单次 SteamCMD 运行的超时时间（分钟），超时将结束 SteamCMD 并判定失败。</summary>
+    public int UpdateTimeoutMinutes { get; set; } = 60;
+
+    /// <summary>
+    /// 默认更新方式：<c>auto</c>（推荐：运行中的服务器先下载到暂存目录，等当前回合结束、服务器按
+    /// <c>restartnextround</c> 重启时再切换到新版本；空闲或已停止则直接应用）/ <c>roundEnd</c> / <c>now</c>（立即停服更新）。
+    /// </summary>
+    public string UpdateDefaultMode { get; set; } = "auto";
+
+    /// <summary>等待回合结束的最长时间（分钟），超时后立即停服切换。0 表示一直等待。</summary>
+    public int UpdatePendingTimeoutMinutes { get; set; } = 60;
+
+    /// <summary>等待回合结束期间，若服务器进入空闲态（没有玩家）是否立即切换（auto 模式）。</summary>
+    public bool UpdateApplyWhenIdle { get; set; } = true;
+
+    /// <summary>切换到新版本后的启动检查时间（秒）：期间未收到心跳 / 进程退出则自动回滚到旧版本。</summary>
+    public int UpdateHealthCheckSeconds { get; set; } = 180;
 
     /// <summary>由本进程托管的服务器列表。</summary>
     public List<LocalServerDefinition> Servers { get; set; } = new();
@@ -77,6 +113,14 @@ public sealed class LocalServerDefinition
 
     /// <summary>进程管理器启动时是否自动拉起该服务器。</summary>
     public bool AutoStart { get; set; }
+
+    // ---------- SteamCMD 更新 ----------
+
+    /// <summary>SteamCMD 的安装目录（<c>+force_install_dir</c>）。留空则取可执行文件所在目录。</summary>
+    public string InstallDirectory { get; set; } = "";
+
+    /// <summary>该服务器的更新分支（Steam beta 名），留空则沿用全局 <c>LocalAdmin:UpdateBetaBranch</c>。</summary>
+    public string BetaBranch { get; set; } = "";
 
     // ---------- 心跳 / 静默崩溃检测 ----------
 
@@ -137,12 +181,7 @@ public sealed class LocalServerDefinition
             Name = string.IsNullOrWhiteSpace(Id) ? $"本地服-{index + 1}" : Id;
 
         if (string.IsNullOrWhiteSpace(Id))
-        {
-            var chars = Name.Trim().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray();
-            Id = new string(chars).Trim('-');
-            if (Id.Length == 0)
-                Id = $"local-{index + 1}";
-        }
+            Id = DeriveId(Name, index);
 
         Id = Id.Trim();
 
@@ -166,4 +205,18 @@ public sealed class LocalServerDefinition
         LaToSlBufferSize = Math.Clamp(LaToSlBufferSize, 101, 16 * 1024 * 1024);
         SlToLaBufferSize = Math.Clamp(SlToLaBufferSize, 351, 16 * 1024 * 1024);
     }
+
+    private static string DeriveId(string name, int index)
+    {
+        var chars = name.Trim().Select(c => IsAsciiIdChar(c) ? c : '-').ToArray();
+        string id = new string(chars).Trim('-');
+        if (id.Length > 64)
+            id = id.Substring(0, 64).Trim('-');
+        if (id.Length == 0)
+            id = $"local-{index + 1}";
+        return id;
+    }
+
+    private static bool IsAsciiIdChar(char c) =>
+        (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
 }

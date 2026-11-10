@@ -119,7 +119,7 @@ export const BotView = {
                   <el-button :loading="bot.testingAuth" @click="testOfficialAuth">测试凭证</el-button>
                   <span class="muted" style="margin-left:8px">
                     只申请一次 AccessToken 验证 AppID / AppSecret，不切换模式、不保存配置。
-                    AppSecret 留空则用已保存的那个。
+                    仅当 API 地址、AppID 和沙箱开关都没变时，AppSecret 留空才会沿用已保存的值。
                   </span>
                 </el-form-item>
                 <el-form-item label="订阅事件 Intents">
@@ -142,9 +142,9 @@ export const BotView = {
                 <h4 style="margin:0 0 14px;color:var(--qb-accent)">三、官方平台权限与目标</h4>
                 <el-form-item label="管理员 OpenID">
                   <el-select v-model="botForm.officialAdminOpenIds" multiple filterable allow-create default-first-option
-                             placeholder="输入 openid 后回车；群主/管理员自动识别" style="width:100%"></el-select>
+                             placeholder="输入 openid 后回车。配置后群主或管理员身份不会自动放行" style="width:100%"></el-select>
                   <div class="muted">
-                    群聊中优先使用官方下发的 member_role 判定；该列表作为兜底。单聊场景必须在此登记才可执行管理指令。
+                    配置后管理指令只认这份名单，不看群角色。留空时沿用原有判定：群聊中群主和管理员可用，单聊不放行。建议尽快配置。
                   </div>
                 </el-form-item>
                 <el-form-item label="群消息白名单">
@@ -226,7 +226,15 @@ export const BotView = {
                              placeholder="从已加入群组选择或直接输入群号" style="width:100%">
                     <el-option v-for="g in bot.groups" :key="g.groupId" :label="g.groupName + ' (' + g.groupId + ')'" :value="g.groupId"></el-option>
                   </el-select>
-                  <div class="muted">仅响应白名单内群聊的指令。留空则监听机器人所在的所有群聊。</div>
+                  <div class="muted">仅响应白名单内群聊的指令。留空则监听机器人所在的所有群聊。管理指令另外受下面的 QQ 白名单限制。</div>
+                </el-form-item>
+
+                <el-form-item label="管理指令 QQ 白名单">
+                  <el-select v-model="botForm.adminUserIds" multiple filterable allow-create default-first-option
+                             placeholder="从好友选择或直接输入 QQ 号" style="width:100%">
+                    <el-option v-for="f in bot.friends" :key="'admin-' + f.userId" :label="(f.remark || f.nickname) + ' (' + f.userId + ')'" :value="f.userId"></el-option>
+                  </el-select>
+                  <div class="muted">配置后只有名单内的 QQ 能使用封禁、广播、回合等管理指令，不看群主或管理员身份，运营通知名单也不会授予管理权限。留空时沿用原有判定：群主和群管理员可用，私聊通知名单内的 QQ 可用。建议尽快配置。</div>
                 </el-form-item>
 
                 <el-form-item label=".ac 游戏推送群">
@@ -250,7 +258,7 @@ export const BotView = {
                              placeholder="从好友选择或直接输入 QQ 号" style="width:100%">
                     <el-option v-for="f in bot.friends" :key="f.userId" :label="(f.remark || f.nickname) + ' (' + f.userId + ')'" :value="f.userId"></el-option>
                   </el-select>
-                  <div class="muted">私聊指令仅对名单内的 QQ 生效，避免陌生人触发管理操作。</div>
+                  <div class="muted">名单内的 QQ 可以私聊机器人。配置了上面的管理白名单后，管理指令只认管理白名单；管理白名单为空时，这里的 QQ 在私聊中仍可使用管理指令（原有逻辑）。</div>
                 </el-form-item>
               </template>
               <template v-else>

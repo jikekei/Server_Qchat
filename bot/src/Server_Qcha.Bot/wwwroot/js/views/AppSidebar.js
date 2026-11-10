@@ -15,12 +15,13 @@ export const AppSidebar = {
       <!-- 桌面端固定侧边栏 -->
       <el-aside class="aside" width="170px">
         <el-menu :default-active="page" @select="onMenuSelect">
-          <el-menu-item index="overview">服务器总览</el-menu-item>
-          <el-menu-item index="servers">服务器</el-menu-item>
+          <el-menu-item v-if="can('servers.view')" index="overview">服务器总览</el-menu-item>
+          <el-menu-item v-if="can('servers.view')" index="servers">服务器</el-menu-item>
           <el-menu-item v-if="can('server.control')" index="local">服务器进程</el-menu-item>
           <el-menu-item v-if="can('bot.manage')" index="bot">QQ 机器人</el-menu-item>
           <el-menu-item v-if="can('database.manage')" index="database">数据库管理</el-menu-item>
           <el-menu-item v-if="can('logging.manage')" index="logging">日志级别</el-menu-item>
+          <el-menu-item v-if="can('game-admin.manage')" index="game-admin">游戏管理员</el-menu-item>
           <el-menu-item v-if="can('accounts.manage')" index="accounts">账号管理</el-menu-item>
           <el-menu-item v-if="can('audit.view')" index="audit">审计日志</el-menu-item>
         </el-menu>
@@ -67,10 +68,10 @@ export const AppSidebar = {
 
           <div class="mobile-drawer-menu">
             <el-menu :default-active="page" @select="onMenuSelect">
-              <el-menu-item index="overview">
+              <el-menu-item v-if="can('servers.view')" index="overview">
                 <span class="menu-text">服务器总览</span>
               </el-menu-item>
-              <el-menu-item index="servers">
+              <el-menu-item v-if="can('servers.view')" index="servers">
                 <span class="menu-text">服务器</span>
               </el-menu-item>
               <el-menu-item v-if="can('server.control')" index="local">
@@ -85,7 +86,8 @@ export const AppSidebar = {
               <el-menu-item v-if="can('logging.manage')" index="logging">
                 <span class="menu-text">日志级别</span>
               </el-menu-item>
-              <el-menu-item v-if="can('accounts.manage')" index="accounts">
+              <el-menu-item v-if="can('game-admin.manage')" index="game-admin">游戏管理员</el-menu-item>
+          <el-menu-item v-if="can('accounts.manage')" index="accounts">
                 <span class="menu-text">账号管理</span>
               </el-menu-item>
               <el-menu-item v-if="can('audit.view')" index="audit">

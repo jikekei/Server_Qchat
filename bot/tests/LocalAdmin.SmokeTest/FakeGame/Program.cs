@@ -6,7 +6,13 @@
 //   shutdown  → 发 0x14 Shutdown 后正常退出
 //   reboot    → 发 0x16 Restart 后正常退出
 //   crash     → 发 0x13 ExitActionReset 后以退出码 17 异常退出
+//   restartnextround / rnr → 开关「本回合结束后重启」，回显与真实 SCPSL 一致的 “Server WILL/WON'T restart after next round.”
+//   roundrestart → 发 0x10 RoundRestart；若已设置 restartnextround，则发 0x16 Restart 后退出（模拟回合结束重启）
+//   idle      → 发 0x11 IdleEnter；active → 发 0x12 IdleExit
 //   其它      → 以颜色 11 回显 "[ECHO] <命令>"
+//
+// 启动时若工作目录存在 broken.txt 则以退出码 9 立即退出（模拟坏掉的新版本）；
+// 存在 version.txt 时打印其内容，便于测试确认切换到了哪个版本的文件。
 using System.Buffers.Binary;
 using System.Net.Sockets;
 using System.Text;
@@ -29,7 +35,15 @@ foreach (string arg in args)
 
 Console.WriteLine($"[FakeGame] pid={Environment.ProcessId} consolePort={consolePort} gamePort={gamePort} heartbeat={heartbeat} disableAnsi={disableAnsi}");
 Console.WriteLine($"[FakeGame] raw args: {string.Join(' ', args)}");
+if (File.Exists("version.txt"))
+    Console.WriteLine($"[FakeGame] version={File.ReadAllText("version.txt").Trim()}");
 Console.Out.Flush();
+
+if (File.Exists("broken.txt"))
+{
+    Console.Error.WriteLine("[FakeGame] broken.txt 存在，模拟新版本启动失败");
+    return 9;
+}
 
 if (consolePort <= 0)
 {
@@ -95,6 +109,8 @@ if (heartbeat)
     });
 }
 
+bool restartNextRound = false;
+
 // ---- 下行帧：4 字节小端长度 + UTF-8 正文（无类型码）----
 try
 {
@@ -139,6 +155,38 @@ try
         {
             await SendControlAsync(0x16);
             break;
+        }
+
+        if (command.Equals("restartnextround", StringComparison.OrdinalIgnoreCase) || command.Equals("rnr", StringComparison.OrdinalIgnoreCase))
+        {
+            restartNextRound = !restartNextRound;
+            await SendTextAsync(2, restartNextRound ? "Server WILL restart after next round." : "Server WON'T restart after next round.");
+            await SendControlAsync(restartNextRound ? (byte)0x16 : (byte)0x13);
+            continue;
+        }
+
+        if (command.Equals("roundrestart", StringComparison.OrdinalIgnoreCase))
+        {
+            await SendControlAsync(0x10);
+            if (restartNextRound)
+            {
+                await SendTextAsync(7, "Restarting the server (RestartNextRound command was used)...");
+                await SendControlAsync(0x16);
+                break;
+            }
+            continue;
+        }
+
+        if (command.Equals("idle", StringComparison.OrdinalIgnoreCase))
+        {
+            await SendControlAsync(0x11);
+            continue;
+        }
+
+        if (command.Equals("active", StringComparison.OrdinalIgnoreCase))
+        {
+            await SendControlAsync(0x12);
+            continue;
         }
 
         await SendTextAsync(11, $"[ECHO] {command}");

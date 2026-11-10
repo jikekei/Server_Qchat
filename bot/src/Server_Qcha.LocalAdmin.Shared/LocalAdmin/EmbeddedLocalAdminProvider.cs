@@ -12,11 +12,13 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
 {
     private readonly LocalAdminManager _manager;
     private readonly LocalAdminOptions _options;
+    private readonly ServerUpdateService _updater;
 
-    public EmbeddedLocalAdminProvider(LocalAdminManager manager, IOptions<LocalAdminOptions> options)
+    public EmbeddedLocalAdminProvider(LocalAdminManager manager, IOptions<LocalAdminOptions> options, ServerUpdateService updater)
     {
         _manager = manager;
         _options = options.Value;
+        _updater = updater;
     }
 
     public string Mode => "Embedded";
@@ -152,6 +154,28 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
         return Task.FromResult(new LocalConsoleLevelResult(result.Success, result.Message, result.Error, persistWarning));
     }
 
+    public Task<LocalUpdateStartResult> StartUpdateAsync(string id, LocalUpdateRequest request, string? requestedBy, CancellationToken ct = default)
+    {
+        return Task.FromResult(_updater.StartUpdate(id, request, requestedBy));
+    }
+
+    public Task<LocalUpdateStartResult> ControlUpdateAsync(string id, string action, string? requestedBy, CancellationToken ct = default)
+    {
+        var result = action switch
+        {
+            "cancel" => _updater.CancelUpdate(id, requestedBy),
+            "apply-now" => _updater.ApplyNow(id, requestedBy),
+            "rollback" => _updater.Rollback(id, requestedBy),
+            _ => new LocalUpdateStartResult(false, null, $"不支持的更新操作：{action}", null),
+        };
+        return Task.FromResult(result);
+    }
+
+    public Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default)
+    {
+        return Task.FromResult(_updater.GetStatus(id));
+    }
+
     public Task<LocalAdminResult> CancelRestartAsync(string id, CancellationToken ct = default)
     {
         var instance = _manager.Find(id);
@@ -196,7 +220,7 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
         return Task.FromResult(new DaemonStatusResult(
             Online: true,
             Status: "running (embedded)",
-            Version: "2.0.0",
+            Version: "2.2.0",
             Pid: Environment.ProcessId,
             StartTime: proc.StartTime,
             UptimeSeconds: uptime,

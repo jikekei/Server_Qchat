@@ -187,10 +187,21 @@ public sealed class OfficialQqBotClient : BotClientHost, IBotClient
         return Task.CompletedTask;
     }
 
+    private void WarnIfAdminListEmpty()
+    {
+        if (BotAdminPolicy.HasList(_opts.CurrentValue.AdminOpenIds))
+            return;
+
+        _log.LogWarning("【安全提示】OfficialQq:AdminOpenIds 管理员 OpenID 名单为空，群聊管理指令沿用原有判定：member_role 为 admin 或 owner 的成员可用，单聊不放行管理指令。"
+            + "建议尽快在 OfficialQq:AdminOpenIds（或面板「管理员 OpenID」）中登记管理员，登记后只有名单内的用户能执行管理指令。");
+    }
+
     // ---------------- 连接主循环 ----------------
 
     protected override async Task RunLoopAsync(CancellationToken stoppingToken)
     {
+        WarnIfAdminListEmpty();
+
         int attempt = 0;
 
         while (!stoppingToken.IsCancellationRequested)
@@ -437,14 +448,14 @@ public sealed class OfficialQqBotClient : BotClientHost, IBotClient
         if (groupOpenId.Length == 0)
             return;
 
-        _observedGroups[groupOpenId] = DateTimeOffset.Now;
-
         var opts = _opts.CurrentValue;
-        if (opts.AllowedGroupOpenIds.Length > 0 && !opts.AllowedGroupOpenIds.Contains(groupOpenId))
+        if (!BotAdminPolicy.MayObserveGroup(opts.AllowedGroupOpenIds, groupOpenId))
         {
             _log.LogDebug("群 {GroupOpenId} 不在白名单内，忽略该消息", groupOpenId);
             return;
         }
+
+        _observedGroups[groupOpenId] = DateTimeOffset.Now;
 
         // 官方已把 @机器人 前缀从 content 中剥离
         string text = d.TryGetProperty("content", out var c) ? (c.GetString() ?? "").Trim() : "";
@@ -453,7 +464,7 @@ public sealed class OfficialQqBotClient : BotClientHost, IBotClient
 
         string senderId = "";
         string senderName = "";
-        bool isAdmin = false;
+        string memberRole = "";
 
         if (d.TryGetProperty("author", out var author))
         {
@@ -465,15 +476,12 @@ public sealed class OfficialQqBotClient : BotClientHost, IBotClient
             if (author.TryGetProperty("username", out var un))
                 senderName = un.GetString() ?? "";
 
-            // 官方群角色：member / admin / owner
-            string role = author.TryGetProperty("member_role", out var r) ? (r.GetString() ?? "") : "";
-            isAdmin = role.Equals("admin", StringComparison.OrdinalIgnoreCase)
-                   || role.Equals("owner", StringComparison.OrdinalIgnoreCase);
+            // 官方群角色：member / admin / owner。仅在 AdminOpenIds 为空时用于兼容旧逻辑。
+            memberRole = author.TryGetProperty("member_role", out var r) ? (r.GetString() ?? "") : "";
         }
 
-        // 兜底白名单：官方在某些场景下不返回 member_role
-        if (!isAdmin && opts.AdminOpenIds.Length > 0 && senderId.Length > 0)
-            isAdmin = opts.AdminOpenIds.Contains(senderId);
+        // 配置了 AdminOpenIds 时只认名单，不看群角色；名单为空时沿用 member_role 为 admin/owner 的旧判定。
+        bool isAdmin = BotAdminPolicy.IsOfficialGroupAdmin(opts.AdminOpenIds, senderId, memberRole);
 
         var incoming = new BotIncomingMessage
         {
@@ -513,8 +521,8 @@ public sealed class OfficialQqBotClient : BotClientHost, IBotClient
             return;
 
         var opts = _opts.CurrentValue;
-        // 单聊没有群角色，是否放行管理指令由 AdminOpenIds 决定；空列表时视为未授权
-        bool isAdmin = opts.AdminOpenIds.Length > 0 && opts.AdminOpenIds.Contains(senderId);
+        // 单聊没有群角色，只认 AdminOpenIds；名单为空时不放行管理指令（与旧版本一致）。
+        bool isAdmin = BotAdminPolicy.IsOfficialC2CAdmin(opts.AdminOpenIds, senderId);
 
         var incoming = new BotIncomingMessage
         {

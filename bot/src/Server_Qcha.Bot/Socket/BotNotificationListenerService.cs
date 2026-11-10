@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Server.Qcat.Bot;
 using Server.Qcat.Configuration;
+using Qchat.Security;
 
 namespace Server.Qcat.Socket;
 
@@ -41,6 +42,7 @@ public sealed class BotNotificationListenerService : BackgroundService
     private readonly ServerRegistry _registry;
     private readonly ILogger<BotNotificationListenerService> _log;
     private TcpListener? _listener;
+    private readonly TcpAuthNonceCache _nonces = new();
 
     public BotNotificationListenerService(
         IOptions<SocketServerOptions> socketOpts,
@@ -68,11 +70,22 @@ public sealed class BotNotificationListenerService : BackgroundService
             return;
         }
 
-        IPAddress ip;
-        if (!IPAddress.TryParse(_socketOpts.NotificationHost, out ip!))
+        if (TcpAuthEnvelope.IsWeakToken(_socketOpts.AuthToken))
         {
-            _log.LogWarning("NotificationHost \"{Host}\" 解析失败，回退使用 0.0.0.0", _socketOpts.NotificationHost);
-            ip = IPAddress.Any;
+            // 只警告不拒绝，详细说明见启动时的安全警告。
+            _log.LogWarning("【安全警告】SocketServer:AuthToken 为空或仍是默认密钥 {DefaultToken}，通知监听服务照常启动，但存在被伪造通知的风险，请尽快修改并与插件 auth_token 保持一致。",
+                TcpAuthEnvelope.LegacyDefaultToken);
+        }
+
+        IPAddress ip;
+        if (string.IsNullOrWhiteSpace(_socketOpts.NotificationHost) || !IPAddress.TryParse(_socketOpts.NotificationHost, out ip!))
+        {
+            _log.LogWarning("NotificationHost \"{Host}\" 解析失败，回退使用 127.0.0.1", _socketOpts.NotificationHost);
+            ip = IPAddress.Loopback;
+        }
+        else if (IPAddress.Any.Equals(ip) || IPAddress.IPv6Any.Equals(ip))
+        {
+            _log.LogWarning("通知监听绑定了 {Host}，将接受所有网卡上的连接。请用防火墙限制来源，或改回 127.0.0.1。", ip);
         }
 
         try
@@ -140,24 +153,13 @@ public sealed class BotNotificationListenerService : BackgroundService
                 if (string.IsNullOrWhiteSpace(payload))
                     return;
 
-                if (!string.IsNullOrEmpty(_socketOpts.AuthToken))
+                if (!TcpAuthEnvelope.TryUnseal(_socketOpts.AuthToken, payload, _nonces, out string? body, out string? authError))
                 {
-                    int splitIdx = payload.IndexOf("||", StringComparison.Ordinal);
-                    if (splitIdx < 0)
-                    {
-                        _log.LogWarning("拒绝来自 {RemoteEndpoint} 的未授权通知请求：缺少 Token", remoteEndpoint);
-                        return;
-                    }
-
-                    string reqToken = payload.Substring(0, splitIdx);
-                    if (reqToken != _socketOpts.AuthToken)
-                    {
-                        _log.LogWarning("拒绝来自 {RemoteEndpoint} 的未授权通知请求：Token 不匹配", remoteEndpoint);
-                        return;
-                    }
-
-                    payload = payload.Substring(splitIdx + 2);
+                    _log.LogWarning("拒绝来自 {RemoteEndpoint} 的未授权通知请求：{Reason}", remoteEndpoint, authError);
+                    return;
                 }
+
+                payload = body ?? "";
 
                 NotificationEnvelope? envelope;
                 try

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -8,10 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.2" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageReference Include="xunit" Version="2.9.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="coverlet.collector" Version="10.1.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,6 +20,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Server_Qcha.Bot\Server_Qcha.Bot.csproj" />
+    <!-- 假游戏服务端：ServerUpdateServiceTests 用它模拟 restartnextround / 回合重启 / 新版本启动失败 -->
+    <ProjectReference Include="..\LocalAdmin.SmokeTest\FakeGame\FakeGame.csproj" />
+    <!-- Exercise the actual plugin listener with test-only log facades, without loading Unity.
+         Run again with -p:PluginTcpFlavor=LabAPI to exercise the other framework's source. -->
+    <Compile Include="../../../server/TcpCommandServer.cs" Link="PluginTcp/TcpCommandServer.cs" Condition="'$(PluginTcpFlavor)' != 'LabAPI'" />
+    <Compile Include="../../../server-labapi/TcpCommandServer.cs" Link="PluginTcp/TcpCommandServer.cs" Condition="'$(PluginTcpFlavor)' == 'LabAPI'" />
   </ItemGroup>
 
 </Project>

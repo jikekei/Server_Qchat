@@ -15,7 +15,9 @@
   <link rel="stylesheet" href="./vendor/element-plus.css" />
   <link rel="stylesheet" href="./css/theme.css" />
   <link rel="stylesheet" href="./css/layout.css" />
+  <link rel="stylesheet" href="./css/game-admin.css" />
   <link rel="stylesheet" href="./css/overview.css" />
+  <link rel="stylesheet" href="./css/resources.css" />
   <link rel="stylesheet" href="./css/terminal.css" />
 </head>
 <body>
@@ -34,6 +36,7 @@
         <local-admin-view v-if="page === 'local'"></local-admin-view>
         <bot-view v-if="page === 'bot'"></bot-view>
         <database-view v-if="page === 'database'"></database-view>
+        <game-admin-view v-if="page === 'game-admin'"></game-admin-view>
         <accounts-view v-if="page === 'accounts'"></accounts-view>
         <audit-view v-if="page === 'audit'"></audit-view>
         <logging-view v-if="page === 'logging'"></logging-view>

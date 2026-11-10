@@ -36,6 +36,10 @@ namespace SocketServer
             if (string.IsNullOrWhiteSpace(request))
                 return "empty command";
 
+            if (request == "game-admin-capabilities") return "QGA1";
+            if (request.StartsWith("game-admin&", StringComparison.Ordinal))
+                return Qchat.GameAdmin.GameAdminRuntime.Dispatch(request.Substring(11));
+
             // Exact commands
             if (request == "ac")
                 return HandleAc();

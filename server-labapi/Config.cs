@@ -44,8 +44,8 @@ namespace SocketServer
         [Description("QQ机器人后台监听服务的端口号")]
         public int BotPort { get; set; } = 10088;
 
-        [Description("安全验证Token，须与机器人端的Token一致")]
-        public string AuthToken { get; set; } = "QchaSecret_123";
+        [Description("安全验证 Token，须与机器人 SocketServer:AuthToken 一致。留空或仍使用默认密钥时插件会在启动日志中输出安全警告，请尽快改成自行生成的随机字符串")]
+        public string AuthToken { get; set; } = "";
 
         [Description("排序权重，>0时按此排序，=0时自动排序")]
         public int SortOrder { get; set; } = 0;

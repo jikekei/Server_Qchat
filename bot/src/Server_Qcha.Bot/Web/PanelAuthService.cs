@@ -1,4 +1,7 @@
 using System.Collections.Concurrent;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using Server.Qcat.Configuration;
@@ -176,16 +179,66 @@ public sealed class PanelAuthService
 
     private void LogCredentials(string title, string username, string password)
     {
+        string host = _options.Host?.Trim() ?? string.Empty;
+        bool listensOnAllInterfaces = host is "0.0.0.0" or "*" or "+" or "::" or "[::]";
+        bool listensOnlyOnLoopback = host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || IPAddress.TryParse(host, out var configuredAddress) && IPAddress.IsLoopback(configuredAddress);
+        string[] localIpv4Addresses = GetLocalIpv4Addresses();
+
+        string loginAddress;
+        string localAddressNote = string.Empty;
+        if (listensOnAllInterfaces && localIpv4Addresses.Length > 0)
+        {
+            loginAddress = string.Join("\n             ", localIpv4Addresses.Select(address => $"http://{address}:{_options.Port}/"));
+        }
+        else if (listensOnlyOnLoopback || string.IsNullOrWhiteSpace(host))
+        {
+            loginAddress = $"http://127.0.0.1:{_options.Port}/";
+            if (localIpv4Addresses.Length > 0)
+            {
+                localAddressNote = "  本机 IPv4 : " + string.Join("、", localIpv4Addresses)
+                    + "（当前只监听本机回环地址；设置 WebPanel:Host 为 0.0.0.0 后，局域网设备才能访问）\n";
+            }
+        }
+        else
+        {
+            loginAddress = $"http://{host}:{_options.Port}/";
+        }
+
         _log.LogWarning(
             "===== Web 面板 {Title} =====\n" +
-            "  登录地址 : http://<本机IP>:{Port}/\n" +
+            "  登录地址 : {LoginAddress}\n" +
+            "{LocalAddressNote}" +
             "  用户名   : {Username}\n" +
             "  密　码   : {Password}\n" +
             (title == "已创建内置管理员账号"
                 ? "  （首次登录后可修改密码；后续启动不会重置，除非启用启动重置选项）\n"
                 : "  （本次启动已重置密码；如需保留修改后的密码，请关闭启动重置选项）\n") +
             "=========================================",
-            title, _options.Port, username, password);
+            title, loginAddress, localAddressNote, username, password);
+    }
+
+    private static string[] GetLocalIpv4Addresses()
+    {
+        try
+        {
+            return NetworkInterface.GetAllNetworkInterfaces()
+                .Where(network => network.OperationalStatus == OperationalStatus.Up
+                    && network.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                .SelectMany(network => network.GetIPProperties().UnicastAddresses)
+                .Select(unicast => unicast.Address)
+                .Where(address => address.AddressFamily == AddressFamily.InterNetwork
+                    && !IPAddress.IsLoopback(address)
+                    && !address.GetAddressBytes().Take(2).SequenceEqual(new byte[] { 169, 254 }))
+                .Distinct()
+                .OrderBy(address => address.ToString(), StringComparer.Ordinal)
+                .Select(address => address.ToString())
+                .ToArray();
+        }
+        catch (NetworkInformationException)
+        {
+            return Array.Empty<string>();
+        }
     }
 
     /// <summary>登录，成功返回会话。</summary>

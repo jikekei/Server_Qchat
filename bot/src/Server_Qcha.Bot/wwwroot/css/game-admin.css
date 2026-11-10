@@ -1,0 +1,12 @@
+.ga-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}
+.ga-toolbar h2{margin:0 auto 0 0}
+.ga-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.ga-permissions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0;max-height:340px;overflow:auto}
+.ga-permissions .el-checkbox{height:auto;min-height:44px;align-items:flex-start;white-space:normal;margin-right:8px}
+.game-admin small{display:block;font-size:11px;opacity:.7;overflow-wrap:anywhere;line-height:1.6}
+.ga-dialog{max-width:calc(100vw - 24px)}
+.ga-dialog .el-dialog__body{max-height:70vh;overflow:auto}
+.ga-dialog small{display:block;font-size:11px;opacity:.7;overflow-wrap:anywhere;line-height:1.6}
+.ga-dialog h3{margin:24px 0 12px}
+.ga-dialog .el-form-item__content>.muted{width:100%;margin-top:8px;line-height:1.6}
+@media(max-width:768px){.ga-grid,.ga-permissions{grid-template-columns:1fr}.ga-toolbar>*{max-width:100%}.ga-dialog{margin-top:4vh!important}.ga-dialog .el-dialog__body{max-height:72vh}}

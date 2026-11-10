@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="580" viewBox="0 0 1200 580" role="img" aria-labelledby="mapTitle mapDesc">
+  <title id="mapTitle">The nine functional modules of the Qridge panel</title>
+  <desc id="mapDesc">Panel module map in three groups. Monitoring and runtime: Overview, Servers, Server Processes. Community and permissions: QQ Bot, Game Admins, Accounts. Data and traceability: Database, Log Levels, Audit Log.</desc>
+
+  <rect width="1200" height="580" rx="26" fill="#0A0E14"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+
+    <text x="1136" y="44" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#6F7F92">PANEL MODULES</text>
+
+    <text x="64" y="72" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#3E8BFF">MONITORING &amp; RUNTIME</text>
+    <g id="row-monitoring">
+      <rect x="64" y="88" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="80" y="108" width="3" height="28" rx="1.5" fill="#3E8BFF"/>
+      <text x="92" y="130" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#3E8BFF">01</text>
+      <text x="80" y="166" font-size="22" font-weight="700" fill="#E8EEF6">Overview</text>
+      <text x="80" y="192" font-size="15" fill="#7C8CA0">Online totals &amp; 24h peak trend</text>
+
+      <rect x="440" y="88" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="456" y="108" width="3" height="28" rx="1.5" fill="#3E8BFF"/>
+      <text x="468" y="130" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#3E8BFF">02</text>
+      <text x="456" y="166" font-size="22" font-weight="700" fill="#E8EEF6">Servers</text>
+      <text x="456" y="192" font-size="15" fill="#7C8CA0">Server list, players &amp; details</text>
+
+      <rect x="816" y="88" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="832" y="108" width="3" height="28" rx="1.5" fill="#3E8BFF"/>
+      <text x="844" y="130" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#3E8BFF">03</text>
+      <text x="832" y="166" font-size="22" font-weight="700" fill="#E8EEF6">Server Processes</text>
+      <text x="832" y="192" font-size="15" fill="#7C8CA0">Daemon monitoring &amp; restarts</text>
+    </g>
+
+    <text x="64" y="246" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#2FD4A0">COMMUNITY &amp; PERMISSIONS</text>
+    <g id="row-community">
+      <rect x="64" y="262" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="80" y="282" width="3" height="28" rx="1.5" fill="#2FD4A0"/>
+      <text x="92" y="304" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#2FD4A0">04</text>
+      <text x="80" y="340" font-size="22" font-weight="700" fill="#E8EEF6">QQ Bot</text>
+      <text x="80" y="366" font-size="15" fill="#7C8CA0">NapCat &amp; official Bot hot-swap</text>
+
+      <rect x="440" y="262" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="456" y="282" width="3" height="28" rx="1.5" fill="#2FD4A0"/>
+      <text x="468" y="304" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#2FD4A0">05</text>
+      <text x="456" y="340" font-size="22" font-weight="700" fill="#E8EEF6">Game Admins</text>
+      <text x="456" y="366" font-size="15" fill="#7C8CA0">In-game groups &amp; permissions</text>
+
+      <rect x="816" y="262" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="832" y="282" width="3" height="28" rx="1.5" fill="#2FD4A0"/>
+      <text x="844" y="304" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#2FD4A0">06</text>
+      <text x="832" y="340" font-size="22" font-weight="700" fill="#E8EEF6">Accounts</text>
+      <text x="832" y="366" font-size="15" fill="#7C8CA0">Multi-account RBAC control</text>
+    </g>
+
+    <text x="64" y="420" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#E8A33D">DATA &amp; TRACEABILITY</text>
+    <g id="row-data">
+      <rect x="64" y="436" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="80" y="456" width="3" height="28" rx="1.5" fill="#E8A33D"/>
+      <text x="92" y="478" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#E8A33D">07</text>
+      <text x="80" y="514" font-size="22" font-weight="700" fill="#E8EEF6">Database</text>
+      <text x="80" y="540" font-size="15" fill="#7C8CA0">Player data &amp; ban records</text>
+
+      <rect x="440" y="436" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="456" y="456" width="3" height="28" rx="1.5" fill="#E8A33D"/>
+      <text x="468" y="478" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#E8A33D">08</text>
+      <text x="456" y="514" font-size="22" font-weight="700" fill="#E8EEF6">Log Levels</text>
+      <text x="456" y="540" font-size="15" fill="#7C8CA0">Runtime log-level tuning</text>
+
+      <rect x="816" y="436" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="832" y="456" width="3" height="28" rx="1.5" fill="#E8A33D"/>
+      <text x="844" y="478" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#E8A33D">09</text>
+      <text x="832" y="514" font-size="22" font-weight="700" fill="#E8EEF6">Audit Log</text>
+      <text x="832" y="540" font-size="15" fill="#7C8CA0">Actor, IP &amp; outcome tracing</text>
+    </g>
+
+  </g>
+</svg>

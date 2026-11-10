@@ -64,6 +64,7 @@ public sealed class BotSettingsStore
 
         // 规范化，确保数组不为 null
         model.Bot.AllowedGroupIds ??= Array.Empty<long>();
+        model.Bot.AdminUserIds ??= Array.Empty<long>();
         model.Bot.NotifyGroupIds ??= Array.Empty<long>();
         model.Bot.NotifyPrivateUserIds ??= Array.Empty<long>();
 
@@ -81,6 +82,7 @@ public sealed class BotSettingsStore
     public void Save(BotSettingsModel model)
     {
         model.Bot.AllowedGroupIds ??= Array.Empty<long>();
+        model.Bot.AdminUserIds ??= Array.Empty<long>();
         model.Bot.NotifyGroupIds ??= Array.Empty<long>();
         model.Bot.NotifyPrivateUserIds ??= Array.Empty<long>();
 

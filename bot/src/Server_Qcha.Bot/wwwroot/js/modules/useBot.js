@@ -24,6 +24,7 @@ const botForm = reactive({
   reconnectDelaySeconds: 5,
   maxReconnectDelaySeconds: 30,
   allowedGroupIds: [],
+  adminUserIds: [],
   notifyGroupIds: [],
   notifyPrivateUserIds: [],
   acTargetGroupId: 0,
@@ -66,6 +67,7 @@ async function loadBotStatus() {
     botForm.reconnectDelaySeconds = s.reconnectDelaySeconds || 5;
     botForm.maxReconnectDelaySeconds = s.maxReconnectDelaySeconds || 30;
     botForm.allowedGroupIds = s.allowedGroupIds || [];
+    botForm.adminUserIds = s.adminUserIds || [];
     botForm.notifyGroupIds = s.notifyGroupIds || [];
     botForm.notifyPrivateUserIds = s.notifyPrivateUserIds || [];
     botForm.acTargetGroupId = s.acTargetGroupId || 0;
@@ -138,6 +140,7 @@ async function saveBotSettings() {
         reconnectDelaySeconds: botForm.reconnectDelaySeconds,
         maxReconnectDelaySeconds: botForm.maxReconnectDelaySeconds,
         allowedGroupIds: botForm.allowedGroupIds.map(Number).filter(n => n > 0),
+        adminUserIds: botForm.adminUserIds.map(Number).filter(n => n > 0),
         notifyGroupIds: botForm.notifyGroupIds.map(Number).filter(n => n > 0),
         notifyPrivateUserIds: botForm.notifyPrivateUserIds.map(Number).filter(n => n > 0),
         acTargetGroupId: Number(botForm.acTargetGroupId) || 0,

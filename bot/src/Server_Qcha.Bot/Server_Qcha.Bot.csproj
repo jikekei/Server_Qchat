@@ -7,9 +7,9 @@
     <Nullable>enable</Nullable>
     <!-- 与既有代码的根命名空间保持一致（Server.Qcat） -->
     <RootNamespace>Server_Qcha.Bot</RootNamespace>
-    <Version>2.0.0</Version>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
+    <Version>2.2.0</Version>
+    <AssemblyVersion>2.2.0.0</AssemblyVersion>
+    <FileVersion>2.2.0.0</FileVersion>
     <Product>Qcha QQ Bot</Product>
     <Description>SCPSL Qcha QQ 机器人与 Web 控制台</Description>
   </PropertyGroup>
@@ -17,13 +17,15 @@
   <ItemGroup>
     <PackageReference Include="EleCho.GoCqHttpSdk" Version="1.3.0" />
     <!-- Web 面板本地数据库（SQLite，单文件） -->
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <!-- SCPSL 玩家统计库（可选，用于 /me、/bd 指令） -->
-    <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Server_Qcha.LocalAdmin.Shared\Server_Qcha.LocalAdmin.Shared.csproj" />
+    <!-- 与两套游戏插件共用同一份 TCP 鉴权实现，避免封套格式漂移。 -->
+    <Compile Include="..\..\..\server\TcpAuthEnvelope.cs" Link="Socket\TcpAuthEnvelope.cs" />
   </ItemGroup>
 
   <!--
@@ -39,4 +41,7 @@
     <Content Update="wwwroot/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../../../shared/*.cs" Exclude="../../../shared/GameAdminRuntime.cs" Link="GameAdmin/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

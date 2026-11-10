@@ -91,7 +91,7 @@ builder.Services.Configure<LocalAdminOptions>(builder.Configuration.GetSection("
 var webOptions = builder.Configuration.GetSection("WebPanel").Get<WebPanelOptions>() ?? new WebPanelOptions();
 if (webOptions.Enabled)
 {
-    string host = string.IsNullOrWhiteSpace(webOptions.Host) ? "0.0.0.0" : webOptions.Host;
+    string host = string.IsNullOrWhiteSpace(webOptions.Host) ? "127.0.0.1" : webOptions.Host;
     int port = webOptions.Port is > 0 and <= 65535 ? webOptions.Port : 8080;
     builder.WebHost.UseUrls($"http://{host}:{port}");
 }
@@ -147,6 +147,8 @@ else
     // 内嵌模式：单进程运行，LocalAdmin 随 Bot 进程退出
     builder.Services.AddSingleton<LocalAdminManager>();
     builder.Services.AddHostedService(sp => sp.GetRequiredService<LocalAdminManager>());
+    builder.Services.AddSingleton<ServerUpdateService>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<ServerUpdateService>());
     builder.Services.AddSingleton<ILocalAdminProvider, EmbeddedLocalAdminProvider>();
 }
 
@@ -169,6 +171,17 @@ builder.Services.AddSingleton<PlayerHistoryTracker>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PlayerHistoryTracker>());
 builder.Services.AddSingleton<ServerStatusMonitorService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ServerStatusMonitorService>());
+
+var socketOptsForGuard = builder.Configuration.GetSection("SocketServer").Get<SocketServerOptions>() ?? new SocketServerOptions();
+bool needDaemonToken = localAdminOptions.Enabled
+    && !string.Equals(localAdminOptions.Mode, "Embedded", StringComparison.OrdinalIgnoreCase);
+// 仍在使用默认密钥或密钥为空时只输出醒目的安全警告，不阻止启动。
+var secretProblems = SharedSecretPolicy.DescribeWeakSecrets(
+    checkAuthToken: true,
+    authToken: socketOptsForGuard.AuthToken,
+    checkDaemonToken: needDaemonToken,
+    daemonToken: localAdminOptions.DaemonToken);
+SharedSecretPolicy.WriteStartupWarning(secretProblems);
 
 var app = builder.Build();
 
@@ -210,6 +223,7 @@ if (webOptions.Enabled)
     app.UseStaticFiles();
 
     app.MapPanelApi();
+    app.MapGameAdminApi();
     app.MapLocalAdminApi();
     app.MapLoggingApi();
     app.MapBotApi();

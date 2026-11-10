@@ -42,6 +42,9 @@ public enum PanelPermission : long
     /// <summary>数据库管理（查看与编辑玩家统计、封禁记录、配置连接串与初始化表）</summary>
     DatabaseManage = 1L << 10,
 
+    /// <summary>游戏内管理员与权限组管理</summary>
+    GameAdminManage = 1L << 11,
+
     // ---- 预设组合（前端"快速选择"用）----
 
     /// <summary>只读</summary>
@@ -54,7 +57,7 @@ public enum PanelPermission : long
     Admin = ServersView | BroadcastSend | PlayersKick | PlayersBan | RoundControl | ServerControl | AuditView | LoggingManage | BotManage | DatabaseManage,
 
     /// <summary>所有者：全部权限</summary>
-    Owner = ServersView | BroadcastSend | PlayersKick | PlayersBan | RoundControl | ServerControl | AccountsManage | AuditView | LoggingManage | BotManage | DatabaseManage,
+    Owner = GameAdminManage | ServersView | BroadcastSend | PlayersKick | PlayersBan | RoundControl | ServerControl | AccountsManage | AuditView | LoggingManage | BotManage | DatabaseManage,
 }
 
 /// <summary>权限元数据，用于前端渲染与权限清单接口。</summary>
@@ -64,6 +67,7 @@ public static class PanelPermissions
 
     public static readonly IReadOnlyList<Descriptor> All = new[]
     {
+        new Descriptor("game-admin.manage", PanelPermission.GameAdminManage, "游戏管理员", "管理游戏内管理员、权限组与个人权限覆盖"),
         new Descriptor("servers.view", PanelPermission.ServersView, "查看服务器", "查看服务器在线状态、玩家列表与详细信息"),
         new Descriptor("broadcast.send", PanelPermission.BroadcastSend, "发送广播", "向指定服务器发送全服广播"),
         new Descriptor("players.kick", PanelPermission.PlayersKick, "踢出玩家", "将玩家踢出服务器"),

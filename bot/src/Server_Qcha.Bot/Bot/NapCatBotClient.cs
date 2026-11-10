@@ -195,10 +195,21 @@ public sealed class NapCatBotClient : BotClientHost, IBotClient
         _waitReconnectCts?.Cancel();
     }
 
+    private void WarnIfAdminListEmpty()
+    {
+        if (BotAdminPolicy.HasList(_botOptsMonitor.CurrentValue.AdminUserIds))
+            return;
+
+        _log.LogWarning("【安全提示】Bot:AdminUserIds 管理指令白名单为空，管理指令沿用原有判定：群聊中群主和群管理员可用，私聊中 NotifyPrivateUserIds 内的用户可用。"
+            + "群角色可能被他人获得，建议尽快在 Bot:AdminUserIds（或面板「管理指令 QQ 白名单」）中登记管理员 QQ 号，登记后只有名单内的 QQ 能执行管理指令。");
+    }
+
     // ---------------- 连接主循环 ----------------
 
     protected override async Task RunLoopAsync(CancellationToken stoppingToken)
     {
+        WarnIfAdminListEmpty();
+
         int attempt = 0;
 
         while (!stoppingToken.IsCancellationRequested)
@@ -242,7 +253,11 @@ public sealed class NapCatBotClient : BotClientHost, IBotClient
                         TargetId = ctx.GroupId.ToString(),
                         SenderId = ctx.UserId.ToString(),
                         SenderName = ctx.Sender?.Nickname ?? ctx.Sender?.Card ?? "",
-                        IsAdmin = ctx.Sender != null && (ctx.Sender.Role == CqRole.Admin || ctx.Sender.Role == CqRole.Owner),
+                        // 配置了 AdminUserIds 时只认名单；名单为空时沿用群主/管理员角色判定。
+                        IsAdmin = BotAdminPolicy.IsNapCatGroupAdmin(
+                            botOpts.AdminUserIds,
+                            ctx.UserId,
+                            ctx.Sender != null && (ctx.Sender.Role == CqRole.Admin || ctx.Sender.Role == CqRole.Owner)),
                         Text = text,
                         MessageId = ctx.MessageId.ToString(),
                     };
@@ -252,9 +267,12 @@ public sealed class NapCatBotClient : BotClientHost, IBotClient
 
                 ws.UsePrivateMessage(async ctx =>
                 {
-                    // 私聊仅对显式配置的运营用户开放，避免陌生人私聊触发管理指令
+                    // 私聊只对通知名单或管理名单开放。
+                    // 配置了 AdminUserIds 时通知名单不授予管理权限；名单为空时沿用旧逻辑，通知名单内的用户视为管理员。
                     var botOpts = _botOptsMonitor.CurrentValue;
-                    if (botOpts.NotifyPrivateUserIds.Length == 0 || !botOpts.NotifyPrivateUserIds.Contains(ctx.UserId))
+                    bool listedNotify = botOpts.NotifyPrivateUserIds.Contains(ctx.UserId);
+                    bool listedAdmin = BotAdminPolicy.IsListed(botOpts.AdminUserIds, ctx.UserId);
+                    if (!listedNotify && !listedAdmin)
                         return;
 
                     string text = ctx.Message?.Text ?? "";
@@ -268,8 +286,7 @@ public sealed class NapCatBotClient : BotClientHost, IBotClient
                         TargetId = ctx.UserId.ToString(),
                         SenderId = ctx.UserId.ToString(),
                         SenderName = ctx.Sender?.Nickname ?? "",
-                        // 私聊场景没有群角色，视为管理员（已在上面通过白名单收敛）
-                        IsAdmin = true,
+                        IsAdmin = BotAdminPolicy.IsNapCatPrivateAdmin(botOpts.AdminUserIds, botOpts.NotifyPrivateUserIds, ctx.UserId),
                         Text = text,
                         MessageId = ctx.MessageId.ToString(),
                     };

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="96" viewBox="0 0 1200 96" role="img" aria-labelledby="bnT bnD">
+  <title id="bnT">Server_Qcha — Component reference</title>
+  <desc id="bnD">Components category banner</desc>
+  <rect width="1200" height="96" rx="16" fill="#0A0E14"/>
+  <rect x="32" y="26" width="4" height="44" rx="2" fill="#2FD4A0"/>
+  <text x="54" y="36" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" letter-spacing="1.2" fill="#2FD4A0">COMPONENTS</text>
+  <text x="54" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="24" font-weight="700" fill="#E8EEF6">Component reference</text>
+  <text x="1168" y="54" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#6F7F92">SERVER_QCHA · DOCUMENTATION</text>
+</svg>

@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="580" viewBox="0 0 1200 580" role="img" aria-labelledby="mapTitle mapDesc">
+  <title id="mapTitle">Qridge 面板的九个功能模块</title>
+  <desc id="mapDesc">面板模块图，按三组排列。监控与运行：服务器总览、服务器、服务器进程。社群与权限：QQ 机器人、游戏管理员、账号管理。数据与追溯：数据库管理、日志级别、审计日志。</desc>
+
+  <rect width="1200" height="580" rx="26" fill="#0A0E14"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+
+    <text x="1136" y="44" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#6F7F92">PANEL MODULES · 九个功能模块</text>
+
+    <text x="64" y="72" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#3E8BFF">监控与运行 · MONITORING</text>
+    <g id="row-monitoring">
+      <rect x="64" y="88" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="80" y="108" width="3" height="28" rx="1.5" fill="#3E8BFF"/>
+      <text x="92" y="130" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#3E8BFF">01</text>
+      <text x="80" y="166" font-size="22" font-weight="700" fill="#E8EEF6">服务器总览</text>
+      <text x="80" y="192" font-size="15" fill="#7C8CA0">全服在线与 24 小时峰值走势</text>
+
+      <rect x="440" y="88" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="456" y="108" width="3" height="28" rx="1.5" fill="#3E8BFF"/>
+      <text x="468" y="130" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#3E8BFF">02</text>
+      <text x="456" y="166" font-size="22" font-weight="700" fill="#E8EEF6">服务器</text>
+      <text x="456" y="192" font-size="15" fill="#7C8CA0">多服列表、玩家与详情查询</text>
+
+      <rect x="816" y="88" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="832" y="108" width="3" height="28" rx="1.5" fill="#3E8BFF"/>
+      <text x="844" y="130" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#3E8BFF">03</text>
+      <text x="832" y="166" font-size="22" font-weight="700" fill="#E8EEF6">服务器进程</text>
+      <text x="832" y="192" font-size="15" fill="#7C8CA0">守护进程监控与平滑重启</text>
+    </g>
+
+    <text x="64" y="246" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#2FD4A0">社群与权限 · COMMUNITY</text>
+    <g id="row-community">
+      <rect x="64" y="262" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="80" y="282" width="3" height="28" rx="1.5" fill="#2FD4A0"/>
+      <text x="92" y="304" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#2FD4A0">04</text>
+      <text x="80" y="340" font-size="22" font-weight="700" fill="#E8EEF6">QQ 机器人</text>
+      <text x="80" y="366" font-size="15" fill="#7C8CA0">NapCat 与官方 Bot 热切换</text>
+
+      <rect x="440" y="262" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="456" y="282" width="3" height="28" rx="1.5" fill="#2FD4A0"/>
+      <text x="468" y="304" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#2FD4A0">05</text>
+      <text x="456" y="340" font-size="22" font-weight="700" fill="#E8EEF6">游戏管理员</text>
+      <text x="456" y="366" font-size="15" fill="#7C8CA0">游戏内权限组与逐项授权</text>
+
+      <rect x="816" y="262" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="832" y="282" width="3" height="28" rx="1.5" fill="#2FD4A0"/>
+      <text x="844" y="304" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#2FD4A0">06</text>
+      <text x="832" y="340" font-size="22" font-weight="700" fill="#E8EEF6">账号管理</text>
+      <text x="832" y="366" font-size="15" fill="#7C8CA0">多账号 RBAC 细粒度授权</text>
+    </g>
+
+    <text x="64" y="420" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#E8A33D">数据与追溯 · DATA</text>
+    <g id="row-data">
+      <rect x="64" y="436" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="80" y="456" width="3" height="28" rx="1.5" fill="#E8A33D"/>
+      <text x="92" y="478" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#E8A33D">07</text>
+      <text x="80" y="514" font-size="22" font-weight="700" fill="#E8EEF6">数据库管理</text>
+      <text x="80" y="540" font-size="15" fill="#7C8CA0">玩家数据与封禁记录查询</text>
+
+      <rect x="440" y="436" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="456" y="456" width="3" height="28" rx="1.5" fill="#E8A33D"/>
+      <text x="468" y="478" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#E8A33D">08</text>
+      <text x="456" y="514" font-size="22" font-weight="700" fill="#E8EEF6">日志级别</text>
+      <text x="456" y="540" font-size="15" fill="#7C8CA0">运行时日志级别热调整</text>
+
+      <rect x="816" y="436" width="320" height="120" rx="10" fill="#10151E" stroke="#222C3A" stroke-width="1"/>
+      <rect x="832" y="456" width="3" height="28" rx="1.5" fill="#E8A33D"/>
+      <text x="844" y="478" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#E8A33D">09</text>
+      <text x="832" y="514" font-size="22" font-weight="700" fill="#E8EEF6">审计日志</text>
+      <text x="832" y="540" font-size="15" fill="#7C8CA0">人员、IP 与结果全程可追溯</text>
+    </g>
+
+  </g>
+</svg>

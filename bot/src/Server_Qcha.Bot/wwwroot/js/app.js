@@ -1,5 +1,6 @@
+import { GameAdminView } from './views/GameAdminView.js';
 import { createApp } from './deps.js';
-import { session, page, loadMeta, api, clearSession } from './api.js';
+import { session, page, can, loadMeta, api, clearSession } from './api.js';
 import { useOverview } from './modules/useOverview.js';
 import { useServers } from './modules/useServers.js';
 
@@ -24,13 +25,15 @@ const app = createApp({
     // 启动恢复会话
     (async function bootstrap() {
       try { await loadMeta(); } catch (e) { /* 忽略 */ }
-      if (!localStorage.getItem('scpsl_panel_token')) return;
+      if (!sessionStorage.getItem('scpsl_panel_token')) return;
       try {
         const me = await api('/auth/me');
         session.value = me;
-        await loadOverview();
-        await loadServers();
-        startOverviewPolling();
+        if (can('servers.view')) {
+          await loadOverview();
+          await loadServers();
+          startOverviewPolling();
+        } else if (can('game-admin.manage')) page.value = 'game-admin';
       } catch (e) {
         clearSession();
       }
@@ -52,6 +55,7 @@ app.component('local-admin-view', LocalAdminView);
 app.component('bot-view', BotView);
 app.component('database-view', DatabaseView);
 app.component('accounts-view', AccountsView);
+app.component('game-admin-view', GameAdminView);
 app.component('audit-view', AuditView);
 app.component('logging-view', LoggingView);
 app.component('app-dialogs', AppDialogs);

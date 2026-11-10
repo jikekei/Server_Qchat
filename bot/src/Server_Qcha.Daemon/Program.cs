@@ -48,11 +48,29 @@ string listenUri = string.IsNullOrWhiteSpace(localAdminConfig.DaemonUri)
     ? "http://127.0.0.1:10090"
     : localAdminConfig.DaemonUri;
 
+// 仍在使用默认密钥或密钥为空时只输出醒目的安全警告，不阻止启动。
+var secretProblems = SharedSecretPolicy.DescribeWeakSecrets(
+    checkAuthToken: false,
+    authToken: null,
+    checkDaemonToken: true,
+    daemonToken: localAdminConfig.DaemonToken);
+SharedSecretPolicy.WriteStartupWarning(secretProblems);
+
+if (!DaemonHostGuard.ListenUriIsLoopback(listenUri))
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("【安全】守护进程监听地址不是回环地址：" + listenUri);
+    Console.WriteLine("请确认防火墙只放行可信来源。Host 头必须与实际访问地址一致。");
+    Console.ResetColor();
+}
+
 builder.WebHost.UseUrls(listenUri);
 
 // 注册 LocalAdmin 管理器与内嵌提供方
 builder.Services.AddSingleton<LocalAdminManager>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LocalAdminManager>());
+builder.Services.AddSingleton<ServerUpdateService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ServerUpdateService>());
 builder.Services.AddSingleton<ILocalAdminProvider, EmbeddedLocalAdminProvider>();
 
 var app = builder.Build();
@@ -60,24 +78,28 @@ var app = builder.Build();
 // Daemon 自身退出是高危操作：会连带停止所有由它托管的游戏服。
 DaemonExitHandler.Initialize(app.Services.GetRequiredService<IHostApplicationLifetime>());
 
-// 守护进程认证中间件（校验 X-Daemon-Token）
+// 守护进程认证：Host 必须对应当前连接。配置了 DaemonToken 时所有接口都要校验 Token；
+// DaemonToken 为空时与旧版本一致不校验 Token（机器人此时也不会发送该请求头），启动时已输出安全警告。
 app.Use(async (context, next) =>
 {
     var options = context.RequestServices.GetRequiredService<IOptions<LocalAdminOptions>>().Value;
-    if (!string.IsNullOrWhiteSpace(options.DaemonToken))
+    string configuredHost = DaemonHostGuard.ConfiguredHost(options.DaemonUri);
+    if (!DaemonHostGuard.IsAllowed(context.Connection.LocalIpAddress, context.Request.Headers.Host.ToString(), configuredHost))
     {
-        // 允许直接访问根路径、ping 或 status
-        if (context.Request.Path != "/" && !context.Request.Path.StartsWithSegments("/api/daemon/ping") && !context.Request.Path.StartsWithSegments("/api/daemon/status"))
-        {
-            if (!context.Request.Headers.TryGetValue("X-Daemon-Token", out var token) ||
-                !string.Equals(token.ToString(), options.DaemonToken, StringComparison.Ordinal))
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsJsonAsync(new { error = "未授权：Daemon Token 不匹配" });
-                return;
-            }
-        }
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new { error = "拒绝访问：Host 与监听地址不匹配" });
+        return;
     }
+
+    if (!SharedSecretPolicy.IsEmpty(options.DaemonToken) &&
+        (!context.Request.Headers.TryGetValue("X-Daemon-Token", out var token) ||
+         !SharedSecretPolicy.FixedTimeEquals(token.ToString(), options.DaemonToken)))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(new { error = "未授权：Daemon Token 不匹配" });
+        return;
+    }
+
     await next();
 });
 
@@ -87,7 +109,7 @@ var api = app.MapGroup("/api/daemon");
 api.MapGet("/ping", (LocalAdminManager manager) =>
 {
     int running = manager.Instances.Count(i => i.Running);
-    return Results.Json(new DaemonPingResult("ok", "2.0.0", Environment.ProcessId, manager.Instances.Count, running));
+    return Results.Json(new DaemonPingResult("ok", "2.2.0", Environment.ProcessId, manager.Instances.Count, running));
 });
 
 api.MapGet("/status", (LocalAdminManager manager, IOptions<LocalAdminOptions> options) =>
@@ -102,7 +124,7 @@ api.MapGet("/status", (LocalAdminManager manager, IOptions<LocalAdminOptions> op
     return Results.Json(new DaemonStatusResult(
         Online: true,
         Status: "running",
-        Version: "2.0.0",
+        Version: "2.2.0",
         Pid: Environment.ProcessId,
         StartTime: proc.StartTime,
         UptimeSeconds: uptime,
@@ -202,6 +224,24 @@ api.MapPost("/servers/{id}/cancel-restart", async (string id, ILocalAdminProvide
 {
     var res = await provider.CancelRestartAsync(id, ct);
     return Results.Json(new { success = res.Success, response = res.Message, error = res.Error });
+});
+
+api.MapPost("/servers/{id}/update", async (string id, string? by, LocalUpdateRequest? req, ILocalAdminProvider provider, CancellationToken ct) =>
+{
+    var res = await provider.StartUpdateAsync(id, req ?? new LocalUpdateRequest(), by, ct);
+    return Results.Json(res);
+});
+
+api.MapPost("/servers/{id}/update/{action}", async (string id, string action, string? by, ILocalAdminProvider provider, CancellationToken ct) =>
+{
+    var res = await provider.ControlUpdateAsync(id, action, by, ct);
+    return Results.Json(res);
+});
+
+api.MapGet("/servers/{id}/update", async (string id, ILocalAdminProvider provider, CancellationToken ct) =>
+{
+    var status = await provider.GetUpdateStatusAsync(id, ct);
+    return status is not null ? Results.Json(status) : Results.NotFound(new { error = $"服务器不存在：{id}" });
 });
 
 api.MapGet("/config", async (ILocalAdminProvider provider, CancellationToken ct) =>

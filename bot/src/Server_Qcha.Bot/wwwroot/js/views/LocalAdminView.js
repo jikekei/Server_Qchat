@@ -118,7 +118,7 @@ export const LocalAdminView = {
             </el-descriptions>
 
             <div class="btn-row">
-              <el-button type="success" :disabled="localRunning" @click="localStart">启动</el-button>
+              <el-button type="success" :disabled="localRunning || localUpdating" @click="localStart">启动</el-button>
               <el-dropdown @command="localStop" :disabled="!localRunning">
                 <el-button type="warning" :disabled="!localRunning">停止 ▾</el-button>
                 <template #dropdown>
@@ -128,8 +128,11 @@ export const LocalAdminView = {
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
-              <el-button type="primary" :disabled="!localRunning" @click="localRestart(false)">重启</el-button>
-              <el-button type="danger" :disabled="!localRunning" @click="localRestart(true)">强制重启</el-button>
+              <el-button type="primary" :disabled="!localRunning || localUpdating" @click="localRestart(false)">重启</el-button>
+              <el-button type="danger" :disabled="!localRunning || localUpdating" @click="localRestart(true)">强制重启</el-button>
+              <el-button type="warning" plain :disabled="!local.selectedId" @click="openUpdateDialog">
+                {{ localUpdating ? '更新进度' : '更新服务器' }}
+              </el-button>
               <el-button v-if="local.status && local.status.restartCountdownSeconds > 0" type="danger" @click="localCancelRestart">
                 中止重启倒计时（{{ local.status.restartCountdownSeconds }}s）
               </el-button>
@@ -145,6 +148,11 @@ export const LocalAdminView = {
               <span class="muted">（只影响之后的新输出）</span>
             </div>
 
+            <el-alert v-if="localUpdating" type="warning" :closable="false" show-icon
+                      :title="local.status && local.status.running
+                        ? '服务端更新进行中：新版本在暂存目录下载，服务器照常运行，当前回合结束后自动切换（可在「更新进度」里立即更新或取消）'
+                        : '正在通过 SteamCMD 更新服务端文件，期间无法启动 / 重启 / 修改配置，进度见「更新进度」或下方控制台'"
+                      style="margin-bottom:10px"></el-alert>
             <el-alert v-if="local.status && local.status.restartBudgetExhausted" type="error" :closable="false" show-icon
                       title="自动重启已达限流上限，服务器不会自动拉起，请排查后手动启动"
                       style="margin-bottom:10px"></el-alert>
