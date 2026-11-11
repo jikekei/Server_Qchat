@@ -8,7 +8,6 @@ export const AccountsView = {
           <div class="page-header">
             <div class="page-header-meta">
               <h3 class="page-title">面板账号与 RBAC 权限管理</h3>
-              <span class="page-subtitle">分配 Web 运维面板的登录账号、角色预设与细粒度操作权限</span>
             </div>
             <div class="page-actions">
               <el-button type="primary" @click="openAccountDialog(null)">+ 新建面板账号</el-button>

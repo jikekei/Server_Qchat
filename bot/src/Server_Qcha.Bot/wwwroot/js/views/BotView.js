@@ -8,12 +8,11 @@ export const BotView = {
         <div>
           <div class="page-header">
             <div class="page-header-info">
-              <h2>QQ 机器人与社群联动</h2>
-              <p>支持 NapCat (OneBot 11) 与 QQ 官方 Bot API 双引擎在线热切换，保存即刻重连生效</p>
+              <h2>QQ 机器人</h2>
             </div>
             <div class="page-header-actions">
-              <el-button size="small" @click="showCommands">📋 官方指令配置清单</el-button>
-              <el-button size="small" type="success" plain :disabled="!bot.status.isConnected" @click="openTestDialog">✉️ 发送测试消息</el-button>
+              <el-button size="small" @click="showCommands">官方指令</el-button>
+              <el-button size="small" type="success" plain :disabled="!bot.status.isConnected" @click="openTestDialog">发送测试消息</el-button>
               <el-button size="small" type="primary" plain :loading="bot.reconnecting" @click="reconnectBot">↻ 重新连接</el-button>
               <el-button size="small" :loading="bot.loading" @click="loadBotStatus">刷新状态</el-button>
             </div>
@@ -31,7 +30,7 @@ export const BotView = {
                     <line x1="8" y1="16" x2="8.01" y2="16"></line>
                     <line x1="16" y1="16" x2="16.01" y2="16"></line>
                   </svg>
-                  <span>当前通道运行状态</span>
+                  <span>连接状态</span>
                   <el-tag type="info" effect="plain" size="small">{{ bot.status.platformDisplay || '-' }}</el-tag>
                   <el-tag :type="bot.status.isConnected ? 'success' : (bot.status.nextReconnectInSeconds > 0 ? 'warning' : 'danger')" effect="dark" size="small">
                     {{ bot.status.isConnected ? '已连接' : (bot.status.nextReconnectInSeconds > 0 ? ('重连中 (' + bot.status.nextReconnectInSeconds + 's)') : '未连接') }}
@@ -64,7 +63,6 @@ export const BotView = {
               <div class="metric-tile">
                 <div class="metric-tile-label">自动重连状态</div>
                 <div class="metric-tile-value">{{ bot.status.currentAttempt > 0 ? (bot.status.currentAttempt + ' 次重试') : '正常 (0 次)' }}</div>
-                <div class="metric-tile-sub">断线指数退避自动重连</div>
               </div>
             </div>
 
@@ -315,7 +313,6 @@ export const BotView = {
                 <div class="section-card-title">
                   <span>{{ bot.status.supportsGroupListing ? '已加入的 QQ 群聊列表' : '观察到活跃的群（官方平台）' }} ({{ bot.groups.length }})</span>
                 </div>
-                <span class="muted" v-if="bot.groups.length > 0">可一键添加到白名单或设为推送目标群</span>
               </div>
             </template>
 

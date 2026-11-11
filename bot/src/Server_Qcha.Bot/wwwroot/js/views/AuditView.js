@@ -9,7 +9,6 @@ export const AuditView = {
           <div class="page-header">
             <div class="page-header-meta">
               <h3 class="page-title">操作审计日志</h3>
-              <span class="page-subtitle">记录面板账号、服务器控制、数据库修改与安全配置的操作轨迹（最近 {{ audit.length }} 条）</span>
             </div>
             <div class="page-actions">
               <el-input v-model="keyword" placeholder="搜索操作者、动作、对象或详情..." clearable style="width:260px" />

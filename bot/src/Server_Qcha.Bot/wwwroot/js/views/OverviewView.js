@@ -10,8 +10,7 @@ export const OverviewView = {
         <div>
           <div class="page-header">
             <div class="page-header-info">
-              <h2>服务器运行总览</h2>
-              <p>实时聚合全服玩家人数、24 小时在线趋势、插件连接状态与主机压力遥测</p>
+              <h2>服务器总览</h2>
             </div>
             <div class="page-header-actions">
               <span class="muted">最后同步：{{ overview.lastUpdated ? fmtTime(overview.lastUpdated) : '等待同步' }}</span>

@@ -46,8 +46,7 @@ html[data-theme="dark"] .login-card {
 .login-brand-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 24px;
 }
 
 .login-brand {
@@ -84,42 +83,6 @@ html[data-theme="dark"] .login-card {
   line-height: 1.2;
 }
 
-.login-version-pill {
-  font-family: var(--qb-mono);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--qb-accent-soft);
-  color: var(--qb-accent);
-  border: 1px solid var(--qb-accent-border);
-}
-
-.login-sub {
-  color: var(--qb-text-2);
-  font-size: 13px;
-  margin: 4px 0 20px;
-}
-
-.login-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 22px;
-}
-
-.login-badge-item {
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 6px;
-  background: var(--qb-surface-2);
-  border: 1px solid var(--qb-border);
-  color: var(--qb-text-2);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
 .login-submit-btn {
   width: 100%;
   height: 42px !important;
@@ -131,25 +94,10 @@ html[data-theme="dark"] .login-card {
 }
 
 .login-footer-hint {
-  margin-top: 18px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--qb-surface-2);
-  border: 1px dashed var(--qb-border-strong);
-  color: var(--qb-text-3);
-  font-size: 12px;
-  line-height: 1.6;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.login-footer-hint svg {
-  width: 16px;
-  height: 16px;
-  color: var(--qb-accent);
-  flex-shrink: 0;
-  margin-top: 2px;
+  margin: 16px 0 0;
+  color: var(--qb-text-2);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 /* ==================== 主框架布局 ==================== */
@@ -246,59 +194,11 @@ html[data-theme="dark"] .brand-logo {
   white-space: nowrap;
 }
 
-.header-page-desc {
-  font-size: 12px;
-  color: #94a3b8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .user {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-}
-
-.header-status-pills {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-right: 4px;
-}
-
-.header-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  font-size: 12px;
-  color: #cbd5e1;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-  font-variant-numeric: tabular-nums;
-}
-
-.header-pill:hover {
-  border-color: rgba(0, 229, 255, 0.45);
-  background: rgba(15, 23, 42, 0.9);
-}
-
-.header-pill-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
-}
-
-.header-pill-dot.offline {
-  background: #ef4444;
-  box-shadow: none;
 }
 
 .theme-btn {
@@ -477,26 +377,6 @@ html[data-theme="dark"] .brand-logo {
   opacity: 1;
 }
 
-.sidebar-footer {
-  padding: 12px 14px;
-  margin: 8px 10px 12px;
-  border-radius: 10px;
-  background: var(--qb-surface-2);
-  border: 1px solid var(--qb-border);
-  font-size: 11.5px;
-  color: var(--qb-text-3);
-  line-height: 1.5;
-}
-
-.sidebar-footer-title {
-  font-weight: 600;
-  color: var(--qb-text-2);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 3px;
-}
-
 /* ==================== 主内容工作区 ==================== */
 .main {
   padding: 22px 26px 32px;
@@ -532,14 +412,6 @@ html[data-theme="dark"] .brand-logo {
   letter-spacing: -0.2px;
 }
 
-.page-header-info p,
-.page-header-meta .page-subtitle {
-  display: block;
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--qb-text-3);
-}
-
 .page-header-actions,
 .page-actions {
   display: flex;
@@ -563,12 +435,6 @@ html[data-theme="dark"] .brand-logo {
   font-size: 15px;
   font-weight: 600;
   color: var(--qb-text);
-}
-
-.card-head-subtitle {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--qb-text-3);
 }
 
 .dot {
@@ -909,11 +775,14 @@ h4 {
 }
 
 /* ==================== API 接口页 (OperationsView) 样式 ==================== */
-.ops-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+.ops-api-reference summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.ops-api-reference p {
+  margin: 12px 0;
+  color: var(--qb-text-2);
 }
 
 .endpoint-list {
@@ -1093,10 +962,6 @@ h4 {
   color: var(--qb-text);
 }
 
-.mobile-user-role {
-  font-size: 12px;
-}
-
 .mobile-drawer-menu {
   flex: 1;
   overflow-y: auto;
@@ -1141,13 +1006,6 @@ h4 {
 
 /* ==================== 响应式断点 ==================== */
 @media (max-width: 1100px) {
-  .ops-grid {
-    grid-template-columns: 1fr;
-  }
-  .header-page-desc,
-  .header-status-pills {
-    display: none;
-  }
 }
 
 @media (max-width: 768px) {

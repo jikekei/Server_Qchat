@@ -7,8 +7,7 @@ export const LocalAdminView = {
         <div>
           <div class="page-header">
             <div class="page-header-info">
-              <h2>服务器进程 (LocalAdmin)</h2>
-              <p>独立守护进程监控、SCPSL 实例生命周期管控、SteamCMD 不停服更新与实时交互终端</p>
+              <h2>服务器进程</h2>
             </div>
             <div class="page-header-actions" v-if="capabilities.localAdmin">
               <el-button size="small" :loading="localConfigDialog.loading" @click="openLocalConfig">查看配置 (lacfg)</el-button>
@@ -38,7 +37,7 @@ export const LocalAdminView = {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                     </svg>
-                    <span>LocalAdmin 独立守护进程 (Server_Qcha.Daemon)</span>
+                    <span>LocalAdmin 守护进程</span>
                     <el-tag :type="daemon.online ? 'success' : 'danger'" effect="dark" size="small">
                       {{ daemon.online ? ('运行中 · PID ' + (daemon.pid || '-')) : '已停止 / 未运行' }}
                     </el-tag>
@@ -75,15 +74,14 @@ export const LocalAdminView = {
                   <div class="metric-tile-sub">活动并发线程：{{ daemon.online ? daemon.threadCount : '—' }}</div>
                 </div>
                 <div class="metric-tile">
-                  <div class="metric-tile-label">托管服务器容量</div>
+                  <div class="metric-tile-label">运行中 / 已托管</div>
                   <div class="metric-tile-value">{{ daemon.online ? (daemon.runningServerCount + ' / ' + daemon.serverCount + ' 台') : '—' }}</div>
-                  <div class="metric-tile-sub">运行中实例 / 已配置总数</div>
                 </div>
                 <div class="metric-tile">
-                  <div class="metric-tile-label">内部通信与防掉线状态</div>
+                  <div class="metric-tile-label">监听地址</div>
                   <div class="metric-tile-value" style="font-size:13px">{{ daemon.listenUri || 'http://127.0.0.1:10090' }}</div>
                   <div class="metric-tile-sub" :style="{ color: daemon.online ? 'var(--qb-success)' : 'var(--qb-danger)' }">
-                    {{ daemon.message || (daemon.online ? '守护正常，重启面板玩家不掉线' : '守护进程未运行') }}
+                    {{ daemon.message || (daemon.online ? '守护进程运行中' : '守护进程未运行') }}
                   </div>
                 </div>
               </div>
@@ -97,11 +95,6 @@ export const LocalAdminView = {
               </el-select>
               <el-tag :type="localStatusType(local.status)" effect="dark">{{ localStatusText(local.status) }}</el-tag>
 
-              <span class="muted">
-                来源：{{ local.source === 'config-file' ? '独立配置文件' : 'appsettings 种子' }}
-                <template v-if="local.source === 'config-file'"> (<code>{{ local.configPath }}</code>)</template>
-              </span>
-
               <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
                 <el-button type="primary" @click="openServerDialog(null)">+ 添加服务器</el-button>
                 <el-button :disabled="!local.selectedId" @click="openServerDialog(local.selectedId)">编辑配置</el-button>
@@ -109,7 +102,7 @@ export const LocalAdminView = {
               </div>
             </div>
 
-            <el-empty v-if="local.servers.length === 0" description="配置中没有托管任何本地服务器（点击右上角「+ 添加服务器」开始托管）"></el-empty>
+            <el-empty v-if="local.servers.length === 0" description="暂无托管服务器"></el-empty>
 
             <template v-else>
               <!-- 选中实例核心指标瓷砖 -->
@@ -186,11 +179,6 @@ export const LocalAdminView = {
               <div class="terminal-window">
                 <div class="terminal-header">
                   <div class="terminal-header-left">
-                    <div class="terminal-dots">
-                      <span class="terminal-dot red"></span>
-                      <span class="terminal-dot yellow"></span>
-                      <span class="terminal-dot green"></span>
-                    </div>
                     <span class="terminal-title">
                       {{ (local.status && local.status.name) || local.selectedId || 'SCPSL Console' }}
                     </span>
@@ -218,7 +206,7 @@ export const LocalAdminView = {
 
                 <div class="terminal-footer">
                   <div class="console-input">
-                    <el-input v-model="local.command" placeholder="输入 SCPSL 服务端控制台指令或 LocalAdmin 内置命令，按 Enter 发送…"
+                    <el-input v-model="local.command" placeholder="输入控制台指令…"
                               @keyup.enter="localSendCommand">
                       <template #prefix>
                         <span style="font-family:var(--qb-mono);color:var(--qb-accent);font-weight:700">&gt;</span>

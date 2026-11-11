@@ -2,20 +2,19 @@ import { computed } from '../deps.js';
 import { session, page, can, theme, toggleTheme, api, clearSession, mobileMenuOpen } from '../api.js';
 import { useAccounts } from '../modules/useAccounts.js';
 import { useLocalAdmin } from '../modules/useLocalAdmin.js';
-import { useOverview } from '../modules/useOverview.js';
 import { ElMessage } from '../deps.js';
 
 const PAGE_META = {
-  'overview':   { title: '服务器总览', desc: '全服实时玩家趋势、服务器负载矩阵与主机资源健康监控' },
-  'servers':    { title: '在线服务器', desc: '多服实时在线状态、玩家列表管控、全服广播与回合控制' },
-  'local':      { title: '服务器进程 (LocalAdmin)', desc: '独立守护进程监控、SCPSL 实例生命周期、SteamCMD 更新与实时控制台' },
-  'bot':        { title: 'QQ 机器人', desc: 'NapCat (OneBot 11) 与 QQ 官方开放平台双引擎热切换及群聊联动' },
-  'game-admin': { title: '游戏管理员', desc: '可视化接管 config_remoteadmin.txt 管理员、权限组、插件节点与个人覆盖' },
-  'database':   { title: '数据库管理', desc: 'MySQL 玩家战绩统计、封禁记录管理、排行榜与数据表结构维护' },
-  'accounts':   { title: '账号管理', desc: '面板多管理员账户、角色预设与细粒度 RBAC 权限授权' },
-  'audit':      { title: '审计日志', desc: '全量记录面板与 API 管理指令的操作人、时间戳与执行结果' },
-  'logging':    { title: '日志级别', desc: '动态热切换系统与各子模块日志输出级别，立即生效免重启' },
-  'operations': { title: 'API 与日志归档', desc: '自动化运维 Bearer 令牌管理与全量服务器历史日志归档检索' },
+  'overview':   { title: '服务器总览' },
+  'servers':    { title: '在线服务器' },
+  'local':      { title: '服务器进程 (LocalAdmin)' },
+  'bot':        { title: 'QQ 机器人' },
+  'game-admin': { title: '游戏管理员' },
+  'database':   { title: '数据库管理' },
+  'accounts':   { title: '账号管理' },
+  'audit':      { title: '审计日志' },
+  'logging':    { title: '日志级别' },
+  'operations': { title: 'API 与日志归档' },
 };
 
 export const AppHeader = {
@@ -50,22 +49,10 @@ export const AppHeader = {
 
         <div class="header-breadcrumb">
           <span class="header-page-title">{{ currentMeta.title }}</span>
-          <span class="header-page-desc">· {{ currentMeta.desc }}</span>
         </div>
       </div>
 
       <div class="user">
-        <div v-if="can('servers.view')" class="header-status-pills">
-          <div class="header-pill" title="点击查看服务器总览" @click="page = 'overview'">
-            <span class="header-pill-dot" :class="{ offline: overview.stats.onlineServers === 0 && overview.stats.localRunningCount === 0 }"></span>
-            <span>玩家 {{ overview.stats.totalOnline }}/{{ overview.stats.totalMax }}</span>
-          </div>
-          <div v-if="can('bot.manage')" class="header-pill" title="点击管理 QQ 机器人" @click="page = 'bot'">
-            <span class="header-pill-dot" :class="{ offline: !overview.stats.botConnected }"></span>
-            <span>{{ overview.stats.botConnected ? 'Bot 在线' : 'Bot 离线' }}</span>
-          </div>
-        </div>
-
         <button class="theme-btn" @click="toggleTheme"
                 :title="theme === 'dark' ? '切换到亮色主题' : '切换到暗色主题'">
           <svg v-if="theme === 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
@@ -95,9 +82,8 @@ export const AppHeader = {
   setup() {
     const { passwordDialog } = useAccounts();
     const { stopLocalPolling } = useLocalAdmin();
-    const { overview } = useOverview();
 
-    const currentMeta = computed(() => PAGE_META[page.value] || { title: '控制台', desc: '' });
+    const currentMeta = computed(() => PAGE_META[page.value] || { title: '控制台' });
 
     async function doLogout() {
       try { await api('/auth/logout', { method: 'POST' }); } catch (e) { /* 忽略 */ }
@@ -115,7 +101,6 @@ export const AppHeader = {
       passwordDialog,
       doLogout,
       mobileMenuOpen,
-      overview,
       currentMeta,
     };
   }

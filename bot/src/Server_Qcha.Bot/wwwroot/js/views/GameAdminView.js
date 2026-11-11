@@ -112,7 +112,6 @@ export const GameAdminView = {
     <div class="page-header">
       <div class="page-header-meta">
         <h3 class="page-title">游戏内管理员与权限组</h3>
-        <span class="page-subtitle">远程同步管理各 SCP:SL 服的 RemoteAdmin 原生权限组、称号颜色与 LabAPI/EXILED 插件权限节点</span>
       </div>
       <div class="page-actions">
         <el-select v-model="selected" placeholder="选择目标服务器" @change="load" :disabled="busy" style="width:240px">

@@ -7,45 +7,19 @@ export const LoggingView = {
         <div v-if="page === 'logging'">
           <div class="page-header">
             <div class="page-header-meta">
-              <h3 class="page-title">动态日志级别热切换</h3>
-              <span class="page-subtitle">实时写入配置文件并热重载生效，无需重启机器人即可按模块调整日志粒度</span>
+              <h3 class="page-title">日志级别</h3>
             </div>
             <div class="page-actions">
               <el-button :loading="logSettings.loading" @click="loadLogSettings">重新读取</el-button>
-              <el-button type="primary" :loading="logSettings.saving" @click="saveLogSettings">保存配置并热生效</el-button>
+              <el-button type="primary" :loading="logSettings.saving" @click="saveLogSettings">保存配置</el-button>
             </div>
           </div>
-
-          <div class="metric-tiles" style="margin-bottom:14px">
-            <div class="metric-tile">
-              <span class="metric-tile-label">全局默认日志级别</span>
-              <span class="metric-tile-value">
-                <el-tag size="small" type="primary">{{ logSettings.defaultLevel || 'Information' }}</el-tag>
-              </span>
-            </div>
-            <div class="metric-tile">
-              <span class="metric-tile-label">分类覆盖规则数</span>
-              <span class="metric-tile-value num">{{ (logSettings.categories || []).length }} 项</span>
-            </div>
-            <div class="metric-tile" style="grid-column: span 2">
-              <span class="metric-tile-label">热重载持久化文件</span>
-              <span class="metric-tile-value">
-                <code style="font-size:12px">{{ logSettings.configPath || 'logging-level.json' }}</code>
-              </span>
-            </div>
-          </div>
-
-          <el-alert type="info" :closable="false" show-icon
-                    title="日志级别修改后约 1 秒内即时生效，无需重启机器人" style="margin-bottom:14px">
-            <div v-if="logSettings.note" style="margin-top:2px">{{ logSettings.note }}</div>
-          </el-alert>
 
           <el-card shadow="never">
             <template #header>
               <div class="card-head">
                 <div class="card-head-title-group">
-                  <span>全局与分类日志级别配置</span>
-                  <span class="card-head-subtitle">未单独配置分类覆盖的模块将自动继承全局默认级别</span>
+                  <span :title="logSettings.configPath || 'logging-level.json'">日志配置</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px">
                   <span class="muted" style="font-size:12.5px;font-weight:600">全局默认级别：</span>

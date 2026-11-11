@@ -41,15 +41,6 @@ export const LoginView = {
             <h2>Qridge Console</h2>
           </div>
         </div>
-        <span class="login-version-pill">v2.2.0</span>
-      </div>
-
-      <p class="login-sub">SCP: Secret Laboratory 现代化高可用运维中枢</p>
-
-      <div class="login-badges">
-        <span class="login-badge-item">🛡️ 独立守护进程防掉线</span>
-        <span class="login-badge-item">🤖 NapCat / 官方双引擎</span>
-        <span class="login-badge-item">⚡ 权限与配置热生效</span>
       </div>
 
       <el-form @submit.prevent>
@@ -64,17 +55,7 @@ export const LoginView = {
         </el-button>
       </el-form>
 
-      <div class="login-footer-hint">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="16" x2="12" y2="12"></line>
-          <line x1="12" y1="8" x2="12.01" y2="8"></line>
-        </svg>
-        <div>
-          默认初始账号请查看服务端启动终端日志。<br />
-          若开启启动重置策略，密码将在每次启动时随机生成。
-        </div>
-      </div>
+      <p class="login-footer-hint">初始登录凭据见服务端启动日志。</p>
     </el-card>
   </div>
 `,

@@ -7,8 +7,7 @@ export const DatabaseView = {
         <div>
           <div class="page-header">
             <div class="page-header-info">
-              <h2>MySQL 数据库管理</h2>
-              <p>管理与游戏插件共享的 PlayerData 玩家战绩库、BanPlayerData 封禁记录及表结构维护</p>
+              <h2>数据库管理</h2>
             </div>
             <div class="page-header-actions">
               <el-button size="small" type="warning" plain @click="openRankingDialog">🏆 玩家排行榜</el-button>

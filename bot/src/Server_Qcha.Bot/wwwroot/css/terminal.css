@@ -26,21 +26,6 @@
   gap: 10px;
 }
 
-.terminal-dots {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.terminal-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-.terminal-dot.red    { background: #ef4444; }
-.terminal-dot.yellow { background: #f59e0b; }
-.terminal-dot.green  { background: #10b981; }
-
 .terminal-title {
   font-family: var(--qb-mono);
   font-weight: 600;

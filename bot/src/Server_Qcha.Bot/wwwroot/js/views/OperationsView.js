@@ -7,91 +7,64 @@ export const OperationsView = {
   <div v-if="can('accounts.manage')">
     <div class="page-header">
       <div class="page-header-meta">
-        <h3 class="page-title">运维 API 与历史日志归档</h3>
-        <span class="page-subtitle">配置独立 Bearer 自动化运维接口令牌，以及按日期检索全量服务器历史归档日志（含 stdout）</span>
+        <h3 class="page-title">API 与日志归档</h3>
       </div>
     </div>
 
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon style="margin-bottom:14px" />
 
-    <div class="ops-grid">
-      <!-- 左侧：Bearer 令牌与权限控制 -->
-      <el-card shadow="never">
-        <template #header>
-          <div class="card-head">
-            <div class="card-head-title-group">
-              <span>自动化运维 API 鉴权配置</span>
-              <span class="card-head-subtitle">通过独立 Bearer 令牌供外部监控或脚本调用</span>
-            </div>
-            <el-tag size="small" :type="enabled ? 'success' : 'info'">{{ enabled ? 'API 已启用' : 'API 已关闭' }}</el-tag>
-          </div>
-        </template>
-
-        <div style="display:flex;flex-direction:column;gap:16px">
-          <div class="metric-tiles" style="grid-template-columns: 1fr 1fr">
-            <div class="metric-tile">
-              <span class="metric-tile-label">运维 API 总开关</span>
-              <div style="margin-top:4px">
-                <el-switch v-model="enabled" active-text="启用接口" inactive-text="禁用" />
-              </div>
-            </div>
-            <div class="metric-tile">
-              <span class="metric-tile-label">进程生命周期控制权限</span>
-              <div style="margin-top:4px">
-                <el-switch v-model="control" active-text="允许启停/重启" inactive-text="仅只读" />
-              </div>
-            </div>
-          </div>
-
-          <div style="font-size:12.5px;color:var(--c-text-secondary);line-height:1.6">
-            请求头格式：<code>Authorization: Bearer &lt;令牌&gt;</code><br>
-            安全策略：令牌仅在首次生成或重置后明文回显一次，重置后旧令牌立即失效。
-          </div>
-
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <el-button type="primary" @click="save(false)">保存开关配置</el-button>
-            <el-button type="warning" plain @click="save(true)">生成 / 重置 Bearer 令牌</el-button>
-            <span v-if="message" style="font-size:12.5px;color:var(--c-success);font-weight:600">{{ message }}</span>
-          </div>
-
-          <div v-if="key" class="token-reveal-box">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <span style="font-size:12px;font-weight:700;color:var(--c-success)">新生成的 Bearer 令牌（请立即复制保存）：</span>
-              <el-button size="small" type="success" plain @click="copyToken">复制令牌</el-button>
-            </div>
-            <pre>{{ key }}</pre>
+    <el-card shadow="never" style="margin-bottom:16px">
+      <template #header>
+        <div class="card-head">
+          <div class="card-head-title-group">
+            <span>运维 API 设置</span>
           </div>
         </div>
-      </el-card>
+      </template>
 
-      <!-- 右侧：接口速查清单 -->
-      <el-card shadow="never">
-        <template #header>
-          <div class="card-head">
-            <div class="card-head-title-group">
-              <span>运维 API 端点参考 (/api/ops/v1)</span>
-              <span class="card-head-subtitle">所有接口均需携带 Authorization Bearer 请求头</span>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="toolbar">
+          <el-switch v-model="enabled" active-text="启用运维 API" />
+          <el-switch v-model="control" active-text="允许启停和重启" />
+        </div>
+
+        <div style="font-size:12.5px;color:var(--c-text-secondary);line-height:1.6">
+          令牌只显示一次。重置后旧令牌立即失效。
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <el-button type="primary" @click="save(false)">保存设置</el-button>
+          <el-button type="warning" plain @click="save(true)">生成或重置令牌</el-button>
+          <span v-if="message" style="font-size:12.5px;color:var(--c-success);font-weight:600">{{ message }}</span>
+        </div>
+
+        <div v-if="key" class="token-reveal-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:12px;font-weight:700;color:var(--c-success)">新生成的 Bearer 令牌（请立即复制保存）：</span>
+            <el-button size="small" type="success" plain @click="copyToken">复制令牌</el-button>
+          </div>
+          <pre>{{ key }}</pre>
+        </div>
+        <details class="ops-api-reference">
+          <summary>API 接口参考</summary>
+          <p>请求头 <code>Authorization: Bearer &lt;令牌&gt;</code></p>
+          <div class="endpoint-list">
+            <div class="endpoint-item" v-for="ep in endpoints" :key="ep.path">
+              <span class="endpoint-method" :class="ep.method.toLowerCase()">{{ ep.method }}</span>
+              <span class="endpoint-path">{{ ep.path }}</span>
+              <span class="endpoint-desc">{{ ep.desc }}</span>
             </div>
           </div>
-        </template>
-
-        <div class="endpoint-list">
-          <div class="endpoint-item" v-for="ep in endpoints" :key="ep.path">
-            <span class="endpoint-method" :class="ep.method.toLowerCase()">{{ ep.method }}</span>
-            <span class="endpoint-path">{{ ep.path }}</span>
-            <span class="endpoint-desc">{{ ep.desc }}</span>
-          </div>
-        </div>
-      </el-card>
-    </div>
+        </details>
+      </div>
+    </el-card>
 
     <!-- 底部：服务器日志归档查阅器 -->
     <el-card shadow="never">
       <template #header>
         <div class="card-head">
           <div class="card-head-title-group">
-            <span>服务器历史日志归档（含完整 stdout）</span>
-            <span class="card-head-subtitle">共 {{ servers.length }} 个托管服务器实例 · 日期按服务端本地时间计算</span>
+            <span>服务器日志归档</span>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <el-button size="small" @click="listFiles">刷新文件列表</el-button>
@@ -117,18 +90,7 @@ export const OperationsView = {
       </div>
 
       <div class="terminal-window">
-        <div class="terminal-header">
-          <div class="terminal-title">
-            <span class="terminal-dots"><i></i><i></i><i></i></span>
-            <span>ARCHIVE VIEWER</span>
-            <span class="muted" style="font-size:11px">· {{ file || (serverId && !files.length ? '所选日期暂无归档日志文件' : '请选择日志文件') }}</span>
-          </div>
-          <div class="terminal-controls" v-if="more">
-            <el-button size="small" type="primary" @click="readFile(false)">继续加载下一页</el-button>
-          </div>
-        </div>
-
-        <pre class="terminal" style="margin:0;height:460px;white-space:pre-wrap;overflow-wrap:anywhere">{{ content || (serverId && !files.length ? '（所选日期暂无日志文件）' : '（在上方选择服务器、日期与归档文件后在此处显示内容）') }}</pre>
+        <pre class="terminal" style="margin:0;height:460px;white-space:pre-wrap;overflow-wrap:anywhere">{{ content || (serverId && !files.length ? '（所选日期暂无日志文件）' : '请选择日志文件') }}</pre>
       </div>
     </el-card>
   </div>`,

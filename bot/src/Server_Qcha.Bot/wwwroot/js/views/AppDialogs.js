@@ -264,11 +264,11 @@ export const AppDialogs = {
           <el-form-item label="更新分支">
             <el-input v-model="updateDialog.form.betaBranch" style="max-width:260px"
                       placeholder="留空 = public 正式版"></el-input>
-            <span class="muted" style="margin-left:10px">Steam beta 分支名（-beta），默认：{{ updateDialog.status.defaultBetaBranch }}</span>
+            <span class="muted" style="margin-left:10px">默认分支：{{ updateDialog.status.defaultBetaBranch }}</span>
           </el-form-item>
           <el-form-item label="选项">
             <div class="perm-list">
-              <el-checkbox v-model="updateDialog.form.validate">校验全部文件（validate，更慢但更可靠）</el-checkbox>
+              <el-checkbox v-model="updateDialog.form.validate">校验全部文件（耗时更长）</el-checkbox>
               <el-checkbox v-model="updateDialog.form.restartAfter">服务器未运行时，更新后也启动它</el-checkbox>
             </div>
           </el-form-item>
@@ -277,8 +277,7 @@ export const AppDialogs = {
         <div class="terminal-window">
           <div class="terminal-header">
             <div class="terminal-title">
-              <span class="terminal-dots"><i></i><i></i><i></i></span>
-              <span>STEAMCMD UPDATE STREAM</span>
+              <span>更新日志</span>
             </div>
           </div>
           <div class="terminal" ref="updateLogRef" style="height:260px">

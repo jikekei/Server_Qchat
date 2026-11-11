@@ -8,7 +8,6 @@ export const ServersView = {
           <div class="page-header">
             <div class="page-header-info">
               <h2>在线服务器</h2>
-              <p>实时交互并管理通过 TCP 插件通道接入的 SCP:SL 游戏服实例</p>
             </div>
             <div class="page-header-actions">
               <el-tag type="info" effect="plain">在线实例：{{ servers.length }} 台</el-tag>

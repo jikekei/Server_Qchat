@@ -126,13 +126,6 @@ export const AppSidebar = {
           </el-menu>
         </div>
 
-        <div class="sidebar-footer">
-          <div class="sidebar-footer-title">
-            <span class="pulse-dot" style="margin-right:2px"></span>
-            <span>Qridge 独立守护架构</span>
-          </div>
-          <div>更新或重启面板不会中断受守护的 SCP:SL 游戏服进程。</div>
-        </div>
       </el-aside>
 
       <!-- 移动端侧滑抽屉导航 (Drawer) -->
@@ -173,7 +166,6 @@ export const AppSidebar = {
             </div>
             <div class="mobile-user-info">
               <div class="mobile-user-name">{{ session.displayName || session.username }}</div>
-              <div class="mobile-user-role muted">{{ session.username === 'admin' ? '内置超级管理员' : '运维管理员' }}</div>
             </div>
           </div>
 
