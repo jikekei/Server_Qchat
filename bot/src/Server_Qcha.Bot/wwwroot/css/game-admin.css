@@ -1,12 +1,122 @@
-.ga-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}
-.ga-toolbar h2{margin:0 auto 0 0}
-.ga-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.ga-permissions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0;max-height:340px;overflow:auto}
-.ga-permissions .el-checkbox{height:auto;min-height:44px;align-items:flex-start;white-space:normal;margin-right:8px}
-.game-admin small{display:block;font-size:11px;opacity:.7;overflow-wrap:anywhere;line-height:1.6}
-.ga-dialog{max-width:calc(100vw - 24px)}
-.ga-dialog .el-dialog__body{max-height:70vh;overflow:auto}
-.ga-dialog small{display:block;font-size:11px;opacity:.7;overflow-wrap:anywhere;line-height:1.6}
-.ga-dialog h3{margin:24px 0 12px}
-.ga-dialog .el-form-item__content>.muted{width:100%;margin-top:8px;line-height:1.6}
-@media(max-width:768px){.ga-grid,.ga-permissions{grid-template-columns:1fr}.ga-toolbar>*{max-width:100%}.ga-dialog{margin-top:4vh!important}.ga-dialog .el-dialog__body{max-height:72vh}}
+/* ==================== 游戏内管理员与权限组 (GameAdminView) ==================== */
+.ga-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+
+.ga-toolbar h2 {
+  margin: 0 auto 0 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.ga-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ga-permissions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 16px;
+  max-height: 340px;
+  overflow: auto;
+  padding: 4px;
+}
+
+.ga-permissions .el-checkbox {
+  height: auto;
+  min-height: 48px;
+  align-items: flex-start;
+  white-space: normal;
+  margin-right: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--qb-surface-2);
+  border: 1px solid var(--qb-border);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ga-permissions .el-checkbox.is-checked {
+  border-color: var(--qb-accent-border);
+  background: var(--qb-accent-soft);
+}
+
+.game-admin small,
+.ga-dialog small {
+  display: block;
+  font-size: 11px;
+  color: var(--qb-text-3);
+  font-family: var(--qb-mono);
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  margin-top: 2px;
+}
+
+.ga-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--qb-surface-2);
+  border: 1px solid var(--qb-border-strong);
+  color: var(--qb-text);
+}
+
+.ga-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--qb-accent);
+}
+
+.ga-dialog {
+  max-width: calc(100vw - 24px);
+}
+
+.ga-dialog .el-dialog__body {
+  max-height: 72vh;
+  overflow: auto;
+}
+
+.ga-dialog h3 {
+  margin: 22px 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--qb-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--qb-border);
+}
+
+.ga-dialog .el-form-item__content > .muted {
+  width: 100%;
+  margin-top: 6px;
+  line-height: 1.55;
+}
+
+@media (max-width: 768px) {
+  .ga-grid,
+  .ga-permissions {
+    grid-template-columns: 1fr;
+  }
+  .ga-toolbar > * {
+    max-width: 100%;
+  }
+  .ga-dialog {
+    margin-top: 4vh !important;
+  }
+  .ga-dialog .el-dialog__body {
+    max-height: 72vh;
+  }
+}

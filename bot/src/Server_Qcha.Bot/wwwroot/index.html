@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Qridge</title>
+  <title>Qridge · SCP:SL 运维中枢</title>
   <script>
     (function () {
       try {
@@ -28,19 +28,21 @@
   <!-- 主控制台布局 -->
   <el-container v-else class="layout" direction="vertical">
     <app-header></app-header>
-    <el-container style="overflow:hidden">
+    <el-container style="overflow:hidden;flex:1">
       <app-sidebar></app-sidebar>
       <el-main class="main">
-        <overview-view v-if="page === 'overview'"></overview-view>
-        <servers-view v-if="page === 'servers'"></servers-view>
-        <local-admin-view v-if="page === 'local'"></local-admin-view>
-        <bot-view v-if="page === 'bot'"></bot-view>
-        <database-view v-if="page === 'database'"></database-view>
-        <game-admin-view v-if="page === 'game-admin'"></game-admin-view>
-        <accounts-view v-if="page === 'accounts'"></accounts-view>
-        <audit-view v-if="page === 'audit'"></audit-view>
-        <logging-view v-if="page === 'logging'"></logging-view>
-        <operations-view v-if="page === 'operations'"></operations-view>
+        <div class="page-shell">
+          <overview-view v-if="page === 'overview'"></overview-view>
+          <servers-view v-if="page === 'servers'"></servers-view>
+          <local-admin-view v-if="page === 'local'"></local-admin-view>
+          <bot-view v-if="page === 'bot'"></bot-view>
+          <database-view v-if="page === 'database'"></database-view>
+          <game-admin-view v-if="page === 'game-admin'"></game-admin-view>
+          <accounts-view v-if="page === 'accounts'"></accounts-view>
+          <audit-view v-if="page === 'audit'"></audit-view>
+          <logging-view v-if="page === 'logging'"></logging-view>
+          <operations-view v-if="page === 'operations'"></operations-view>
+        </div>
       </el-main>
     </el-container>
   </el-container>

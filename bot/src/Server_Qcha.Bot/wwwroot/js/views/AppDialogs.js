@@ -274,11 +274,19 @@ export const AppDialogs = {
           </el-form-item>
         </el-form>
 
-        <div class="terminal" ref="updateLogRef" style="height:260px">
-          <div v-if="!updateDialog.status.lines || updateDialog.status.lines.length === 0" class="terminal-empty">（暂无更新日志）</div>
-          <div v-for="line in updateDialog.status.lines" :key="line.seq" class="term-line">
-            <span class="term-time">{{ timeOnly(line.time) }}</span>
-            <span :style="{ color: updateLineColor(line.level) }">{{ line.text }}</span>
+        <div class="terminal-window">
+          <div class="terminal-header">
+            <div class="terminal-title">
+              <span class="terminal-dots"><i></i><i></i><i></i></span>
+              <span>STEAMCMD UPDATE STREAM</span>
+            </div>
+          </div>
+          <div class="terminal" ref="updateLogRef" style="height:260px">
+            <div v-if="!updateDialog.status.lines || updateDialog.status.lines.length === 0" class="terminal-empty">（暂无更新日志）</div>
+            <div v-for="line in updateDialog.status.lines" :key="line.seq" class="term-line">
+              <span class="term-time">{{ timeOnly(line.time) }}</span>
+              <span :style="{ color: updateLineColor(line.level) }">{{ line.text }}</span>
+            </div>
           </div>
         </div>
       </template>

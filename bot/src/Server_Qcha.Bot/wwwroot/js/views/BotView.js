@@ -6,93 +6,130 @@ export const BotView = {
   name: 'BotView',
   template: `
         <div>
-          <el-alert type="info" :closable="false" show-icon
-                    title="QQ 机器人运行与联动管理" style="margin-bottom:12px">
-            <div>支持两种接入方式，可在下方「接入模式」中在线切换，保存后立即重建连接，无需重启程序。</div>
-            <div style="margin-top:4px">
-              <b>NapCat / OneBot 11</b>：连接本机 NapCatQQ 正向 WebSocket，可拿到真实群号与 QQ 号。
-              <b>QQ 官方 Bot API</b>：直连 QQ 开放平台，群与用户均为 OpenID，群聊中仅能收到 @机器人 的消息。
+          <div class="page-header">
+            <div class="page-header-info">
+              <h2>QQ 机器人与社群联动</h2>
+              <p>支持 NapCat (OneBot 11) 与 QQ 官方 Bot API 双引擎在线热切换，保存即刻重连生效</p>
             </div>
-          </el-alert>
+            <div class="page-header-actions">
+              <el-button size="small" @click="showCommands">📋 官方指令配置清单</el-button>
+              <el-button size="small" type="success" plain :disabled="!bot.status.isConnected" @click="openTestDialog">✉️ 发送测试消息</el-button>
+              <el-button size="small" type="primary" plain :loading="bot.reconnecting" @click="reconnectBot">↻ 重新连接</el-button>
+              <el-button size="small" :loading="bot.loading" @click="loadBotStatus">刷新状态</el-button>
+            </div>
+          </div>
 
-          <!-- 状态与控制栏 -->
-          <el-card class="server-card" style="margin-bottom:16px">
-            <div class="server-head">
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-weight:600;font-size:16px">连接状态</span>
-                <el-tag type="info" effect="plain">{{ bot.status.platformDisplay || '-' }}</el-tag>
-                <el-tag :type="bot.status.isConnected ? 'success' : (bot.status.nextReconnectInSeconds > 0 ? 'warning' : 'danger')" effect="dark">
-                  {{ bot.status.isConnected ? '已连接' : (bot.status.nextReconnectInSeconds > 0 ? ('重连中 (' + bot.status.nextReconnectInSeconds + 's)') : '未连接') }}
-                </el-tag>
+          <!-- 状态与实时连接指标 -->
+          <el-card shadow="never" style="margin-bottom:18px">
+            <template #header>
+              <div class="section-card-head">
+                <div class="section-card-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                    <circle cx="12" cy="5" r="2"></circle>
+                    <path d="M12 7v4"></path>
+                    <line x1="8" y1="16" x2="8.01" y2="16"></line>
+                    <line x1="16" y1="16" x2="16.01" y2="16"></line>
+                  </svg>
+                  <span>当前通道运行状态</span>
+                  <el-tag type="info" effect="plain" size="small">{{ bot.status.platformDisplay || '-' }}</el-tag>
+                  <el-tag :type="bot.status.isConnected ? 'success' : (bot.status.nextReconnectInSeconds > 0 ? 'warning' : 'danger')" effect="dark" size="small">
+                    {{ bot.status.isConnected ? '已连接' : (bot.status.nextReconnectInSeconds > 0 ? ('重连中 (' + bot.status.nextReconnectInSeconds + 's)') : '未连接') }}
+                  </el-tag>
+                </div>
+                <span class="muted" v-if="bot.configPath">配置文件：<code>{{ bot.configPath }}</code></span>
               </div>
-              <div style="display:flex;gap:8px">
-                <el-button :loading="bot.loading" @click="loadBotStatus">刷新</el-button>
-                <el-button type="primary" :loading="bot.reconnecting" @click="reconnectBot">重新连接</el-button>
-                <el-button type="success" :disabled="!bot.status.isConnected" @click="openTestDialog">发送测试消息</el-button>
+            </template>
+
+            <div class="metric-tiles">
+              <div class="metric-tile">
+                <div class="metric-tile-label">登录机器人身份</div>
+                <div class="metric-tile-value">
+                  {{ bot.status.connectedUserId ? (bot.status.connectedNickname || '机器人') : '未获取' }}
+                </div>
+                <div class="metric-tile-sub">ID：{{ bot.status.connectedUserId || '等待连接' }}</div>
+              </div>
+              <div class="metric-tile">
+                <div class="metric-tile-label">当前通信接入点</div>
+                <div class="metric-tile-value" style="font-size:13px">{{ bot.status.endpoint || '-' }}</div>
+                <div class="metric-tile-sub">
+                  可见群聊：{{ bot.groups.length }} 个{{ bot.status.supportsGroupListing ? '' : '（活跃群）' }}
+                </div>
+              </div>
+              <div class="metric-tile">
+                <div class="metric-tile-label">最近连接时间</div>
+                <div class="metric-tile-value" style="font-size:13.5px">{{ fmtTime(bot.status.lastConnectedAt) }}</div>
+                <div class="metric-tile-sub">上次断开：{{ fmtTime(bot.status.lastDisconnectedAt) }}</div>
+              </div>
+              <div class="metric-tile">
+                <div class="metric-tile-label">自动重连状态</div>
+                <div class="metric-tile-value">{{ bot.status.currentAttempt > 0 ? (bot.status.currentAttempt + ' 次重试') : '正常 (0 次)' }}</div>
+                <div class="metric-tile-sub">断线指数退避自动重连</div>
               </div>
             </div>
-
-            <el-descriptions :column="3" border size="small" style="margin-top:12px">
-              <el-descriptions-item label="登录身份">
-                <template v-if="bot.status.connectedUserId">
-                  <b>{{ bot.status.connectedNickname || '机器人' }}</b>
-                  <span class="muted"> ({{ bot.status.connectedUserId }})</span>
-                </template>
-                <span v-else class="muted">（未获取）</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="接入点">{{ bot.status.endpoint || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="可见群聊">
-                <template v-if="bot.status.supportsGroupListing">{{ bot.groups.length }} 个群</template>
-                <template v-else>{{ bot.groups.length }} 个（官方平台仅记录活跃群）</template>
-              </el-descriptions-item>
-              <el-descriptions-item label="上次连接">{{ fmtTime(bot.status.lastConnectedAt) }}</el-descriptions-item>
-              <el-descriptions-item label="上次断开">{{ fmtTime(bot.status.lastDisconnectedAt) }}</el-descriptions-item>
-              <el-descriptions-item label="累计重试">{{ bot.status.currentAttempt > 0 ? (bot.status.currentAttempt + ' 次') : '无' }}</el-descriptions-item>
-            </el-descriptions>
 
             <el-alert v-if="bot.status.lastError" type="error" :closable="false" show-icon
-                      :title="'最近错误：' + bot.status.lastError" style="margin-top:10px"></el-alert>
+                      :title="'最近连接错误：' + bot.status.lastError" style="margin-top:12px"></el-alert>
           </el-card>
 
           <!-- 设置表单 -->
-          <el-card class="server-card" style="margin-bottom:16px">
+          <el-card shadow="never" style="margin-bottom:18px">
             <template #header>
-              <div style="font-weight:600">机器人设置</div>
+              <div class="section-card-head">
+                <div class="section-card-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                  <span>机器人引擎与联动参数设置</span>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <el-button size="small" :loading="bot.loading" @click="loadBotStatus">重新读取</el-button>
+                  <el-button size="small" type="primary" :loading="bot.saving" @click="saveBotSettings">保存设置</el-button>
+                </div>
+              </div>
             </template>
 
-            <el-form label-width="170px" style="max-width:880px">
-              <h4 style="margin:0 0 14px;color:var(--qb-accent)">一、接入模式</h4>
-              <el-form-item label="当前模式">
-                <el-select v-model="botForm.mode" style="width:320px">
-                  <el-option value="NapCat" label="NapCat / OneBot 11（自建 QQ 客户端）"></el-option>
-                  <el-option value="OfficialQq" label="QQ 官方 Bot API（开放平台）"></el-option>
-                </el-select>
-                <div class="muted">
-                  切换后由程序自动停用旧连接、启用新连接。同一时刻只有一套通道在工作，避免重复回复。
+            <el-form label-width="160px" style="max-width:940px">
+              <h4 style="margin:0 0 12px;color:var(--qb-accent)">一、选择接入模式</h4>
+              <el-form-item label="接入引擎">
+                <div class="mode-selector-grid">
+                  <div class="mode-option-card" :class="{ active: botForm.mode === 'NapCat' }" @click="botForm.mode = 'NapCat'">
+                    <div class="mode-option-head">
+                      <span>NapCat / OneBot 11</span>
+                      <el-tag size="small" :type="botForm.mode === 'NapCat' ? 'primary' : 'info'">自建客户端</el-tag>
+                    </div>
+                    <div class="mode-option-desc">连接本机或局域网 NapCatQQ 正向 WebSocket，直接获取真实 QQ 号与群列表，无主动消息配额限制。</div>
+                  </div>
+                  <div class="mode-option-card" :class="{ active: botForm.mode === 'OfficialQq' }" @click="botForm.mode = 'OfficialQq'">
+                    <div class="mode-option-head">
+                      <span>QQ 官方 Bot API v2</span>
+                      <el-tag size="small" :type="botForm.mode === 'OfficialQq' ? 'primary' : 'info'">开放平台</el-tag>
+                    </div>
+                    <div class="mode-option-desc">直连腾讯 QQ 开放平台网关，群与用户使用 OpenID 标识，支持同步手机/电脑端快捷指令面板。</div>
+                  </div>
                 </div>
-              </el-form-item>
-
-              <el-form-item label="指令清单">
-                <el-button size="small" @click="showCommands">查看官方管理端指令配置清单</el-button>
-                <span class="muted" style="margin-left:8px">官方要求在机器人后台登记指令，名称不超过 8 个中文字符 / 16 个英文字符</span>
+                <div class="muted">
+                  切换并保存后由程序自动停用旧连接、启用新连接。同一时刻只有一套通道工作，避免重复回复。
+                </div>
               </el-form-item>
 
               <el-divider></el-divider>
 
               <!-- NapCat -->
               <template v-if="botForm.mode === 'NapCat'">
-                <h4 style="margin:0 0 14px;color:var(--qb-accent)">二、OneBot 11 (NapCatQQ) 连接</h4>
+                <h4 style="margin:0 0 14px;color:var(--qb-accent)">二、OneBot 11 (NapCatQQ) 连接参数</h4>
                 <el-form-item label="正向 WS 地址">
                   <el-input v-model="botForm.wsBaseUri" placeholder="ws://127.0.0.1:6700"></el-input>
-                  <div class="muted">NapCatQQ 的正向 WebSocket 接口地址</div>
+                  <div class="muted">NapCatQQ 的正向 WebSocket 接口地址（需以 ws:// 或 wss:// 开头）</div>
                 </el-form-item>
                 <el-form-item label="基础重连间隔">
                   <el-input-number v-model="botForm.reconnectDelaySeconds" :min="1" :max="300" style="width:160px"></el-input-number>
-                  <span class="muted" style="margin-left:8px">秒（连接断开后基础等待时长）</span>
+                  <span class="muted" style="margin-left:8px">秒（连接断开后首次等待时长）</span>
                 </el-form-item>
                 <el-form-item label="最大重连间隔">
                   <el-input-number v-model="botForm.maxReconnectDelaySeconds" :min="1" :max="3600" style="width:160px"></el-input-number>
-                  <span class="muted" style="margin-left:8px">秒（连续重试退避上限）</span>
+                  <span class="muted" style="margin-left:8px">秒（连续重试指数退避上限）</span>
                 </el-form-item>
               </template>
 
@@ -115,11 +152,10 @@ export const BotView = {
                   <el-switch v-model="botForm.officialSandbox"></el-switch>
                   <span class="muted" style="margin-left:8px">开启后自动在主机名前加 sandbox. 前缀</span>
                 </el-form-item>
-                <el-form-item label="凭证校验">
-                  <el-button :loading="bot.testingAuth" @click="testOfficialAuth">测试凭证</el-button>
+                <el-form-item label="凭证在线校验">
+                  <el-button :loading="bot.testingAuth" @click="testOfficialAuth">测试凭证有效性</el-button>
                   <span class="muted" style="margin-left:8px">
                     只申请一次 AccessToken 验证 AppID / AppSecret，不切换模式、不保存配置。
-                    仅当 API 地址、AppID 和沙箱开关都没变时，AppSecret 留空才会沿用已保存的值。
                   </span>
                 </el-form-item>
                 <el-form-item label="订阅事件 Intents">
@@ -133,18 +169,18 @@ export const BotView = {
                 <el-form-item label="允许主动推送">
                   <el-switch v-model="botForm.officialAllowActivePush"></el-switch>
                   <span class="muted" style="margin-left:8px">
-                    官方对主动消息有配额限制。关闭时仅能回复用户消息（被动回复），游戏内 .ac 推送会被跳过。
+                    官方对主动消息有配额限制。关闭时仅能被动回复用户消息，游戏内 .ac 推送会被跳过。
                   </span>
                 </el-form-item>
 
                 <el-divider></el-divider>
 
-                <h4 style="margin:0 0 14px;color:var(--qb-accent)">三、官方平台权限与目标</h4>
+                <h4 style="margin:0 0 14px;color:var(--qb-accent)">三、官方平台权限与目标 (OpenID)</h4>
                 <el-form-item label="管理员 OpenID">
                   <el-select v-model="botForm.officialAdminOpenIds" multiple filterable allow-create default-first-option
                              placeholder="输入 openid 后回车。配置后群主或管理员身份不会自动放行" style="width:100%"></el-select>
                   <div class="muted">
-                    配置后管理指令只认这份名单，不看群角色。留空时沿用原有判定：群聊中群主和管理员可用，单聊不放行。建议尽快配置。
+                    配置后管理指令只认这份名单，不看群角色。留空时沿用原有判定：群聊中群主和管理员可用，单聊不放行。
                   </div>
                 </el-form-item>
                 <el-form-item label="群消息白名单">
@@ -167,37 +203,36 @@ export const BotView = {
 
                 <el-divider></el-divider>
 
-                <h4 style="margin:0 0 14px;color:var(--qb-accent)">四、QQ 官方指令面板（自动创建与管理）</h4>
+                <h4 style="margin:0 0 14px;color:var(--qb-accent)">四、QQ 官方指令面板（/v2/panels 自动创建与管理）</h4>
                 <div class="muted" style="margin-bottom:14px;line-height:1.6">
-                  指令面板以弹窗菜单形式在手机 QQ 与电脑 QQ 的聊天输入框快捷栏中展示机器人的指令。
-                  点击后指令自动填入输入框，无需手动记忆命令。
-                  点击「一键同步」将根据指令库自动在 QQ 开放平台创建/更新<b>群聊全局指令面板</b>（11 项，管理指令限管理员）与<b>单聊全局指令面板</b>（7 项普通指令）。
+                  指令面板以弹窗菜单形式在手机 QQ 与电脑 QQ 聊天输入框快捷栏中展示机器人指令。
+                  点击「一键同步」将自动在 QQ 开放平台创建/更新<b>群聊全局指令面板</b>（11 项，管理指令限管理员）与<b>单聊全局指令面板</b>（7 项普通指令）。
                 </div>
 
-                <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center">
+                <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                   <el-button type="primary" :loading="bot.syncingPanels" @click="syncOfficialPanels">
-                    一键同步指令面板到 QQ 官方
+                    ⚡ 一键同步指令面板到 QQ 官方
                   </el-button>
                   <el-button :loading="bot.loadingPanels" @click="loadOfficialPanels">
-                    刷新指令面板列表
+                    刷新面板列表
                   </el-button>
                 </div>
 
                 <div v-if="bot.panels && bot.panels.length > 0" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
-                  <div v-for="p in bot.panels" :key="p.panel_id" class="kpi-card" style="padding:14px;border:1px solid var(--qb-border);border-radius:6px">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                      <div style="font-weight:bold;display:flex;align-items:center;gap:8px">
+                  <div v-for="p in bot.panels" :key="p.panel_id" style="padding:14px 16px;background:var(--qb-surface-2);border:1px solid var(--qb-border);border-radius:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+                      <div style="font-weight:600;display:flex;align-items:center;gap:8px">
                         <el-tag :type="p.scope === 'group' ? 'primary' : 'success'" size="small">
                           {{ p.scope === 'group' ? '群聊面板' : (p.scope === 'c2c' ? '单聊面板' : p.scope) }}
                         </el-tag>
                         <span>{{ p.panel?.remark || p.panel_id }}</span>
-                        <span class="muted" style="font-size:12px">({{ p.target_type === 'all' ? '全局生效' : '指定对象' }} · 版本 v{{ p.version }})</span>
+                        <span class="muted" style="font-size:12px">({{ p.target_type === 'all' ? '全局生效' : '指定对象' }} · v{{ p.version }})</span>
                       </div>
                       <el-button size="small" type="danger" plain :loading="bot.deletingPanelId === p.panel_id" @click="confirmDeletePanel(p.panel_id)">
                         删除面板
                       </el-button>
                     </div>
-                    <div class="muted" style="font-size:12px;margin-bottom:8px">
+                    <div class="muted" style="font-size:12px;margin-bottom:10px">
                       ID: <code>{{ p.panel_id }}</code>
                       <span v-if="p.updated_at" style="margin-left:12px">更新时间: {{ fmtTime(p.updated_at) }}</span>
                     </div>
@@ -226,7 +261,7 @@ export const BotView = {
                              placeholder="从已加入群组选择或直接输入群号" style="width:100%">
                     <el-option v-for="g in bot.groups" :key="g.groupId" :label="g.groupName + ' (' + g.groupId + ')'" :value="g.groupId"></el-option>
                   </el-select>
-                  <div class="muted">仅响应白名单内群聊的指令。留空则监听机器人所在的所有群聊。管理指令另外受下面的 QQ 白名单限制。</div>
+                  <div class="muted">仅响应白名单内群聊的指令。留空则监听机器人所在的所有群聊。</div>
                 </el-form-item>
 
                 <el-form-item label="管理指令 QQ 白名单">
@@ -234,7 +269,7 @@ export const BotView = {
                              placeholder="从好友选择或直接输入 QQ 号" style="width:100%">
                     <el-option v-for="f in bot.friends" :key="'admin-' + f.userId" :label="(f.remark || f.nickname) + ' (' + f.userId + ')'" :value="f.userId"></el-option>
                   </el-select>
-                  <div class="muted">配置后只有名单内的 QQ 能使用封禁、广播、回合等管理指令，不看群主或管理员身份，运营通知名单也不会授予管理权限。留空时沿用原有判定：群主和群管理员可用，私聊通知名单内的 QQ 可用。建议尽快配置。</div>
+                  <div class="muted">配置后只有名单内的 QQ 能使用封禁、广播、回合等管理指令。留空时沿用群主/群管理员判定。</div>
                 </el-form-item>
 
                 <el-form-item label=".ac 游戏推送群">
@@ -243,7 +278,7 @@ export const BotView = {
                     <el-option :value="0" label="未设置（不单独推送）"></el-option>
                     <el-option v-for="g in bot.groups" :key="g.groupId" :label="g.groupName + ' (' + g.groupId + ')'" :value="g.groupId"></el-option>
                   </el-select>
-                  <div class="muted">玩家在游戏内输入 <code>.ac 消息</code> 时接收实时推送的群。</div>
+                  <div class="muted">玩家在游戏内输入 <code>.ac 消息</code> 时接收实时告警推送的群。</div>
                 </el-form-item>
 
                 <el-form-item label="运营通知群">
@@ -258,7 +293,6 @@ export const BotView = {
                              placeholder="从好友选择或直接输入 QQ 号" style="width:100%">
                     <el-option v-for="f in bot.friends" :key="f.userId" :label="(f.remark || f.nickname) + ' (' + f.userId + ')'" :value="f.userId"></el-option>
                   </el-select>
-                  <div class="muted">名单内的 QQ 可以私聊机器人。配置了上面的管理白名单后，管理指令只认管理白名单；管理白名单为空时，这里的 QQ 在私聊中仍可使用管理指令（原有逻辑）。</div>
                 </el-form-item>
               </template>
               <template v-else>
@@ -268,56 +302,60 @@ export const BotView = {
               </template>
 
               <el-form-item>
-                <el-button type="primary" :loading="bot.saving" @click="saveBotSettings">保存设置</el-button>
-                <el-button :loading="bot.loading" @click="loadBotStatus" style="margin-left:12px">重新读取</el-button>
+                <el-button type="primary" :loading="bot.saving" @click="saveBotSettings">保存并应用设置</el-button>
+                <el-button :loading="bot.loading" @click="loadBotStatus" style="margin-left:10px">重新读取</el-button>
               </el-form-item>
             </el-form>
           </el-card>
 
           <!-- 群列表 -->
-          <el-card class="server-card">
+          <el-card shadow="never">
             <template #header>
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-weight:600">
-                  {{ bot.status.supportsGroupListing ? '已加入的群聊列表' : '观察到活跃的群（官方平台）' }}（{{ bot.groups.length }}）
-                </span>
-                <span class="muted" v-if="bot.groups.length > 0">可快捷添加到白名单或设为推送群</span>
+              <div class="section-card-head">
+                <div class="section-card-title">
+                  <span>{{ bot.status.supportsGroupListing ? '已加入的 QQ 群聊列表' : '观察到活跃的群（官方平台）' }} ({{ bot.groups.length }})</span>
+                </div>
+                <span class="muted" v-if="bot.groups.length > 0">可一键添加到白名单或设为推送目标群</span>
               </div>
             </template>
 
             <el-alert v-if="!bot.status.supportsGroupListing" type="warning" :closable="false" show-icon
-                      title="官方平台不提供群列表接口，这里展示的是机器人曾被 @ 过的群；其 OpenID 可直接用于白名单与通知配置。"
-                      style="margin-bottom:10px"></el-alert>
+                      title="官方平台不提供群列表接口，这里展示的是机器人曾被 @ 过的活跃群；其 OpenID 可直接用于白名单与通知配置。"
+                      style="margin-bottom:12px"></el-alert>
 
             <el-empty v-if="bot.groups.length === 0" description="暂无群组数据（机器人未连接或未加入任何群聊）"></el-empty>
-            <el-table v-else :data="bot.groups" border stripe max-height="360">
-              <el-table-column prop="groupId" :label="bot.status.supportsGroupListing ? '群号' : '群 OpenID'" min-width="200"></el-table-column>
-              <el-table-column prop="groupName" label="群名称"></el-table-column>
-              <el-table-column label="成员数" width="120" v-if="bot.status.supportsGroupListing">
+            <el-table v-else :data="bot.groups" border stripe max-height="380">
+              <el-table-column prop="groupId" :label="bot.status.supportsGroupListing ? '群号' : '群 OpenID'" min-width="200">
                 <template #default="{ row }">
-                  {{ row.memberCount }} / {{ row.maxMemberCount }}
+                  <code>{{ row.groupId }}</code>
                 </template>
               </el-table-column>
-              <el-table-column label="快捷操作" width="300">
+              <el-table-column prop="groupName" label="群名称" min-width="180"></el-table-column>
+              <el-table-column label="成员数" width="130" v-if="bot.status.supportsGroupListing">
+                <template #default="{ row }">
+                  <span class="mono">{{ row.memberCount }} / {{ row.maxMemberCount }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="快捷操作" width="280" fixed="right">
                 <template #default="{ row }">
                   <template v-if="bot.status.supportsGroupListing">
                     <el-button link size="small" @click="addAllowedGroup(row.groupId)"
                                :disabled="botForm.allowedGroupIds.includes(row.groupId)">
-                      {{ botForm.allowedGroupIds.includes(row.groupId) ? '已在白名单' : '+ 白名单' }}
+                      {{ botForm.allowedGroupIds.includes(row.groupId) ? '✓ 已在白名单' : '+ 加入白名单' }}
                     </el-button>
                     <el-button link size="small" type="primary" @click="botForm.acTargetGroupId = row.groupId"
                                :disabled="botForm.acTargetGroupId === row.groupId">
-                      {{ botForm.acTargetGroupId === row.groupId ? '已是.ac目标' : '设为.ac目标' }}
+                      {{ botForm.acTargetGroupId === row.groupId ? '✓ 已是 .ac 目标' : '设为 .ac 目标' }}
                     </el-button>
                   </template>
                   <template v-else>
                     <el-button link size="small" @click="addOfficialGroupOpenId(row.groupId)"
                                :disabled="botForm.officialAllowedGroupOpenIds.includes(row.groupId)">
-                      {{ botForm.officialAllowedGroupOpenIds.includes(row.groupId) ? '已在白名单' : '+ 白名单' }}
+                      {{ botForm.officialAllowedGroupOpenIds.includes(row.groupId) ? '✓ 已在白名单' : '+ 加入白名单' }}
                     </el-button>
                     <el-button link size="small" type="primary" @click="addOfficialNotifyGroup(row.groupId)"
                                :disabled="botForm.officialNotifyGroupOpenIds.includes(row.groupId)">
-                      {{ botForm.officialNotifyGroupOpenIds.includes(row.groupId) ? '已是通知群' : '设为通知群' }}
+                      {{ botForm.officialNotifyGroupOpenIds.includes(row.groupId) ? '✓ 已是通知群' : '设为通知群' }}
                     </el-button>
                   </template>
                 </template>
@@ -327,11 +365,11 @@ export const BotView = {
 
           <!-- 官方管理端指令清单 -->
           <el-dialog v-model="commandDialog" title="QQ 开放平台管理端 · 指令配置清单" width="720px">
-            <div class="muted" style="margin-bottom:8px">
+            <div class="muted" style="margin-bottom:10px">
               在 QQ 开放平台管理端「指令配置」中按下列内容登记，玩家即可通过指令面板快捷触发。
               官方限制：指令名 ≤8 个中文字符或 16 个英文字符，指令介绍 ≤15 个中文字符或 30 个英文字符，最多 24 条。
             </div>
-            <el-input v-model="commandText" type="textarea" :rows="18" readonly></el-input>
+            <el-input v-model="commandText" type="textarea" :rows="18" readonly class="mono"></el-input>
           </el-dialog>
         </div>
 `,

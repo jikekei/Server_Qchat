@@ -1,32 +1,39 @@
 import { ResourceStatusCard } from '../components/ResourceStatusCard.js';
 import { useOverview } from '../modules/useOverview.js';
 import { useServers } from '../modules/useServers.js';
-import { can, fmtTime } from '../api.js';
+import { can, fmtTime, page } from '../api.js';
 
 export const OverviewView = {
   name: 'OverviewView',
   components: { ResourceStatusCard },
   template: `
         <div>
-          <div class="toolbar">
-            <el-button :loading="overview.loading" @click="loadOverview">刷新数据</el-button>
-            <span class="muted">最后更新：{{ overview.lastUpdated ? fmtTime(overview.lastUpdated) : '-' }}</span>
-            <span class="muted" style="margin-left:auto">数据每 30 秒自动采集 · 页面每 15 秒自动同步</span>
+          <div class="page-header">
+            <div class="page-header-info">
+              <h2>服务器运行总览</h2>
+              <p>实时聚合全服玩家人数、24 小时在线趋势、插件连接状态与主机压力遥测</p>
+            </div>
+            <div class="page-header-actions">
+              <span class="muted">最后同步：{{ overview.lastUpdated ? fmtTime(overview.lastUpdated) : '等待同步' }}</span>
+              <el-button type="primary" plain :loading="overview.loading" @click="loadOverview">
+                刷新数据
+              </el-button>
+            </div>
           </div>
 
           <!-- KPI 指标卡片 -->
           <div class="overview-grid">
-            <el-card class="kpi-card" shadow="hover">
+            <el-card class="kpi-card kpi-servers" shadow="hover">
               <div class="kpi-info">
-                <span class="kpi-title">托管服务器</span>
-                <span class="kpi-value">{{ overview.stats.serverCount }} <span style="font-size:14px;font-weight:400;color:var(--qb-text-2)">台</span></span>
+                <span class="kpi-title">托管与在线服务器</span>
+                <span class="kpi-value">{{ overview.stats.serverCount }} <span style="font-size:14px;font-weight:500;color:var(--qb-text-2)">台</span></span>
                 <span class="kpi-sub">
                   <span class="pulse-dot" :class="{ offline: overview.stats.serverCount === 0 || (overview.stats.localAdminEnabled && overview.stats.localRunningCount === 0 && overview.stats.onlineServers === 0) }"></span>
                   <template v-if="overview.stats.localAdminEnabled">
-                    {{ overview.stats.localRunningCount > 0 ? (overview.stats.localRunningCount + ' 台运行中') : (overview.stats.serverCount > 0 ? '已配置待启动' : '等待添加服务器') }}
+                    {{ overview.stats.localRunningCount > 0 ? (overview.stats.localRunningCount + ' 台进程运行中') : (overview.stats.serverCount > 0 ? '已配置待启动' : '等待添加服务器') }}
                   </template>
                   <template v-else>
-                    {{ overview.stats.onlineServers > 0 ? (overview.stats.onlineServers + ' 台在线') : (overview.stats.serverCount > 0 ? '网关运行中' : '等待服务器注册') }}
+                    {{ overview.stats.onlineServers > 0 ? (overview.stats.onlineServers + ' 台插件在线') : (overview.stats.serverCount > 0 ? '网关监听中' : '等待服务器注册') }}
                   </template>
                 </span>
               </div>
@@ -40,12 +47,12 @@ export const OverviewView = {
               </div>
             </el-card>
 
-            <el-card class="kpi-card" shadow="hover">
+            <el-card class="kpi-card kpi-players" shadow="hover">
               <div class="kpi-info">
                 <span class="kpi-title">全服实时玩家</span>
-                <span class="kpi-value">{{ overview.stats.totalOnline }} <span style="font-size:14px;font-weight:400;color:var(--qb-text-2)">/ {{ overview.stats.totalMax }}</span></span>
+                <span class="kpi-value">{{ overview.stats.totalOnline }} <span style="font-size:14px;font-weight:500;color:var(--qb-text-2)">/ {{ overview.stats.totalMax }}</span></span>
                 <span class="kpi-sub">
-                  <span style="color:var(--qb-accent);font-weight:600">今日峰值 {{ overview.stats.peakToday }} 人</span>
+                  <span style="color:var(--qb-accent);font-weight:600">今日最高峰值 {{ overview.stats.peakToday }} 人</span>
                 </span>
               </div>
               <div class="kpi-icon-box kpi-icon-players">
@@ -58,16 +65,16 @@ export const OverviewView = {
               </div>
             </el-card>
 
-            <el-card class="kpi-card" shadow="hover">
+            <el-card class="kpi-card kpi-bot" shadow="hover">
               <div class="kpi-info">
-                <span class="kpi-title">QQ 机器人</span>
-                <span class="kpi-value" :style="{ color: overview.stats.botConnected ? 'var(--qb-text)' : '#ef4444' }">
+                <span class="kpi-title">QQ 机器人引擎</span>
+                <span class="kpi-value" :style="{ color: overview.stats.botConnected ? 'var(--qb-text)' : 'var(--qb-danger)' }">
                   {{ overview.stats.botConnected ? '已连接' : '未连接' }}
                 </span>
                 <span class="kpi-sub">
                   <span class="pulse-dot" :class="{ offline: !overview.stats.botConnected }"></span>
                   <span v-if="overview.stats.botConnected">
-                    {{ overview.stats.botNickname ? (overview.stats.botNickname + ' 在线') : '在线' }}
+                    {{ overview.stats.botNickname ? (overview.stats.botNickname + ' 在线') : '通道正常' }}
                   </span>
                   <span v-else>
                     {{ overview.stats.botPlatform === 'OfficialQq' ? '官方 API 待连接' : 'NapCat 离线待连' }}
@@ -85,15 +92,15 @@ export const OverviewView = {
               </div>
             </el-card>
 
-            <el-card class="kpi-card" shadow="hover">
+            <el-card class="kpi-card kpi-mysql" shadow="hover">
               <div class="kpi-info">
-                <span class="kpi-title">MySQL 数据库</span>
-                <span class="kpi-value" :style="{ color: overview.stats.mysqlConnected ? 'var(--qb-text)' : '#ef4444' }">
+                <span class="kpi-title">MySQL 统计数据库</span>
+                <span class="kpi-value" :style="{ color: overview.stats.mysqlConnected ? 'var(--qb-text)' : 'var(--qb-danger)' }">
                   {{ overview.stats.mysqlConnected ? '正常' : '未连接' }}
                 </span>
                 <span class="kpi-sub">
                   <span class="pulse-dot" :class="{ offline: !overview.stats.mysqlConnected }"></span>
-                  {{ overview.stats.mysqlConnected ? '数据持久化正常' : (overview.stats.dbConfigured ? '连接异常请排查' : '请检查数据库配置') }}
+                  {{ overview.stats.mysqlConnected ? '持久化读写正常' : (overview.stats.dbConfigured ? '连接异常请排查' : '请配置数据库连接') }}
                 </span>
               </div>
               <div class="kpi-icon-box kpi-icon-mysql">
@@ -107,7 +114,7 @@ export const OverviewView = {
           </div>
 
           <!-- 折线图：玩家数量趋势 -->
-          <el-card class="chart-card" shadow="hover">
+          <el-card class="chart-card" shadow="never">
             <template #header>
               <div class="chart-title">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--qb-accent)">
@@ -127,12 +134,15 @@ export const OverviewView = {
 
             <div class="chart-container" @mousemove="onChartMouseMove" @mouseleave="onChartMouseLeave">
               <div v-if="filteredHistory.length === 0" class="chart-empty">
-                暂无历史采样数据（系统每 30 秒自动记录一次）
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                <span>暂无历史采样数据（后台每 30 秒自动记录一次）</span>
               </div>
               <svg v-else class="line-chart-svg" viewBox="0 0 1000 260" preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="var(--qb-accent)" stop-opacity="0.32" />
+                    <stop offset="0%" stop-color="var(--qb-accent)" stop-opacity="0.34" />
                     <stop offset="100%" stop-color="var(--qb-accent)" stop-opacity="0.0" />
                   </linearGradient>
                 </defs>
@@ -176,16 +186,20 @@ export const OverviewView = {
                 <div class="tooltip-val">全服在线：{{ hoverPoint.raw.totalOnline }} 人</div>
                 <div v-if="hoverPoint.raw.perServer && Object.keys(hoverPoint.raw.perServer).length > 0" class="tooltip-servers">
                   <div v-for="(cnt, sname) in hoverPoint.raw.perServer" :key="sname">
-                    {{ sname }}: {{ cnt }} 人
+                    {{ sname }}: <b>{{ cnt }}</b> 人
                   </div>
                 </div>
               </div>
             </div>
-            <div class="muted" style="font-size:12px;margin-top:8px">{{ chartDataSummary }}</div>
+
+            <div class="chart-footer-bar">
+              <span>{{ chartDataSummary }}</span>
+              <span>自动过滤 Dedicated Server 占位 · 每 15 秒自动刷新视图</span>
+            </div>
           </el-card>
 
           <!-- 图形化服务器状态表格 -->
-          <el-card class="chart-card" shadow="hover">
+          <el-card class="chart-card" shadow="never">
             <template #header>
               <div class="chart-title">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--qb-accent)">
@@ -194,26 +208,30 @@ export const OverviewView = {
                   <line x1="6" y1="6" x2="6.01" y2="6"></line>
                   <line x1="6" y1="18" x2="6.01" y2="18"></line>
                 </svg>
-                <span>服务器实时状态</span>
+                <span>服务器实时负载矩阵</span>
               </div>
+              <el-button v-if="can('server.control')" size="small" text type="primary" @click="page = 'local'">
+                管理本地进程 →
+              </el-button>
             </template>
 
             <el-empty v-if="overview.servers.length === 0" description="暂无服务器在线（等待游戏插件注册连接）"></el-empty>
 
             <el-table v-else :data="overview.servers" border stripe style="width:100%">
               <el-table-column label="状态" width="100" align="center">
-                <template #default="{ row }">
+                <template #default>
                   <span class="pulse-dot"></span>
                   <el-tag size="small" type="success" effect="dark">在线</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="服务器名称" min-width="160">
+              <el-table-column label="服务器名称" min-width="170">
                 <template #default="{ row }">
-                  <b style="font-size:14px">#{{ row.index }} {{ row.name }}</b>
+                  <span class="server-index-badge" style="margin-right:6px">#{{ row.index }}</span>
+                  <b style="font-size:14px">{{ row.name }}</b>
                   <el-tag v-if="row.isStatic" size="small" type="info" style="margin-left:6px">静态配置</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="玩家负载" min-width="220">
+              <el-table-column label="玩家负载" min-width="230">
                 <template #default="{ row }">
                   <div style="display:flex;align-items:center;gap:10px">
                     <el-progress :percentage="calcProgress(row)"
@@ -225,21 +243,21 @@ export const OverviewView = {
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column label="连接地址" width="210">
+              <el-table-column label="连接地址" width="220">
                 <template #default="{ row }">
-                  <code style="font-size:12px">{{ row.connectHost }}:{{ row.port }}</code>
-                  <span v-if="row.gamePort" class="muted" style="margin-left:6px">游戏: {{ row.gamePort }}</span>
+                  <code>{{ row.connectHost }}:{{ row.port }}</code>
+                  <span v-if="row.gamePort" class="muted" style="margin-left:6px">端口 {{ row.gamePort }}</span>
                 </template>
               </el-table-column>
-              <el-table-column label="最近心跳" width="170">
+              <el-table-column label="最近心跳" width="175">
                 <template #default="{ row }">
-                  {{ fmtTime(row.lastHeartbeat) }}
+                  <span class="mono">{{ fmtTime(row.lastHeartbeat) }}</span>
                 </template>
               </el-table-column>
               <el-table-column label="快捷操作" width="240" fixed="right">
                 <template #default="{ row }">
                   <el-button size="small" @click="openPlayers(row)">玩家列表</el-button>
-                  <el-button size="small" type="primary" v-if="can('broadcast.send')" @click="openBroadcast(row)">广播</el-button>
+                  <el-button size="small" type="primary" plain v-if="can('broadcast.send')" @click="openBroadcast(row)">广播</el-button>
                   <el-button size="small" @click="openInfo(row)">详情</el-button>
                 </template>
               </el-table-column>
@@ -259,6 +277,7 @@ export const OverviewView = {
       openInfo,
       can,
       fmtTime,
+      page,
     };
   }
 };
