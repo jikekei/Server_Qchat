@@ -67,7 +67,7 @@
 | `LogDirectory` | string | `"localadmin-logs"` | 控制台输出日志本地归档目录 |
 | `WriteLogFiles` | bool | `true` | 是否自动将控制台输出写入本地日志文件 |
 | `LogExpirationDays` | int | `0` | 历史日志自动清理保留天数，`0` 表示不自动清理 |
-| `SteamCmdPath` | string | `""` | 「更新服务器」使用的 SteamCMD 路径（Windows：`steamcmd.exe`；Linux：`steamcmd.sh` / `steamcmd`），也可填所在目录。留空自动在 PATH 与常见位置查找。只能在配置文件里修改 |
+| `SteamCmdPath` | string | `""` | 「更新服务器」使用的 SteamCMD 路径（Windows：`steamcmd.exe`；Linux：`steamcmd.sh` / `steamcmd`），也可填所在目录。留空先在托管主机上查找，首次查询版本或更新时若缺少 SteamCMD，会自动下载。Windows 使用 `%LOCALAPPDATA%/Qcha/SteamCMD`（路径含非 ASCII 字符时改用 `%ProgramData%`），Linux 使用 `data/steamcmd/`。只能在配置文件里修改 |
 | `SteamAppId` | int | `996560` | SCP:SL 专用服务器的 Steam App Id |
 | `UpdateBetaBranch` | string | `""` | 默认更新分支（Steam beta 名），留空或 `public` 为正式版 |
 | `UpdateValidate` | bool | `true` | 更新时是否附带 `validate` 校验全部文件 |

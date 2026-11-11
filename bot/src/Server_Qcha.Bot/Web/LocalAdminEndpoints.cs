@@ -319,13 +319,13 @@ public static class LocalAdminEndpoints
     // ==================== SteamCMD 更新服务端 ====================
 
     /// <summary>查询更新任务状态（含 SteamCMD / 安装目录预检与最近的更新日志）。</summary>
-    private static async Task<IResult> GetUpdateStatusAsync(string id, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    private static async Task<IResult> GetUpdateStatusAsync(string id, string? checkBranch, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
     {
         var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
         if (error is not null)
             return error;
 
-        var status = await provider.GetUpdateStatusAsync(id, ct);
+        var status = await provider.GetUpdateStatusAsync(id, ct, checkBranch);
         if (status is null)
             return NotFound(id);
 

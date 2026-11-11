@@ -243,9 +243,9 @@ api.MapPost("/servers/{id}/update/{action}", async (string id, string action, st
     return Results.Json(res);
 });
 
-api.MapGet("/servers/{id}/update", async (string id, ILocalAdminProvider provider, CancellationToken ct) =>
+api.MapGet("/servers/{id}/update", async (string id, string? checkBranch, ILocalAdminProvider provider, CancellationToken ct) =>
 {
-    var status = await provider.GetUpdateStatusAsync(id, ct);
+    var status = await provider.GetUpdateStatusAsync(id, ct, checkBranch);
     return status is not null ? Results.Json(status) : Results.NotFound(new { error = $"服务器不存在：{id}" });
 });
 

@@ -1,3 +1,5 @@
+using System.Formats.Tar;
+using System.IO.Compression;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -52,6 +54,27 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
     private readonly ConcurrentDictionary<string, UpdateJob> _jobs = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _steamCmdLock = new(1, 1);
     private readonly CancellationTokenSource _shutdown = new();
+    private readonly Dictionary<string, LocalUpdateVersion> _versions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _versionGate = new();
+    private readonly object _installGate = new();
+
+    private string ManagedSteamCmdDirectory
+    {
+        get
+        {
+            if (!OperatingSystem.IsWindows())
+                return Path.Combine(Path.GetDirectoryName(_manager.ConfigPath)!, "steamcmd");
+
+            string root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (root.Length == 0 || !SupportsSteamCmdPath(root))
+                root = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            return Path.Combine(root, "Qcha", "SteamCMD");
+        }
+    }
+
+    // SteamCMD 的 Windows 启动程序只支持 ASCII 安装路径。
+    private static bool SupportsSteamCmdPath(string path) =>
+        !OperatingSystem.IsWindows() || path.All(char.IsAscii);
 
     public ServerUpdateService(LocalAdminManager manager, IOptions<LocalAdminOptions> options, ILogger<ServerUpdateService> log)
     {
@@ -65,11 +88,14 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
     // ==================================================================
 
     /// <summary>查询某台服务器的更新状态（含环境预检）。服务器不存在返回 null。</summary>
-    public LocalUpdateStatus? GetStatus(string id)
+    public LocalUpdateStatus? GetStatus(string id, string? checkBranch = null)
     {
         var instance = _manager.Find(id);
         if (instance is null)
             return null;
+
+        if (checkBranch is not null)
+            QueueVersionCheck(instance, checkBranch);
 
         _jobs.TryGetValue(instance.Id, out var job);
         return BuildStatus(instance, job);
@@ -106,8 +132,8 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         if (_options.SteamAppId <= 0)
             return Fail($"SteamAppId 配置不合法：{_options.SteamAppId}", instance);
 
-        if (!instance.TryBeginUpdate())
-            return Fail($"[{instance.Name}] 已有更新任务在进行中，请等待其完成（或在更新窗口中取消）", instance);
+        if (!TryReserveInstall(instance, installDir, out var siblings, out var reserveError))
+            return Fail(reserveError!, instance);
 
         bool wasRunning = instance.Running;
         var job = new UpdateJob
@@ -123,6 +149,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             RequestedBy = requestedBy,
             SteamCmdPath = steamCmd,
             InstallDirectory = installDir,
+            SharedInstances = siblings,
             Cts = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token),
         };
         _jobs[instance.Id] = job;
@@ -210,8 +237,8 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         if (!Directory.Exists(rollback))
             return Fail($"没有可回滚的旧版本（{rollback} 不存在）", instance);
 
-        if (!instance.TryBeginUpdate())
-            return Fail($"[{instance.Name}] 已有更新任务在进行中，请等待其完成", instance);
+        if (!TryReserveInstall(instance, installDir, out var siblings, out var reserveError))
+            return Fail(reserveError!, instance);
 
         var job = new UpdateJob
         {
@@ -223,12 +250,298 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             RequestedBy = requestedBy,
             RequestedMode = "now",
             InstallDirectory = installDir,
+            SharedInstances = siblings,
             Cts = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token),
         };
         _jobs[instance.Id] = job;
         Log(instance, job, "warn", $"{requestedBy ?? "面板"} 发起回滚：切换回上一版本（{rollback}）");
         _ = Task.Run(() => RunJobAsync(instance, job));
         return new LocalUpdateStartResult(true, job.WasRunning ? "正在回滚：服务器将重启到上一版本" : "正在回滚到上一版本", null, BuildStatus(instance, job));
+    }
+
+    private static readonly StringComparer InstallPathComparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+    private static string InstallKey(string path)
+    {
+        var directory = new DirectoryInfo(Path.GetFullPath(path));
+        var parts = new Stack<DirectoryInfo>();
+        for (var part = directory; part.Parent is not null; part = part.Parent)
+            parts.Push(part);
+
+        string resolved = directory.Root.FullName;
+        foreach (var part in parts)
+        {
+            var child = new DirectoryInfo(Path.Combine(resolved, part.Name));
+            resolved = child.LinkTarget is null ? child.FullName : child.ResolveLinkTarget(true)?.FullName ?? child.FullName;
+        }
+        return Path.TrimEndingDirectorySeparator(resolved);
+    }
+
+    private LocalServerInstance[] SharedInstances(LocalServerInstance instance, string directory)
+    {
+        return _manager.Instances.ToArray().Where(other =>
+        {
+            if (other == instance) return false;
+            string otherDirectory = ResolveInstallDirectory(other.Definition, out var error);
+            return error is null && InstallPathComparer.Equals(directory, otherDirectory);
+        }).ToArray();
+    }
+
+    private bool TryReserveInstall(LocalServerInstance instance, string directory,
+        out IReadOnlyList<LocalServerInstance> siblings, out string? error)
+    {
+        lock (_installGate)
+        {
+            var others = SharedInstances(instance, directory);
+            var reserved = new List<LocalServerInstance>();
+            siblings = reserved;
+            error = null;
+            if (!instance.TryBeginUpdate())
+            {
+                error = "此服务端目录已有更新或回滚任务";
+                return false;
+            }
+
+            foreach (var other in others)
+            {
+                if (!other.TryBeginUpdate())
+                {
+                    error = $"共享目录的实例「{other.Name}」正在更新或回滚";
+                    break;
+                }
+
+                reserved.Add(other);
+                other.SetStartBlocked(true);
+                if (other.Running)
+                {
+                    error = $"请先停止共用此服务端目录的实例「{other.Name}」，再更新或回滚";
+                    break;
+                }
+            }
+
+            if (error is null)
+                return true;
+
+            ReleaseSharedInstances(reserved);
+            instance.EndUpdate();
+            return false;
+        }
+    }
+
+    private static void ReleaseSharedInstances(IReadOnlyList<LocalServerInstance> instances)
+    {
+        foreach (var instance in instances)
+        {
+            instance.SetStartBlocked(false);
+            instance.EndUpdate();
+            if (instance.ConsumeSuppressedAutoStart() && !instance.Running)
+                instance.Start();
+        }
+    }
+
+    private void QueueVersionCheck(LocalServerInstance instance, string requestedBranch)
+    {
+        string branch = ResolveBranch(requestedBranch, instance.Definition, out var error) ?? "public";
+        lock (_versionGate)
+        {
+            if (_versions.TryGetValue(instance.Id, out var previous) && previous.Checking)
+                return;
+
+            if (error is not null)
+            {
+                _versions[instance.Id] = new(requestedBranch, false, Error: error);
+                return;
+            }
+
+            _versions[instance.Id] = new(branch, true);
+        }
+
+        _ = Task.Run(async () =>
+        {
+            var result = await CheckVersionAsync(branch, _shutdown.Token);
+            lock (_versionGate) _versions[instance.Id] = result;
+        });
+    }
+
+    private async Task<LocalUpdateVersion> CheckVersionAsync(string branch, CancellationToken ct)
+    {
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromMinutes(3));
+            var token = timeout.Token;
+            await _steamCmdLock.WaitAsync(token);
+            try
+            {
+                string steamCmd = await EnsureSteamCmdAsync(token);
+                string logPath = Path.Combine(Path.GetDirectoryName(steamCmd)!, "logs", "console_log.txt");
+                long logOffset = File.Exists(logPath) ? new FileInfo(logPath).Length : 0;
+                using var process = new Process
+                {
+                    StartInfo = CreateSteamCmdStartInfo(steamCmd, new[]
+                    {
+                        "+login", "anonymous", "+app_info_update", "0", "+app_info_print",
+                        _options.SteamAppId.ToString(), "+quit",
+                    }),
+                };
+                process.Start();
+                process.StandardInput.Close();
+                var stdout = process.StandardOutput.ReadToEndAsync(token);
+                var stderr = process.StandardError.ReadToEndAsync(token);
+                try
+                {
+                    await process.WaitForExitAsync(token);
+                    var output = await stdout;
+                    await stderr;
+                    string? build = ReadBranchBuildId(output, _options.SteamAppId, branch);
+                    // SteamCMD 首次自更新时，子进程的输出可能只进入 Steam 的控制台日志。
+                    if (build is null && OperatingSystem.IsWindows() && File.Exists(logPath))
+                    {
+                        using var file = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        file.Position = file.Length >= logOffset ? logOffset : 0;
+                        using var reader = new StreamReader(file);
+                        build = ReadBranchBuildId(await reader.ReadToEndAsync(token), _options.SteamAppId, branch);
+                    }
+
+                    if (build is not null)
+                        return new(branch, false, build);
+                    return new(branch, false, Error: $"Steam 未返回分支「{branch}」的构建号，请检查分支名称或稍后重试");
+                }
+                catch (OperationCanceledException)
+                {
+                    try { process.Kill(entireProcessTree: true); }
+                    catch (InvalidOperationException) { }
+                    throw;
+                }
+            }
+            finally { _steamCmdLock.Release(); }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (OperationCanceledException) { return new(branch, false, Error: "查询 Steam 版本超时，请稍后重试"); }
+        catch (Exception ex) { return new(branch, false, Error: $"无法查询 Steam 版本：{ex.Message}"); }
+    }
+
+    // app_info_print 返回 Valve KeyValues，构建号位于 AppId / depots / branches / 分支。
+    public static string? ReadBranchBuildId(string output, int appId, string branch)
+    {
+        output = AnsiPattern.Replace(output, "");
+        var start = Regex.Match(output, $@"""{appId}""\s*\{{");
+        if (!start.Success) return null;
+
+        var sections = new Stack<string>();
+        sections.Push(appId.ToString());
+        string? key = null;
+        foreach (Match token in Regex.Matches(output[(start.Index + start.Length)..], @"""(?:\\.|[^""\\])*""|[{}]"))
+        {
+            string value = token.Value;
+            if (value == "{")
+            {
+                sections.Push(key ?? "");
+                key = null;
+            }
+            else if (value == "}")
+            {
+                sections.Pop();
+                if (sections.Count == 0) break;
+                key = null;
+            }
+            else if (key is null)
+            {
+                key = value[1..^1];
+            }
+            else
+            {
+                string build = value[1..^1];
+                if (key == "buildid" && sections.Count == 4 &&
+                    sections.SequenceEqual(new[] { branch, "branches", "depots", appId.ToString() }, StringComparer.OrdinalIgnoreCase) &&
+                    ulong.TryParse(build, out _))
+                    return build;
+                key = null;
+            }
+        }
+
+        return null;
+    }
+
+    private static ProcessStartInfo CreateSteamCmdStartInfo(string steamCmd, IEnumerable<string> args)
+    {
+        var psi = new ProcessStartInfo
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true,
+            WorkingDirectory = Path.GetDirectoryName(steamCmd) ?? Environment.CurrentDirectory,
+            StandardOutputEncoding = new UTF8Encoding(false),
+            StandardErrorEncoding = new UTF8Encoding(false),
+        };
+
+        // Linux 上的 steamcmd.sh 可能没有可执行位，统一交给 bash 执行
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            && steamCmd.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
+        {
+            psi.FileName = File.Exists("/bin/bash") ? "/bin/bash" : "bash";
+            psi.ArgumentList.Add(steamCmd);
+        }
+        else
+        {
+            psi.FileName = steamCmd;
+        }
+
+        foreach (string a in args)
+            psi.ArgumentList.Add(a);
+
+        return psi;
+    }
+
+    // 调用者持有 SteamCMD 锁，安装完成前不会暴露半成品。
+    private async Task<string> EnsureSteamCmdAsync(CancellationToken ct)
+    {
+        string steamCmd = ResolveSteamCmd(out var error);
+        if (error is not null) throw new InvalidOperationException(error);
+        if (File.Exists(steamCmd)) return steamCmd;
+
+        bool windows = OperatingSystem.IsWindows();
+        string url = windows
+            ? "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"
+            : "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz";
+        string directory = ManagedSteamCmdDirectory;
+        string staging = directory + ".download-" + Guid.NewGuid().ToString("N");
+        Directory.CreateDirectory(staging);
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+            using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+            response.EnsureSuccessStatusCode();
+            await using var download = await response.Content.ReadAsStreamAsync(ct);
+            string archivePath = Path.Combine(staging, windows ? "steamcmd.zip" : "steamcmd.tar.gz");
+            using var downloadTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            downloadTimeout.CancelAfter(TimeSpan.FromMinutes(2));
+            await using (var file = File.Create(archivePath))
+                await download.CopyToAsync(file, downloadTimeout.Token);
+
+            if (windows)
+                ZipFile.ExtractToDirectory(archivePath, staging);
+            else
+            {
+                using var archive = File.OpenRead(archivePath);
+                using var gzip = new GZipStream(archive, CompressionMode.Decompress);
+                TarFile.ExtractToDirectory(gzip, staging, overwriteFiles: false);
+            }
+            File.Delete(archivePath);
+
+            if (!File.Exists(Path.Combine(staging, Path.GetFileName(steamCmd))))
+                throw new InvalidDataException("SteamCMD 压缩包缺少启动文件");
+
+            Directory.Move(staging, directory);
+            return steamCmd;
+        }
+        finally
+        {
+            if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
+        }
     }
 
     // ==================================================================
@@ -244,6 +557,25 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             {
                 await RunManualRollbackAsync(instance, job, ct);
                 return;
+            }
+
+            if (!File.Exists(job.SteamCmdPath))
+            {
+                Log(instance, job, "info", "正在下载 SteamCMD…");
+                await _steamCmdLock.WaitAsync(ct);
+                try { job.SteamCmdPath = await EnsureSteamCmdAsync(ct); }
+                finally { _steamCmdLock.Release(); }
+            }
+
+            if (job.SharedInstances.Count > 0 && !job.Validate &&
+                ReadBuildId(job.InstallDirectory, _options.SteamAppId) is { } installed)
+            {
+                var version = await CheckVersionAsync(job.BetaBranch ?? "public", ct);
+                if (version.LatestBuildId == installed)
+                {
+                    Finish(instance, job, true, $"共享目录已是最新版本（build {installed}），无需重复更新", null);
+                    return;
+                }
             }
 
             if (CanSwapDirectories(instance.Definition, job.InstallDirectory, out string? swapProblem))
@@ -286,7 +618,11 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
                 instance.Start();
             }
 
-            instance.EndUpdate();
+            lock (_installGate)
+            {
+                ReleaseSharedInstances(job.SharedInstances);
+                instance.EndUpdate();
+            }
             job.Cts.Dispose();
         }
     }
@@ -786,32 +1122,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
     {
         var args = BuildSteamCmdArguments(targetDir, _options.SteamAppId, job.BetaBranch, job.Validate);
 
-        var psi = new ProcessStartInfo
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = true,
-            WorkingDirectory = Path.GetDirectoryName(job.SteamCmdPath) ?? Environment.CurrentDirectory,
-            StandardOutputEncoding = new UTF8Encoding(false),
-            StandardErrorEncoding = new UTF8Encoding(false),
-        };
-
-        // Linux 上的 steamcmd.sh 可能没有可执行位，统一交给 bash 执行
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-            && job.SteamCmdPath.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
-        {
-            psi.FileName = File.Exists("/bin/bash") ? "/bin/bash" : "bash";
-            psi.ArgumentList.Add(job.SteamCmdPath);
-        }
-        else
-        {
-            psi.FileName = job.SteamCmdPath;
-        }
-
-        foreach (string a in args)
-            psi.ArgumentList.Add(a);
+        var psi = CreateSteamCmdStartInfo(job.SteamCmdPath, args);
 
         Log(instance, job, "info", $"执行：{job.SteamCmdPath} {string.Join(' ', args.Select(QuoteForDisplay))}");
 
@@ -987,10 +1298,10 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             return dir;
         }
 
-        return dir;
+        return InstallKey(dir);
     }
 
-    /// <summary>解析 SteamCMD 路径：配置优先，否则在 PATH 与常见位置查找。找不到时返回 error。</summary>
+    /// <summary>解析已配置、已安装或待自动下载的 SteamCMD 路径。</summary>
     public string ResolveSteamCmd(out string? error)
     {
         error = null;
@@ -1022,19 +1333,20 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
                 return candidate;
             }
 
-            return Path.GetFullPath(candidate);
+            candidate = Path.GetFullPath(candidate);
+            if (!SupportsSteamCmdPath(candidate))
+                error = $"Windows 上的 SteamCMD 路径必须只包含 ASCII 字符：{candidate}。可清空 LocalAdmin:SteamCmdPath 以自动安装。";
+            return candidate;
         }
 
-        string? auto = AutoDetectSteamCmd();
-        if (auto is null)
+        string managed = Path.Combine(ManagedSteamCmdDirectory, ExecutableNames()[0]);
+        if (!Path.IsPathFullyQualified(managed) || !SupportsSteamCmdPath(managed))
         {
-            error = "未找到 SteamCMD：请安装 SteamCMD（https://developer.valvesoftware.com/wiki/SteamCMD），" +
-                    "并在 appsettings.json 的 LocalAdmin:SteamCmdPath 中填写 " +
-                    (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "steamcmd.exe" : "steamcmd.sh") + " 的完整路径";
-            return "";
+            error = "找不到可自动安装 SteamCMD 的 ASCII 路径，请配置 LocalAdmin:SteamCmdPath";
+            return managed;
         }
 
-        return auto;
+        return File.Exists(managed) ? managed : AutoDetectSteamCmd() ?? managed;
     }
 
     private static string[] ExecutableNames() => RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
@@ -1091,7 +1403,11 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
                 {
                     string candidate = Path.Combine(dir.Trim().Trim('"'), name);
                     if (File.Exists(candidate))
-                        return Path.GetFullPath(candidate);
+                    {
+                        string full = Path.GetFullPath(candidate);
+                        if (SupportsSteamCmdPath(full))
+                            return full;
+                    }
                 }
                 catch (Exception)
                 {
@@ -1177,7 +1493,11 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         }
 
         string exe;
-        try { exe = Path.GetFullPath(def.ExecutablePath); }
+        try
+        {
+            exe = Path.GetFullPath(def.ExecutablePath);
+            exe = Path.Combine(InstallKey(Path.GetDirectoryName(exe)!), Path.GetFileName(exe));
+        }
         catch (Exception) { problem = "可执行文件路径不合法"; return false; }
 
         var cmp = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -1351,6 +1671,9 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         string? rollback = installDir.Length > 0 ? RollbackPathFor(installDir) : null;
         bool rollbackAvailable = rollback is not null && Directory.Exists(rollback);
 
+        LocalUpdateVersion? version;
+        lock (_versionGate) _versions.TryGetValue(instance.Id, out version);
+
         return new LocalUpdateStatus(
             instance.Id,
             job?.State ?? "idle",
@@ -1370,7 +1693,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             job?.ProgressPercent,
             job?.Mode ?? (job?.Kind == JobKind.Rollback ? "rollback" : "auto"),
             job?.StagingDirectory,
-            job?.LiveBuildId ?? (installDir.Length > 0 && dirErr is null ? ReadBuildId(installDir, _options.SteamAppId) : null),
+            dirErr is null ? ReadBuildId(installDir, _options.SteamAppId) : null,
             job?.StagedBuildId,
             job?.PendingSince,
             job?.PendingDeadline,
@@ -1378,13 +1701,16 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             rollbackAvailable,
             rollbackAvailable ? rollback : null,
             steamCmd,
-            steamErr is null,
+            steamErr is null && File.Exists(steamCmd),
             installDir,
             dirErr is null,
             defaultBranch,
             _options.SteamAppId,
             NormalizeMode(_options.UpdateDefaultMode, out _) ?? "auto",
-            _options.UpdatePendingTimeoutMinutes);
+            _options.UpdatePendingTimeoutMinutes,
+            version,
+            steamErr,
+            dirErr is null ? SharedInstances(instance, installDir).Select(other => other.Name).ToArray() : null);
     }
 
     private LocalUpdateStartResult Fail(string error, LocalServerInstance? instance = null)
@@ -1441,7 +1767,8 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         public string RequestedMode { get; init; } = "auto";
         public bool WasRunning { get; init; }
         public string? RequestedBy { get; init; }
-        public string SteamCmdPath { get; init; } = "";
+        public string SteamCmdPath { get; set; } = "";
+        public IReadOnlyList<LocalServerInstance> SharedInstances { get; init; } = Array.Empty<LocalServerInstance>();
         public string InstallDirectory { get; init; } = "";
         public CancellationTokenSource Cts { get; init; } = new();
         public int? ExitCode { get; set; }

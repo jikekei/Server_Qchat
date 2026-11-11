@@ -174,6 +174,60 @@ public class ServerUpdateServiceTests
     // ==================== 预检 ====================
 
     [Fact]
+    public void VersionQuery_ReadsRequestedBranchFromSteamAppInfo()
+    {
+        const string output = """
+            Steam Console Client
+            AppID : 996560, change number : 42
+            "996560"
+            {
+                "common" { "buildid" "999" }
+                "depots"
+                {
+                    "branches"
+                    {
+                        "public" { "buildid" "100" }
+                        "beta-test" { "buildid" "200" }
+                    }
+                }
+            }
+            """;
+        Assert.Equal("100", ServerUpdateService.ReadBranchBuildId(output, 996560, "public"));
+        Assert.Equal("200", ServerUpdateService.ReadBranchBuildId(output, 996560, "beta-test"));
+        Assert.Null(ServerUpdateService.ReadBranchBuildId(output, 996560, "unknown"));
+    }
+
+    [Fact]
+    public async Task SharedDirectory_RejectsAnUpdateWhileSiblingOwnsIt()
+    {
+        await using var env = Create(options =>
+        {
+            var main = options.Servers[0];
+            options.Servers.Add(new LocalServerDefinition
+            {
+                Id = "second",
+                Name = "二服",
+                GamePort = 7778,
+                ExecutablePath = main.ExecutablePath,
+                InstallDirectory = Path.Combine(Path.GetDirectoryName(main.ExecutablePath)!, "."),
+            });
+            if (OperatingSystem.IsWindows())
+                File.WriteAllText(Path.Combine(options.SteamCmdPath, "steamcmd.exe"), "");
+        });
+        var second = env.Manager.Find("second")!;
+        Assert.Contains("二服", env.Updater.GetStatus("main")!.SharedInstallServers!);
+        Assert.True(second.TryBeginUpdate());
+        try
+        {
+            var result = env.Updater.StartUpdate("main", null, null);
+            Assert.False(result.Success);
+            Assert.Contains("二服", result.Error);
+            Assert.False(env.Instance.UpdateInProgress);
+        }
+        finally { second.EndUpdate(); }
+    }
+
+    [Fact]
     public async Task StartUpdate_MissingSteamCmd_FailsWithClearMessage()
     {
         await using var env = Create(o => o.SteamCmdPath = "/nonexistent/steamcmd.sh");

@@ -190,7 +190,12 @@ public sealed record LocalUpdateStatus(
     string DefaultBetaBranch,
     int SteamAppId,
     string DefaultMode = "auto",
-    int PendingTimeoutMinutes = 60);
+    int PendingTimeoutMinutes = 60,
+    LocalUpdateVersion? Version = null,
+    string? SteamCmdError = null,
+    IReadOnlyList<string>? SharedInstallServers = null);
+
+public sealed record LocalUpdateVersion(string Branch, bool Checking, string? LatestBuildId = null, string? Error = null);
 
 public sealed record LocalUpdateStartResult(
     bool Success,

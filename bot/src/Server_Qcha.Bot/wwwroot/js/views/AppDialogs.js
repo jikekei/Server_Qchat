@@ -181,10 +181,10 @@ export const AppDialogs = {
             </span>
           </el-descriptions-item>
           <el-descriptions-item label="SteamCMD">
-            <el-tag size="small" :type="updateDialog.status.steamCmdFound ? 'success' : 'danger'">
-              {{ updateDialog.status.steamCmdFound ? '已找到' : '未找到' }}
+            <el-tag size="small" :type="updateDialog.status.steamCmdFound ? 'success' : updateDialog.status.steamCmdError ? 'danger' : 'info'">
+              {{ updateDialog.status.steamCmdFound ? '已找到' : updateDialog.status.steamCmdError ? '路径无效' : '按需自动下载' }}
             </el-tag>
-            <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.steamCmdPath || '（未配置 LocalAdmin:SteamCmdPath）' }}</code>
+            <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.steamCmdPath }}</code>
           </el-descriptions-item>
           <el-descriptions-item label="安装目录">
             <el-tag size="small" :type="updateDialog.status.installDirectoryExists ? 'success' : 'danger'">
@@ -193,9 +193,25 @@ export const AppDialogs = {
             <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.installDirectory || '-' }}</code>
           </el-descriptions-item>
           <el-descriptions-item label="App Id">{{ updateDialog.status.steamAppId }}</el-descriptions-item>
-          <el-descriptions-item v-if="updateDialog.status.liveBuildId || updateDialog.status.stagedBuildId" label="版本（build）">
-            {{ updateDialog.status.liveBuildId || '?' }}
-            <template v-if="updateDialog.status.stagedBuildId"> → {{ updateDialog.status.stagedBuildId }}</template>
+          <el-descriptions-item label="当前安装版本">
+            {{ updateDialog.status.liveBuildId ? 'Build ' + updateDialog.status.liveBuildId : '未找到本地 Steam 安装清单' }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="'最新版本（' + updateVersionBranch + '）'">
+            <span v-if="updateDialog.status.version?.checking">正在查询 Steam…</span>
+            <template v-else-if="updateVersion?.latestBuildId">
+              Build {{ updateVersion.latestBuildId }}
+              <el-tag v-if="updateDialog.status.liveBuildId" size="small"
+                      :type="updateVersion.latestBuildId === updateDialog.status.liveBuildId ? 'success' : 'warning'">
+                {{ updateVersion.latestBuildId === updateDialog.status.liveBuildId ? '已是最新' : '版本不同' }}
+              </el-tag>
+            </template>
+            <span v-else>{{ updateVersion?.error || '待查询' }}</span>
+            <el-button link type="primary" :loading="updateDialog.requestingVersion || !!updateDialog.status.version?.checking"
+                       :disabled="updateActive || !!updateDialog.status.steamCmdError"
+                       @click="checkUpdateVersion">查询最新</el-button>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="updateDialog.status.stagedBuildId && updateActive" label="暂存版本">
+            Build {{ updateDialog.status.stagedBuildId }}
           </el-descriptions-item>
           <el-descriptions-item v-if="updateDialog.status.triggerReason" label="切换时机">
             {{ updateTriggerText(updateDialog.status.triggerReason) }}
@@ -213,8 +229,11 @@ export const AppDialogs = {
           <div class="muted" style="margin-bottom:4px">SteamCMD：{{ updateDialog.status.progressPhase || '-' }}</div>
           <el-progress :percentage="Math.round(updateDialog.status.progressPercent * 10) / 10" :stroke-width="14"></el-progress>
         </div>
-        <el-alert v-if="!updateDialog.status.steamCmdFound" type="error" :closable="false" show-icon style="margin-bottom:10px"
-                  title="未找到 SteamCMD：请先在服务器上安装 SteamCMD，并在 appsettings.json 的 LocalAdmin:SteamCmdPath 填写 steamcmd.exe / steamcmd.sh 的路径"></el-alert>
+        <el-alert v-if="updateDialog.status.steamCmdError" type="error" :closable="false" show-icon style="margin-bottom:10px"
+                  :title="updateDialog.status.steamCmdError"></el-alert>
+        <el-alert v-if="updateDialog.status.sharedInstallServers?.length" type="info" :closable="false" show-icon style="margin-bottom:10px"
+                  :title="'共用此安装目录的实例：' + updateDialog.status.sharedInstallServers.join('、')"
+                  description="同一目录只需更新一次。更新或回滚前请停止其他共用实例。"></el-alert>
         <el-alert v-if="updateDialog.status.state === 'pending'" type="info" :closable="false" show-icon style="margin-bottom:10px"
                   title="等待回合结束后更新">
           <div style="line-height:1.7">
@@ -273,7 +292,7 @@ export const AppDialogs = {
       <el-button v-if="!updateActive && updateDialog.status && updateDialog.status.rollbackAvailable"
                  :loading="updateDialog.acting === 'rollback'" @click="updateAction('rollback')">回滚到上一版本</el-button>
       <el-button v-if="!updateActive" type="warning" :loading="updateDialog.submitting"
-                 :disabled="!updateDialog.status || !updateDialog.status.steamCmdFound || !updateDialog.status.installDirectoryExists"
+                 :disabled="!updateDialog.status || !!updateDialog.status.steamCmdError || !updateDialog.status.installDirectoryExists"
                  @click="submitUpdate">开始更新</el-button>
     </template>
   </el-dialog>

@@ -178,9 +178,9 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
         return Task.FromResult(result);
     }
 
-    public Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default)
+    public Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default, string? checkBranch = null)
     {
-        return Task.FromResult(_updater.GetStatus(id));
+        return Task.FromResult(_updater.GetStatus(id, checkBranch));
     }
 
     public Task<LocalAdminResult> CancelRestartAsync(string id, CancellationToken ct = default)

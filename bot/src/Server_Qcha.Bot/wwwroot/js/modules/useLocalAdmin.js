@@ -673,6 +673,7 @@ const updateDialog = reactive({
   form: { betaBranch: '', restartAfter: true, validate: true, mode: 'auto' },
   status: null,
   acting: '',
+  requestingVersion: false,
 });
 let updateTimer = null;
 const updateLogRef = ref(null);
@@ -740,8 +741,8 @@ async function fetchUpdateStatus() {
       const el = updateLogRef.value;
       if (el) el.scrollTop = el.scrollHeight;
     }
+    if (!st.active && !st.version?.checking) stopUpdatePolling();
     if (wasActive && !st.active) {
-      stopUpdatePolling();
       if (st.state === 'succeeded') ElMessage.success(st.message || '更新成功');
       else if (st.state === 'failed' || st.state === 'rolledback') ElMessage.error(st.error || '更新失败');
       else if (st.state === 'canceled') ElMessage.info(st.message || '更新已取消');
@@ -760,6 +761,30 @@ function startUpdatePolling() {
   }, 1500);
 }
 
+const updateVersionBranch = computed(() => updateDialog.form.betaBranch.trim() || 'public');
+const updateVersion = computed(() => {
+  const version = updateDialog.status?.version;
+  return version?.branch.toLowerCase() === updateVersionBranch.value.toLowerCase() ? version : null;
+});
+
+async function checkUpdateVersion() {
+  if (!updateDialog.serverId || updateDialog.requestingVersion || updateDialog.status?.version?.checking) return;
+  const id = updateDialog.serverId;
+  updateDialog.requestingVersion = true;
+  try {
+    const status = await api('/local/servers/' + encodeURIComponent(id)
+      + '/update?checkBranch=' + encodeURIComponent(updateVersionBranch.value));
+    if (id === updateDialog.serverId && updateDialog.visible) {
+      updateDialog.status = status;
+      if (status.active || status.version?.checking) startUpdatePolling();
+    }
+  } catch (e) {
+    ElMessage.error(e.message);
+  } finally {
+    updateDialog.requestingVersion = false;
+  }
+}
+
 async function openUpdateDialog() {
   if (!local.selectedId) { ElMessage.warning('请先选择一个服务器'); return; }
   updateDialog.serverId = local.selectedId;
@@ -770,13 +795,15 @@ async function openUpdateDialog() {
   try {
     const st = await api('/local/servers/' + encodeURIComponent(updateDialog.serverId) + '/update');
     updateDialog.status = st;
+    const branch = (st.active && st.betaBranch) || st.defaultBetaBranch;
+    updateDialog.form.betaBranch = branch && branch !== 'public' ? branch : '';
     if (!st.active) {
-      updateDialog.form.betaBranch = st.defaultBetaBranch && st.defaultBetaBranch !== 'public' ? st.defaultBetaBranch : '';
       updateDialog.form.restartAfter = localRunning.value;
-      updateDialog.form.validate = st.validate !== false;
+      updateDialog.form.validate = !st.sharedInstallServers?.length && st.validate !== false;
       updateDialog.form.mode = st.defaultMode || 'auto';
     }
-    if (st.active) startUpdatePolling();
+    if (st.active || st.version?.checking) startUpdatePolling();
+    else if (st.installDirectoryExists && !st.steamCmdError) void checkUpdateVersion();
   } catch (e) {
     ElMessage.error(e.message);
   } finally {
@@ -997,6 +1024,9 @@ export function useLocalAdmin() {
     updateTriggerText,
     UPDATE_MODE_OPTIONS,
     fetchUpdateStatus,
+    checkUpdateVersion,
+    updateVersion,
+    updateVersionBranch,
     updateStateText,
     updateStateType,
     updateLineColor,

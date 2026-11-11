@@ -59,7 +59,7 @@ public interface ILocalAdminProvider
     Task<LocalUpdateStartResult> ControlUpdateAsync(string id, string action, string? requestedBy, CancellationToken ct = default);
 
     /// <summary>查询更新任务状态与环境预检；服务器不存在返回 null。</summary>
-    Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default);
+    Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default, string? checkBranch = null);
 
     /// <summary>取消重启倒计时。</summary>
     Task<LocalAdminResult> CancelRestartAsync(string id, CancellationToken ct = default);

@@ -363,9 +363,12 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
         }
     }
 
-    public Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default)
+    public Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default, string? checkBranch = null)
     {
-        return SendAsync<LocalUpdateStatus>(() => _http.GetAsync($"api/daemon/servers/{Uri.EscapeDataString(id)}/update", ct));
+        string uri = $"api/daemon/servers/{Uri.EscapeDataString(id)}/update";
+        if (checkBranch is not null)
+            uri += "?checkBranch=" + Uri.EscapeDataString(checkBranch);
+        return SendAsync<LocalUpdateStatus>(() => _http.GetAsync(uri, ct));
     }
 
     public Task<LocalAdminResult> CancelRestartAsync(string id, CancellationToken ct = default)
