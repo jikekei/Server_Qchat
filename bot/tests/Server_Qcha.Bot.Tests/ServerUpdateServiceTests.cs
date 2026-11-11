@@ -269,7 +269,7 @@ public class ServerUpdateServiceTests
         var status = await WaitDoneAsync(env.Updater);
         Assert.Equal("succeeded", status.State);
         Assert.Equal("staged", status.Mode);
-        Assert.Equal("100", status.LiveBuildId);
+        Assert.Equal("200", status.LiveBuildId);
         Assert.Equal("200", status.StagedBuildId);
         Assert.Equal(42.0, status.ProgressPercent);
         Assert.Contains(status.Lines, l => l.Text == "[SteamCMD] Success! App '996560' fully installed.");
@@ -290,6 +290,7 @@ public class ServerUpdateServiceTests
         Assert.True(env.Updater.Rollback("main", "tester").Success);
         var rb = await WaitDoneAsync(env.Updater);
         Assert.Equal("succeeded", rb.State);
+        Assert.Equal("100", rb.LiveBuildId);
         Assert.Equal("v1", File.ReadAllText(Path.Combine(env.Live, "version.txt")).Trim());
         Assert.Equal("v2", File.ReadAllText(Path.Combine(rollback, "version.txt")).Trim());
     }
