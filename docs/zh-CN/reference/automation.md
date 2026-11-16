@@ -17,6 +17,8 @@ Windows / Linux 分别测试 EXILED 与 LabAPI 的 TCP 监听源码，构建当�
 
 Bot 和守护进程的可执行文件位于 ZIP 根目录，DLL 和 .NET 运行时统一放在 `runtime/`。两者共用根目录的 `appsettings.json`，面板静态资源保存在 `wwwroot/`。Windows 包另含启动脚本。升级旧布局时，解压到新目录，再迁移现有配置和 `data/` 等运行数据。替换正在托管游戏服的守护进程需安排维护窗口。
 
+发布任务会解压 Windows 和 Linux ZIP，核对目录布局，再启动包内的守护进程和 Bot，验证守护进程的健康接口及面板静态资源。检查通过后才上传 ZIP 和校验文件。
+
 可在仓库根目录执行以下命令生成本地发布目录，目标目录须尚未存在。
 
 ```powershell
