@@ -834,7 +834,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
     {
         var result = await instance.SetRestartNextRoundAsync(enable, ct);
         if (result.Success)
-            Log(instance, job, "info", result.Message);
+            Log(instance, job, "info", enable ? "已设置：本回合结束后重启服务器（restartnextround）" : "已撤销本回合结束后重启");
         else
             Log(instance, job, "warn", result.Error + (enable ? "，将依赖超时 / 空闲 / 手动「立即更新」兜底" : ""));
         return result.Success && enable;
