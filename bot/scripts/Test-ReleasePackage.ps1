@@ -93,7 +93,7 @@ try {
     if (Test-Path -LiteralPath $work) {
         $resolved = (Resolve-Path -LiteralPath $work).Path
         if ([IO.Path]::GetDirectoryName($resolved) -eq $parent -and [IO.Path]::GetFileName($resolved) -eq $name) {
-            Remove-Item -LiteralPath $resolved -Recurse
+            Remove-Item -LiteralPath $resolved -Recurse -Force
         }
     }
 }

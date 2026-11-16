@@ -55,6 +55,6 @@ try {
 } finally {
     if (Test-Path -LiteralPath $work) {
         $resolvedWork = (Resolve-Path -LiteralPath $work).Path
-        if ($resolvedWork -eq $work) { Remove-Item -LiteralPath $resolvedWork -Recurse }
+        if ($resolvedWork -eq $work) { Remove-Item -LiteralPath $resolvedWork -Recurse -Force }
     }
 }
