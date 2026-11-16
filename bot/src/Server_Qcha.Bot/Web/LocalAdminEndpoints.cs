@@ -100,16 +100,17 @@ public static class LocalAdminEndpoints
     }
 
     /// <summary>面板轮询：一次请求同时取回最新状态与增量控制台输出。</summary>
-    private static async Task<IResult> PollAsync(string id, long? after, int? limit, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    private static async Task<IResult> PollAsync(string id, long? after, int? limit, bool? waitForLines, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
     {
         var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
         if (error is not null)
             return error;
 
-        var poll = await provider.PollAsync(id, after, limit, ct);
+        var poll = await provider.PollAsync(id, after, limit, ct, waitForLines == true);
         if (poll is null)
             return NotFound(id);
 
+        ctx.Response.Headers.CacheControl = "no-store";
         return Results.Json(new
         {
             status = poll.Status,

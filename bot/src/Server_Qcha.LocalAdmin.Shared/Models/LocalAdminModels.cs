@@ -36,7 +36,8 @@ public sealed record LocalServerSaveRequest(
     bool? RedirectStandardStreams,
     string? ConsoleLevel,
     string? InstallDirectory = null,
-    string? BetaBranch = null);
+    string? BetaBranch = null,
+    int? MemoryRestartLimitMb = null);
 
 /// <summary>
 /// 通过 SteamCMD 更新服务端的请求体。

@@ -53,20 +53,21 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
         return Task.FromResult(instance?.GetStatus());
     }
 
-    public Task<LocalPollResult?> PollAsync(string id, long? after, int? limit, CancellationToken ct = default)
+    public async Task<LocalPollResult?> PollAsync(string id, long? after, int? limit, CancellationToken ct = default, bool waitForLines = false)
     {
         var instance = _manager.Find(id);
         if (instance is null)
-            return Task.FromResult<LocalPollResult?>(null);
+            return null;
 
         long afterSeq = after.GetValueOrDefault();
         int take = Math.Clamp(limit ?? 400, 1, 2000);
+        if (waitForLines)
+            await instance.WaitForConsoleLinesAsync(afterSeq, ct);
 
         var lines = instance.ReadLines(afterSeq, take, out long firstSeq, out long lastSeq, out bool truncated);
         var dtos = lines.Select(l => l.ToDto()).ToList();
 
-        var result = new LocalPollResult(instance.GetStatus(), firstSeq, lastSeq, truncated, dtos);
-        return Task.FromResult<LocalPollResult?>(result);
+        return new LocalPollResult(instance.GetStatus(), firstSeq, lastSeq, truncated, dtos);
     }
 
     public Task<LocalSaveResult> CreateServerAsync(LocalServerSaveRequest request, CancellationToken ct = default)

@@ -44,7 +44,7 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
     public string Mode => "Daemon";
 
     /// <summary>
-    /// 在 Bot 启动时主动探测守护进程是否运行，若未运行则自动在后台拉起，
+    /// 在 Bot 启动时主动探测守护进程是否运行，若未运行则自动拉起，
     /// 并等待其就绪。确保直接双击 Server_Qcha.Bot.exe 时也能自动享受独立守护架构。
     /// </summary>
     public bool EnsureDaemonRunningAtStartup()
@@ -70,11 +70,12 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
             }
 
             // 2. 检查可执行文件
-            string baseDir = AppContext.BaseDirectory;
-            string daemonExe = Path.Combine(baseDir, "Server_Qcha.Daemon.exe");
+            string baseDir = LocalAdminPaths.ApplicationDirectory;
+            string daemonName = OperatingSystem.IsWindows() ? "Server_Qcha.Daemon.exe" : "Server_Qcha.Daemon";
+            string daemonExe = Path.Combine(baseDir, daemonName);
             if (!File.Exists(daemonExe))
             {
-                _log.LogWarning("未找到守护进程程序：{Path}，请确保 Server_Qcha.Daemon.exe 与 Bot 位于同一目录下", daemonExe);
+                _log.LogWarning("未找到守护进程程序：{Path}，请确保守护进程与 Bot 位于同一目录下", daemonExe);
                 return false;
             }
 
@@ -85,20 +86,9 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
                 {
                     FileName = daemonExe,
                     WorkingDirectory = baseDir,
-                    UseShellExecute = true,
+                    UseShellExecute = OperatingSystem.IsWindows(),
                 };
-
-                try
-                {
-                    Process.Start(psi);
-                }
-                catch
-                {
-                    // 若 UseShellExecute 失败（如非交互环境），回退到 UseShellExecute = false
-                    psi.UseShellExecute = false;
-                    psi.CreateNoWindow = false;
-                    Process.Start(psi);
-                }
+                using var daemonProcess = Process.Start(psi);
 
                 // 3. 轮询等待其端口就绪（最多等待 8 秒）
                 var stopwatch = Stopwatch.StartNew();
@@ -139,11 +129,11 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
         }
     }
 
-    private async Task<T?> SendAsync<T>(Func<Task<HttpResponseMessage>> sendFunc) where T : class
+    private async Task<T?> SendAsync<T>(Func<Task<HttpResponseMessage>> sendFunc, CancellationToken ct = default) where T : class
     {
         try
         {
-            var res = await sendFunc();
+            using var res = await sendFunc();
             if (!res.IsSuccessStatusCode)
             {
                 if (res.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -152,7 +142,11 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
                 _log.LogWarning("Daemon 返回非成功状态码 {StatusCode}: {Body}", res.StatusCode, content);
                 return null;
             }
-            return await res.Content.ReadFromJsonAsync<T>(JsonOptions);
+            return await res.Content.ReadFromJsonAsync<T>(JsonOptions, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (HttpRequestException ex)
         {
@@ -215,10 +209,11 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
         return SendAsync<LocalServerStatus>(() => _http.GetAsync($"api/daemon/servers/{Uri.EscapeDataString(id)}", ct));
     }
 
-    public Task<LocalPollResult?> PollAsync(string id, long? after, int? limit, CancellationToken ct = default)
+    public Task<LocalPollResult?> PollAsync(string id, long? after, int? limit, CancellationToken ct = default, bool waitForLines = false)
     {
         string uri = $"api/daemon/servers/{Uri.EscapeDataString(id)}/poll?after={after.GetValueOrDefault()}&limit={limit.GetValueOrDefault(400)}";
-        return SendAsync<LocalPollResult>(() => _http.GetAsync(uri, ct));
+        if (waitForLines) uri += "&waitForLines=true";
+        return SendAsync<LocalPollResult>(() => _http.GetAsync(uri, ct), ct);
     }
     public Task<LogArchiveResult?> ReadArchiveAsync(string id, string? file, long offset, CancellationToken ct = default)
     {
@@ -384,7 +379,7 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
 
         return new LocalConfigInfo(
             _options.Enabled,
-            AppContext.BaseDirectory,
+            LocalAdminPaths.ApplicationDirectory,
             "",
             false,
             "daemon-disconnected",

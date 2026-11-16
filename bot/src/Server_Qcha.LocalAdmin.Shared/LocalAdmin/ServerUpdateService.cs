@@ -832,48 +832,12 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
     /// </summary>
     private async Task<bool> SetRestartNextRoundAsync(LocalServerInstance instance, UpdateJob job, bool enable, CancellationToken ct)
     {
-        if (!instance.Running)
-            return false;
-
-        for (int attempt = 0; attempt < 2; attempt++)
-        {
-            long after = instance.LastSeq;
-            var send = await instance.SendConsoleAsync("restartnextround", ct);
-            if (!send.Success)
-            {
-                Log(instance, job, "warn", $"下发 restartnextround 失败：{send.Error ?? send.Message}");
-                return false;
-            }
-
-            bool? state = null;
-            for (int i = 0; i < 50 && state is null; i++)
-            {
-                await Task.Delay(100, ct);
-                foreach (var line in instance.ReadLines(after, 500, out _, out _, out _))
-                {
-                    if (line.Text.Contains("WILL restart after next round", StringComparison.OrdinalIgnoreCase))
-                        state = true;
-                    else if (line.Text.Contains("WON'T restart after next round", StringComparison.OrdinalIgnoreCase))
-                        state = false;
-                }
-            }
-
-            if (state is null)
-            {
-                Log(instance, job, "warn", "未收到游戏对 restartnextround 的确认（控制台未连接或版本不支持）" +
-                    (enable ? "，将依赖超时 / 空闲 / 手动「立即更新」兜底" : ""));
-                return false;
-            }
-
-            if (state == enable)
-            {
-                Log(instance, job, "info", enable ? "已设置：本回合结束后重启服务器（restartnextround）" : "已撤销本回合结束后重启");
-                return enable;
-            }
-            // 开关方向不对（例如管理员之前已手动设置过），再切换一次
-        }
-
-        return !enable;
+        var result = await instance.SetRestartNextRoundAsync(enable, ct);
+        if (result.Success)
+            Log(instance, job, "info", result.Message);
+        else
+            Log(instance, job, "warn", result.Error + (enable ? "，将依赖超时 / 空闲 / 手动「立即更新」兜底" : ""));
+        return result.Success && enable;
     }
 
     private async Task StartAndVerifyAsync(LocalServerInstance instance, UpdateJob job, string live, string rollback, CancellationToken ct)
@@ -1392,8 +1356,9 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             dirs.Add("/home/steam/steamcmd");
         }
 
-        dirs.Add(AppContext.BaseDirectory);
-        dirs.Add(Path.Combine(AppContext.BaseDirectory, "steamcmd"));
+        string appDirectory = LocalAdminPaths.ApplicationDirectory;
+        dirs.Add(appDirectory);
+        dirs.Add(Path.Combine(appDirectory, "steamcmd"));
 
         foreach (string dir in dirs)
         {

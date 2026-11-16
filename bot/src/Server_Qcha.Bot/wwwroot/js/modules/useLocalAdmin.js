@@ -1,4 +1,4 @@
-import { ref, reactive, computed, nextTick } from '../deps.js';
+import { ref, reactive, computed, nextTick, watch } from '../deps.js';
 import { api, page } from '../api.js';
 import { ElMessage, ElMessageBox } from '../deps.js';
 
@@ -11,9 +11,17 @@ const local = reactive({
 });
 const termRef = ref(null);
 let localTimer = null;
+let consolePoll = null;
 const MAX_LOCAL_LINES = 1500;
+const consoleTimeFormat = new Intl.DateTimeFormat('zh-CN', {
+  hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false,
+});
 
 const localRunning = computed(() => !!(local.status && local.status.running));
+
+watch([termRef, () => local.autoScroll], ([el, autoScroll]) => {
+  if (el && autoScroll) el.scrollTop = el.scrollHeight;
+}, { flush: 'post' });
 
 function localBase() {
   return '/local/servers/' + encodeURIComponent(local.selectedId);
@@ -187,6 +195,7 @@ function defaultServerForm() {
     extraArguments: '', autoStart: false,
     enableHeartbeat: true, heartbeatSpanMaxThreshold: 30, heartbeatRestartInSeconds: 11,
     restartOnCrash: true, restartLimit: 4, restartTimeWindowSeconds: 480,
+    memoryRestartLimitMb: 2048,
     gracefulStopTimeoutSeconds: 30,
     laToSlBufferSize: 25000, slToLaBufferSize: 200000,
     disableAnsiColors: true, redirectStandardStreams: true,
@@ -440,12 +449,10 @@ async function loadLocalServers() {
 
     if (!local.servers.some(s => s.id === local.selectedId)) {
       local.selectedId = local.servers.length ? local.servers[0].id : '';
-      local.lines = [];
-      local.nextSeq = 0;
+      resetLocalConsole();
       local.status = null;
     }
 
-    if (data.nextSeq != null) local.nextSeq = data.nextSeq;
     const match = local.servers.find(s => s.id === local.selectedId);
     if (match) {
       local.status = match;
@@ -460,55 +467,95 @@ async function loadLocalServers() {
   }
 }
 
-async function pollLocal() {
-  if (page.value !== 'local' || !local.selectedId) return;
+async function pollLocal(waitForLines = false) {
+  const id = local.selectedId;
+  if (page.value !== 'local' || !id || consolePoll) return;
+
+  const request = new AbortController();
+  const after = local.nextSeq;
+  consolePoll = request;
   try {
-    const data = await api(localBase() + '/poll?after=' + local.nextSeq + '&limit=500');
+    const wait = waitForLines ? '&waitForLines=true' : '';
+    const data = await api(localBase() + '/poll?after=' + after + '&limit=500' + wait, {
+      cache: 'no-store',
+      signal: request.signal,
+    });
+    if (request.signal.aborted || page.value !== 'local' || id !== local.selectedId) return true;
+
     local.status = data.status;
     local.truncated = !!data.truncated;
     syncHeartbeatSwitch();
 
+    const match = local.servers.find(s => s.id === id);
+    if (match) Object.assign(match, data.status);
+
+    // 守护进程或实例重建后，序号会从头开始。
+    if (data.lastSeq < after) {
+      resetLocalConsole();
+      return true;
+    }
+
+    // 接口返回的是过滤前的位置。整批日志被过滤时也要继续读取。
+    local.nextSeq = data.nextSeq;
     const list = data.lines || [];
     if (list.length) {
-      for (let i = 0; i < list.length; i++) local.lines.push(list[i]);
-      local.nextSeq = list[list.length - 1].seq;
+      const el = termRef.value;
+      const follow = local.autoScroll && el && el.scrollHeight - el.clientHeight - el.scrollTop <= 2;
+      local.lines.push(...list.map(line => ({ ...line, timeText: timeOnly(line.time) })));
       if (local.lines.length > MAX_LOCAL_LINES) {
         local.lines.splice(0, local.lines.length - MAX_LOCAL_LINES);
       }
-      if (local.autoScroll) await scrollTerminal();
+      if (follow) {
+        await nextTick();
+        if (termRef.value === el) el.scrollTop = el.scrollHeight;
+      }
     }
-
-    const match = local.servers.find(s => s.id === local.selectedId);
-    if (match) Object.assign(match, data.status);
+    return data.nextSeq !== after;
   } catch (e) {
-    // 轮询失败静默处理
+    return request.signal.aborted;
+  } finally {
+    if (consolePoll === request) consolePoll = null;
   }
 }
 
-async function scrollTerminal() {
-  await nextTick();
+function cancelConsolePoll() {
+  consolePoll?.abort();
+  consolePoll = null;
+}
+
+function localFollowLatest() {
+  local.autoScroll = true;
   const el = termRef.value;
   if (el) el.scrollTop = el.scrollHeight;
 }
 
-function stopLocalPolling() {
-  if (localTimer) { clearInterval(localTimer); localTimer = null; }
+function resetLocalConsole() {
+  cancelConsolePoll();
+  local.lines = [];
+  local.nextSeq = 0;
+  local.truncated = false;
 }
 
-let daemonPollCount = 0;
+function stopLocalPolling() {
+  if (localTimer) { clearInterval(localTimer); localTimer = null; }
+  cancelConsolePoll();
+}
+
 function startLocalPolling() {
   stopLocalPolling();
-  loadLocalServers().then(() => {
-    fetchDaemonStatus();
-    pollLocal();
-    localTimer = setInterval(async () => {
-      await pollLocal();
-      daemonPollCount++;
-      if (daemonPollCount % 2 === 0) {
-        await fetchDaemonStatus();
-      }
-    }, 1000);
-  });
+  const timer = setInterval(fetchDaemonStatus, 2000);
+  localTimer = timer;
+  loadLocalServers().then(() => followLocalConsole(timer));
+}
+
+async function followLocalConsole(timer) {
+  while (localTimer === timer && page.value === 'local') {
+    const started = performance.now();
+    const advanced = await pollLocal(true);
+    const delay = (advanced ? 50 : 1000) - (performance.now() - started);
+    if (delay > 0)
+      await new Promise(resolve => setTimeout(resolve, delay));
+  }
 }
 
 async function refreshLocal() {
@@ -519,12 +566,10 @@ async function refreshLocal() {
 }
 
 async function onLocalServerChange() {
-  local.lines = [];
-  local.nextSeq = 0;
+  resetLocalConsole();
   local.status = null;
   await pollLocal();
   syncConsoleLevel();
-  await scrollTerminal();
 }
 
 async function localPost(path, body) {
@@ -636,28 +681,34 @@ async function localToggleHeartbeat(value) {
 }
 
 async function localClearConsole() {
+  const id = local.selectedId;
   try {
     await api(localBase() + '/console/clear', { method: 'POST', body: JSON.stringify({}) });
-    local.lines = [];
-    local.nextSeq = 0;
+    if (id === local.selectedId) resetLocalConsole();
     ElMessage.success('控制台已清空');
   } catch (e) {
     ElMessage.error(e.message);
   }
 }
 
-async function localSendCommand() {
-  const cmd = local.command.trim();
+async function localSendCommand(command = local.command) {
+  if (local.sending || !local.selectedId) return;
+
+  const cmd = command.trim();
   if (!cmd) return;
 
+  local.command = command;
   local.sending = true;
   try {
     const res = await api(localBase() + '/console', {
       method: 'POST',
       body: JSON.stringify({ command: cmd })
     });
-    if (res.success) local.command = '';
-    else ElMessage.error(res.error || res.response || '下发失败');
+    if (res.success) {
+      if (local.command === command) local.command = '';
+    } else {
+      ElMessage.error(res.error || res.response || '下发失败');
+    }
   } catch (e) {
     ElMessage.error(e.message);
   } finally {
@@ -956,7 +1007,7 @@ function formatUptime(seconds) {
 function timeOnly(v) {
   if (!v) return '';
   const d = new Date(v);
-  return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('zh-CN', { hour12: false });
+  return isNaN(d.getTime()) ? '' : consoleTimeFormat.format(d);
 }
 
 function lineLabel(kind) {
@@ -986,6 +1037,7 @@ export function useLocalAdmin() {
     localRestart,
     localCancelRestart,
     localToggleHeartbeat,
+    localFollowLatest,
     localClearConsole,
     localSendCommand,
     localSetConsoleLevel,

@@ -26,6 +26,7 @@ public static class LocalAdminMappingExtensions
         if (r.RestartLimit is not null) d.RestartLimit = r.RestartLimit.Value;
         if (r.RestartTimeWindowSeconds is not null) d.RestartTimeWindowSeconds = r.RestartTimeWindowSeconds.Value;
         if (r.GracefulStopTimeoutSeconds is not null) d.GracefulStopTimeoutSeconds = r.GracefulStopTimeoutSeconds.Value;
+        if (r.MemoryRestartLimitMb is not null) d.MemoryRestartLimitMb = r.MemoryRestartLimitMb.Value;
 
         if (r.LaToSlBufferSize is not null) d.LaToSlBufferSize = r.LaToSlBufferSize.Value;
         if (r.SlToLaBufferSize is not null) d.SlToLaBufferSize = r.SlToLaBufferSize.Value;

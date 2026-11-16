@@ -351,6 +351,7 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
         RestartLimit = d.RestartLimit,
         RestartTimeWindowSeconds = d.RestartTimeWindowSeconds,
         GracefulStopTimeoutSeconds = d.GracefulStopTimeoutSeconds,
+        MemoryRestartLimitMb = d.MemoryRestartLimitMb,
         LaToSlBufferSize = d.LaToSlBufferSize,
         SlToLaBufferSize = d.SlToLaBufferSize,
         DisableAnsiColors = d.DisableAnsiColors,

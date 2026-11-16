@@ -18,12 +18,16 @@ jobs:
 
   package:
     needs: checks
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        runtime: [win-x64, linux-x64]
+        include:
+          - runtime: win-x64
+            runner: windows-latest
+          - runtime: linux-x64
+            runner: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
@@ -36,18 +40,9 @@ jobs:
         env:
           RUNTIME: ${{ matrix.runtime }}
         run: |
-          dotnet publish bot/src/Server_Qcha.Bot/Server_Qcha.Bot.csproj -c Release -r $env:RUNTIME --self-contained true -o package/bot
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet publish bot/src/Server_Qcha.Daemon/Server_Qcha.Daemon.csproj -c Release -r $env:RUNTIME --self-contained true -o package/daemon
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # Bot auto-start and the existing launch scripts expect the daemon beside the bot.
-          # Keep the bot's configuration and web resources when merging runtime files.
-          Get-ChildItem package/daemon -File | Where-Object { $_.Name -notlike 'appsettings*.json' } | Copy-Item -Destination package/bot/
-          if ($env:RUNTIME -eq 'win-x64') { Copy-Item bot/scripts/*.bat package/bot/ }
-          Copy-Item LICENSE package/bot/
-          Copy-Item README.md package/bot/
+          ./bot/scripts/Publish-Release.ps1 -Runtime $env:RUNTIME -OutputDirectory package/bot
           if (!(Test-Path package/bot/wwwroot/index.html)) { throw 'Web panel assets missing' }
-          if (!(Test-Path package/bot/Server_Qcha.Daemon.dll)) { throw 'Daemon missing' }
+          if (!(Test-Path package/bot/runtime/Server_Qcha.Daemon.dll)) { throw 'Daemon missing' }
       - name: Archive and checksum
         shell: pwsh
         env:
@@ -63,7 +58,7 @@ jobs:
           }
           New-Item -ItemType Directory -Force dist | Out-Null
           $zip = "Server_Qcha.Bot-$version-$env:RUNTIME.zip"
-          Compress-Archive -Path package/bot/* -DestinationPath "dist/$zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory("package/bot", "dist/$zip")
           $hash = (Get-FileHash "dist/$zip" -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $zip" | Set-Content "dist/$zip.sha256" -Encoding utf8NoBOM
       - uses: actions/upload-artifact@v7

@@ -154,9 +154,9 @@ api.MapGet("/servers/{id}/archive", async (string id, string? file, long? offset
     try { var archive = await provider.ReadArchiveAsync(id, file, offset ?? 0, ct); return archive is null ? Results.NotFound() : Results.Json(archive); }
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
 });
-api.MapGet("/servers/{id}/poll", async (string id, long? after, int? limit, ILocalAdminProvider provider, CancellationToken ct) =>
+api.MapGet("/servers/{id}/poll", async (string id, long? after, int? limit, bool? waitForLines, ILocalAdminProvider provider, CancellationToken ct) =>
 {
-    var poll = await provider.PollAsync(id, after, limit, ct);
+    var poll = await provider.PollAsync(id, after, limit, ct, waitForLines == true);
     return poll is not null ? Results.Json(poll) : Results.NotFound(new { error = $"服务器不存在：{id}" });
 });
 

@@ -366,6 +366,12 @@ export const AppDialogs = {
         <span class="muted" style="margin-left:10px">时间窗口内最多自动拉起几次，0 = 不自动重启</span>
       </el-form-item>
 
+      <el-form-item label="内存回收上限">
+        <el-input-number v-model="serverDialog.form.memoryRestartLimitMb" :min="0" :max="2147483647" :precision="0"
+                         controls-position="right"></el-input-number>
+        <span class="muted" style="margin-left:10px">MiB，持续超限后在回合结束时重启，空服立即回收。0 = 关闭</span>
+      </el-form-item>
+
       <el-form-item label="SteamCMD 安装目录">
         <el-input v-model="serverDialog.form.installDirectory"
                   placeholder="「更新服务器」时的 force_install_dir，留空则用可执行文件所在目录"></el-input>

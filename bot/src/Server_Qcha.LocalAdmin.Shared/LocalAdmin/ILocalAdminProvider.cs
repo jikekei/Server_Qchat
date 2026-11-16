@@ -20,7 +20,7 @@ public interface ILocalAdminProvider
     Task<LocalServerStatus?> GetStatusAsync(string id, CancellationToken ct = default);
 
     /// <summary>轮询指定服务器的状态与增量控制台输出。</summary>
-    Task<LocalPollResult?> PollAsync(string id, long? after, int? limit, CancellationToken ct = default);
+    Task<LocalPollResult?> PollAsync(string id, long? after, int? limit, CancellationToken ct = default, bool waitForLines = false);
 
     /// <summary>创建新服务器定义并落盘。</summary>
     Task<LocalSaveResult> CreateServerAsync(LocalServerSaveRequest request, CancellationToken ct = default);
