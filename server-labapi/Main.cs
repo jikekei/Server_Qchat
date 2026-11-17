@@ -63,7 +63,7 @@ namespace SocketServer
 
         public override string Author => "Fantasy Galaxy";
 
-        public override Version Version => new Version(2, 2, 0);
+        public override Version Version => new Version(2, 4, 0);
 
         /// <summary>
         /// 声明本插件要求的 LabAPI 版本。LabAPI 装载时会拿它和当前运行版本比对：
@@ -99,13 +99,15 @@ namespace SocketServer
         public override void Enable()
         {
             Instance = this;
-            Log.Info("[Server_Qcha] 插件已加载 v1.4.0（LabAPI 版），开始初始化...");
+            Qchat.GameDatabase.GameDatabaseRuntime.StartRuntime(Config.DatabaseConnectionString, Config.DatabasePlayerStatsEnabled);
+            Log.Info($"[Server_Qcha] 插件已加载 v{Version}（LabAPI 版），开始初始化...");
             ServerEvents.WaitingForPlayers += OnWaitingForPlayers;
         }
 
         public override void Disable()
         {
             ServerEvents.WaitingForPlayers -= OnWaitingForPlayers;
+            Qchat.GameDatabase.GameDatabaseRuntime.StopRuntime();
             Qchat.GameAdmin.GameAdminRuntime.StopRuntime();
             StopServer();
             Instance = null;

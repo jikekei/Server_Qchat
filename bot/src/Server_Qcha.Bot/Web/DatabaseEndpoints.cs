@@ -449,29 +449,26 @@ public static class DatabaseEndpoints
         if (string.IsNullOrWhiteSpace(request.Id))
             return Results.Json(new { error = "封禁玩家 ID 不能为空" }, statusCode: StatusCodes.Status400BadRequest);
 
-        DateTime unbanTime;
-        if (request.UnbanTime.HasValue)
-        {
-            unbanTime = request.UnbanTime.Value;
-        }
-        else if (request.DurationSeconds.HasValue && request.DurationSeconds.Value > 0)
-        {
-            unbanTime = DateTime.Now.AddSeconds(request.DurationSeconds.Value);
-        }
-        else
-        {
-            unbanTime = PermanentUnbanTime;
-        }
-
         string adminId = string.IsNullOrWhiteSpace(request.AdminId) ? session!.Username : request.AdminId.Trim();
         string adminName = string.IsNullOrWhiteSpace(request.AdminName) ? session!.DisplayName : request.AdminName.Trim();
         string reason = string.IsNullOrWhiteSpace(request.Reason) ? "管理员封禁" : request.Reason.Trim();
         string ip = string.IsNullOrWhiteSpace(request.PlayerIP) ? "0.0.0.0" : request.PlayerIP.Trim();
 
-        var ban = new BanRecord(request.Id.Trim(), ip, unbanTime, adminId, adminName, reason, unbanTime > DateTime.Now);
-
         try
         {
+            var now = await repo.GetDatabaseTimeAsync(ct);
+            DateTime unbanTime = request.UnbanTime ?? PermanentUnbanTime;
+            double? seconds = request.DurationSeconds is > 0 ? request.DurationSeconds.Value : null;
+            if (request.UnbanTime is DateTime until)
+                seconds = until.Kind == DateTimeKind.Unspecified ? null : (until.ToUniversalTime() - DateTime.UtcNow).TotalSeconds;
+            if (seconds.HasValue)
+            {
+                unbanTime = seconds.Value >= (PermanentUnbanTime - now).TotalSeconds
+                    ? PermanentUnbanTime
+                    : now.AddSeconds(seconds.Value);
+            }
+
+            var ban = new BanRecord(request.Id.Trim(), ip, unbanTime, adminId, adminName, reason, unbanTime > now);
             await repo.SaveBanAsync(ban, ct);
 
             await db.AddAuditAsync(new PanelAuditEntry

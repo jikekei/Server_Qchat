@@ -368,6 +368,14 @@ public sealed class GameDbRepository
 
     // ==================== 封禁管理 (BanPlayerData) ====================
 
+    internal async Task<DateTime> GetDatabaseTimeAsync(CancellationToken ct)
+    {
+        await using var conn = CreateConnection();
+        await conn.OpenAsync(ct);
+        await using var command = new MySqlCommand("SELECT NOW();", conn);
+        return (DateTime)(await command.ExecuteScalarAsync(ct))!;
+    }
+
     public async Task<(IReadOnlyList<BanRecord> Items, int Total)> GetBansAsync(
         string? search, bool? activeOnly, int page, int pageSize, CancellationToken ct = default)
     {
@@ -394,7 +402,7 @@ public sealed class GameDbRepository
         int total = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
 
         string selectSql = $@"
-            SELECT Id, PlayerIP, UnbanTime, AdminId, AdminName, Reason
+            SELECT Id, PlayerIP, UnbanTime, AdminId, AdminName, Reason, UnbanTime > NOW() AS IsActive
             FROM BanPlayerData
             {where}
             ORDER BY UnbanTime DESC
@@ -414,7 +422,7 @@ public sealed class GameDbRepository
             string adminId = reader.GetString("AdminId");
             string adminName = reader.GetString("AdminName");
             string reason = reader.GetString("Reason");
-            bool isActive = unban > DateTime.Now;
+            bool isActive = reader.GetBoolean("IsActive");
 
             list.Add(new BanRecord(id, ip, unban, adminId, adminName, reason, isActive));
         }
@@ -427,7 +435,7 @@ public sealed class GameDbRepository
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct);
 
-        const string sql = "SELECT Id, PlayerIP, UnbanTime, AdminId, AdminName, Reason FROM BanPlayerData WHERE Id = @Id LIMIT 1;";
+        const string sql = "SELECT Id, PlayerIP, UnbanTime, AdminId, AdminName, Reason, UnbanTime > NOW() AS IsActive FROM BanPlayerData WHERE Id = @Id LIMIT 1;";
         await using var cmd = new MySqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Id", id);
 
@@ -441,7 +449,7 @@ public sealed class GameDbRepository
         string adminName = reader.GetString("AdminName");
         string reason = reader.GetString("Reason");
 
-        return new BanRecord(id, ip, unban, adminId, adminName, reason, unban > DateTime.Now);
+        return new BanRecord(id, ip, unban, adminId, adminName, reason, reader.GetBoolean("IsActive"));
     }
 
     public async Task SaveBanAsync(BanRecord ban, CancellationToken ct = default)

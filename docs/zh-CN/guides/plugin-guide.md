@@ -35,19 +35,19 @@
 
 | 框架 | 最低兼容版本 | 产物文件名 | 部署路径 |
 |---|---|---|---|
-| **EXILED** | 仓库依赖 EXILED 9.5.0 | `Server_Qcha-EXILED.dll` | `%APPDATA%\EXILED\Plugins\` |
-| **LabAPI** | LabAPI 1.1.7+ | `Server_Qcha-LabAPI.dll` | `%APPDATA%\SCP Secret Laboratory\LabAPI\plugins\<端口>\` |
+| **EXILED** | 仓库依赖 EXILED 9.15.2 | `Server_Qcha-EXILED-v2.4.0.zip` | `%APPDATA%\EXILED\Plugins\` |
+| **LabAPI** | LabAPI 1.1.7+ | `Server_Qcha-LabAPI-v2.4.0.zip` | `%APPDATA%\SCP Secret Laboratory\LabAPI\plugins\<端口>\` |
 
 > 注意：EXILED 与 LabAPI 互不兼容，同一个服务器端口切勿同时加载两款插件。
-> EXILED 插件当前按仓库中的 `ExMod.Exiled` 9.5.0 依赖构建；其他 EXILED 版本（包括 8.x）尚未在本仓库验证，不承诺兼容。构建所需的 `PluginAPI.dll` 是 EXILED 依赖包中的引用，不表示本插件面向已归档的独立 NwPluginAPI 框架。
+> EXILED 插件按仓库中的 `ExMod.Exiled` 9.15.2 构建，其他 EXILED 版本尚未验证。
 
 ---
 
 ## EXILED 插件安装与配置
 
 ### 安装步骤
-1. 从 Releases 下载 `Server_Qcha-EXILED.dll`，重命名为 `Server_Qcha.dll`；
-2. 将文件移动到 EXILED 插件目录：
+1. 从 Releases 下载并解压 `Server_Qcha-EXILED-v2.4.0.zip`；
+2. 将 `Server_Qcha.dll` 与 `dependencies/` 放入 EXILED 插件目录：
    - **Windows**：`%APPDATA%\EXILED\Plugins\`
    - **Linux**：`~/.config/EXILED/Plugins/`
 3. 重启服务器生成默认配置文件。
@@ -70,7 +70,7 @@
 ## LabAPI 插件安装与配置
 
 ### 安装步骤
-1. 从 Releases 下载 `Server_Qcha-LabAPI-v2.2.0.zip` 并解压；若单独下载 `Server_Qcha-LabAPI.dll`，须重命名为 `Server_Qcha.dll` 并另行部署配套 Harmony 依赖；
+1. 从 Releases 下载并解压 `Server_Qcha-LabAPI-v2.4.0.zip`；
 2. 将文件放置到按端口划分的 LabAPI 插件目录：
    ```text
    %APPDATA%\SCP Secret Laboratory\LabAPI\plugins\<服务器端口>\Server_Qcha.dll
@@ -101,6 +101,21 @@ bot_port: 10088
 auth_token: YourSecretTokenHere
 debug: false
 ```
+
+### 玩家统计与数据库封禁
+
+在面板「数据库」配置 MySQL 连接，首次部署可用「初始化数据库表」创建 `PlayerData` 和 `BanPlayerData`。已有幻梦银河数据库可直接使用原表。
+
+在 EXILED 或 LabAPI 的 Server_Qcha 配置中添加 `database_connection_string`，指向面板使用的同一个库。
+
+```yaml
+database_connection_string: "Server=127.0.0.1;Port=3306;Database=hmyh;User ID=qcha_game;Password=YOUR_PASSWORD;"
+database_player_stats_enabled: true
+```
+
+- 配置留空时关闭插件的数据库功能。启用后为插件账号授予 `PlayerData` 的 `SELECT`、`INSERT`、`UPDATE` 和 `BanPlayerData` 的 `SELECT`。将发布包里的 `dependencies/` 随插件放入框架的插件目录。
+- 玩家姓名、时长、击杀与阵亡写入 `PlayerData`，多服增量累加。启用「请勿追踪」的玩家不记录统计。如果同台服已由幻梦银河插件写入同一份统计，可设置 `database_player_stats_enabled: false`，单独保留数据库封禁检查。
+- 面板的数据库封禁按完整账号 ID 匹配，例如 `76561198000000000@steam`。插件在玩家加入及在线时检查有效封禁，通常在 5 秒内踢出命中的玩家。面板删除或结束封禁后，玩家可以重新加入。游戏原生封禁继续通过游戏原生方式管理。
 
 ---
 

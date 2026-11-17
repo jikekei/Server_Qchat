@@ -26,7 +26,7 @@ This guide walks through the initial setup, configuration, and operation of Serv
 | --- | --- | --- |
 | Operating system | Windows 10/11, Windows Server 2016+, or Linux x64 | Windows or a Linux container is recommended |
 | .NET | .NET 8 runtime or SDK | Required to run the bot and daemon |
-| Game server | SCP: Secret Laboratory Dedicated Server | EXILED plugin uses the repository's EXILED 9.5.0 dependency; LabAPI plugin targets 1.1.7+ |
+| Game server | SCP: Secret Laboratory Dedicated Server | EXILED plugin uses the repository's EXILED 9.15.2 dependency; LabAPI plugin targets 1.1.7+ |
 | QQ integration (optional) | NapCatQQ (OneBot 11) or the official QQ Bot platform | Only needed for QQ community integration |
 
 ## Architecture
@@ -44,7 +44,7 @@ The daemon and its managed game servers remain online when the bot is upgraded, 
 
 Download the Windows or Linux self-contained package for your platform. It contains the bot, daemon and web assets. The Windows package also includes launch scripts. [Latest release](https://github.com/jikekei/Server_Qchat/releases/latest)
 
-Download the plugin for your game-server framework. Use the complete LabAPI ZIP for the included Harmony dependency. [EXILED and LabAPI plugin downloads](https://github.com/jikekei/Server_Qchat/releases/tag/v2.2.0)
+Download the complete plugin ZIP for your game-server framework and deploy `Server_Qcha.dll` with the included `dependencies/`. [EXILED and LabAPI plugin downloads](https://github.com/jikekei/Server_Qchat/releases/latest)
 
 Extract the bundle to a directory such as `C:\Server_Qcha\`. Before upgrading, back up and retain `data/` and `appsettings.json`.
 

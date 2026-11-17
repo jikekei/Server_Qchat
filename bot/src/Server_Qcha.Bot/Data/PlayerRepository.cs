@@ -41,7 +41,7 @@ public sealed class PlayerRepository
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct);
 
-        await using var updateCmd = new MySqlCommand("UPDATE playerdata SET QQ_ID = @qq WHERE Id = @id;", conn);
+        await using var updateCmd = new MySqlCommand("UPDATE PlayerData SET QQ_ID = @qq WHERE Id = @id;", conn);
         updateCmd.Parameters.AddWithValue("@id", playerId);
         updateCmd.Parameters.AddWithValue("@qq", qqId);
         await updateCmd.ExecuteNonQueryAsync(ct);
@@ -55,7 +55,7 @@ public sealed class PlayerRepository
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct);
 
-        await using var cmd = new MySqlCommand("SELECT COUNT(*) FROM playerdata WHERE Id = @id;", conn);
+        await using var cmd = new MySqlCommand("SELECT COUNT(*) FROM PlayerData WHERE Id = @id;", conn);
         cmd.Parameters.AddWithValue("@id", playerId);
 
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct)) > 0;
@@ -76,7 +76,7 @@ public sealed class PlayerRepository
 
         // whereClause 仅来自本类内部的常量片段，不存在注入面
         string sql = $@"SELECT Id, PlayerName, ScpsKilled, PlayersKilled, PlayTime, Deaths, Admin, IsAdmin, QQ_ID
-FROM playerdata
+FROM PlayerData
 {whereClause}
 LIMIT 1;";
 

@@ -42,6 +42,12 @@ namespace SocketServer
         [Description("机器人回连本服务器使用的IP地址（跨机部署须手动配置，同机留空即可）")]
         public string ConnectHost { get; set; } = "";
 
+        [Description("与运维面板使用同一 MySQL 数据库；留空关闭玩家统计和数据库封禁")]
+        public string DatabaseConnectionString { get; set; } = "";
+
+        [Description("记录玩家统计；同台服已由其他插件写入同一张表时关闭")]
+        public bool DatabasePlayerStatsEnabled { get; set; } = true;
+
         public bool IsEnabled { get; set; } = true;
         public bool Debug { get; set; } = false;
     }
@@ -78,7 +84,7 @@ namespace SocketServer
 
         public override string Author => "Fantasy Galaxy";
         public override string Name => "Server_Qcha";
-        public override Version Version => new Version(2, 2, 0);
+        public override Version Version => new Version(2, 4, 0);
 
         public static Main Instance { get; private set; }
 
@@ -96,7 +102,8 @@ namespace SocketServer
         public override void OnEnabled()
         {
             Instance = this;
-            Log.Info("[Server_Qcha] 插件已加载 v1.3.0，开始初始化...");
+            Qchat.GameDatabase.GameDatabaseRuntime.StartRuntime(Config.DatabaseConnectionString, Config.DatabasePlayerStatsEnabled);
+            Log.Info($"[Server_Qcha] 插件已加载 v{Version}，开始初始化...");
             Exiled.Events.Handlers.Server.WaitingForPlayers += OnWaitingForPlayers;
             base.OnEnabled();
         }
@@ -104,6 +111,7 @@ namespace SocketServer
         public override void OnDisabled()
         {
             Exiled.Events.Handlers.Server.WaitingForPlayers -= OnWaitingForPlayers;
+            Qchat.GameDatabase.GameDatabaseRuntime.StopRuntime();
             Qchat.GameAdmin.GameAdminRuntime.StopRuntime();
             StopServer();
             Instance = null;
