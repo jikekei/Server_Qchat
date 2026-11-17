@@ -42,11 +42,9 @@ The daemon and its managed game servers remain online when the bot is upgraded, 
 
 ### 1. Download the release
 
-From [GitHub Releases](https://github.com/jikekei/Server_Qchat/releases/latest), download:
+Download the Windows or Linux self-contained package for your platform. It contains the bot, daemon and web assets. The Windows package also includes launch scripts. [Latest release](https://github.com/jikekei/Server_Qchat/releases/latest)
 
-- `Server_Qcha.Bot-v2.0.1.zip` — Bot, daemon, web assets, and launch scripts.
-- `Server_Qcha-EXILED.dll` — for servers using EXILED.
-- `Server_Qcha-LabAPI.dll` — for servers using LabAPI.
+Download the plugin for your game-server framework. Use the complete LabAPI ZIP for the included Harmony dependency. [EXILED and LabAPI plugin downloads](https://github.com/jikekei/Server_Qchat/releases/tag/v2.2.0)
 
 Extract the bundle to a directory such as `C:\Server_Qcha\`. Before upgrading, back up and retain `data/` and `appsettings.json`.
 

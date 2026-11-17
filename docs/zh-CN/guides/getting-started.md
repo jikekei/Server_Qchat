@@ -59,12 +59,11 @@
 
 ### 第一步：获取程序包
 
-前往项目的 [Releases 发布页面](https://github.com/jikekei/Server_Qchat/releases) 下载最新版本的发行包：
-- `Server_Qcha.Bot-v2.0.0.zip`（完整发行包，包含 Bot、Daemon、Web 静态资源与启动脚本）
-- `Server_Qcha-EXILED.dll`（若您的游戏服使用 EXILED 框架）
-- `Server_Qcha-LabAPI.dll`（若您的游戏服使用 LabAPI 框架）
+下载与你的系统对应的 Windows 或 Linux 自包含包。包内包含 Bot、守护进程和 Web 面板，Windows 包另含启动脚本。[最新发行版](https://github.com/jikekei/Server_Qchat/releases/latest)
 
-解压 `Server_Qcha.Bot-v2.0.0.zip` 到任意英文目录，例如 `C:\Server_Qcha\`。
+按游戏服框架下载对应插件。LabAPI 使用包含 Harmony 依赖的完整 ZIP。[EXILED 和 LabAPI 插件下载](https://github.com/jikekei/Server_Qchat/releases/tag/v2.2.0)
+
+将主程序包解压到部署目录，例如 `C:\Server_Qcha\`。
 
 ---
 

@@ -94,10 +94,10 @@ The daemon supervises the game-server processes and retains their console pipes.
 
 Maintainers: see the [automation guide](docs/zh-CN/reference/automation.md) for CI, dependency updates, and release packaging.
 
-1. Download `Server_Qcha.Bot-v2.2.0.zip` from [GitHub Releases](https://github.com/jikekei/Server_Qchat/releases/latest) and extract it to a deployment directory.
+1. Download the Windows or Linux self-contained package for your platform and extract it to a deployment directory. [Latest release](https://github.com/jikekei/Server_Qchat/releases/latest)
 2. Back up `data/` and `appsettings.json` before an upgrade. Copy `appsettings.Example.json` to `appsettings.Local.json` and configure the QQ connection and game-server paths.
 3. Set strong random tokens for bot/plugin communication and, when used, daemon authentication. Configure explicit QQ administrator and group allowlists where needed.
-4. Install either `Server_Qcha-EXILED.dll` or `Server_Qcha-LabAPI.dll` in the matching game-server plugin directory. Do not load both frameworks on the same server instance. On LabAPI servers, deploy `0Harmony.dll` into the plugin's `dependencies` folder.
+4. Install the matching EXILED or LabAPI plugin in the game-server plugin directory. On LabAPI servers, use the complete plugin ZIP to deploy the included `0Harmony.dll` into `dependencies/`. [Plugin downloads](https://github.com/jikekei/Server_Qchat/releases/tag/v2.2.0)
 5. Run `一键启动(守护+机器人).bat` or start `Server_Qcha.Bot.exe`. Open `http://127.0.0.1:8080/` and sign in with the initial credentials printed in the console.
 
 The panel listens on loopback by default. To reach it from another device, set `WebPanel:Host` to `0.0.0.0` and restrict access with a firewall. The startup log detects local IPv4 addresses and prints the corresponding panel URLs.

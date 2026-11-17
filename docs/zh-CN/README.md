@@ -161,11 +161,11 @@ graph TD
 
 ## 3 步极速上手
 
-1. **下载发行包**：前往 [Releases 页面](https://github.com/jikekei/Server_Qchat/releases) 下载最新版本的 `Server_Qcha.Bot-v2.2.0.zip`，并解压至您的部署目录；
+1. **下载发行包**。下载与你的系统对应的 Windows 或 Linux 自包含包，并解压至部署目录。[最新发行版](https://github.com/jikekei/Server_Qchat/releases/latest)
 2. **确认配置**：复制 `appsettings.Example.json` 为 `appsettings.Local.json`（或直接使用内置配置），按需配置游戏服的 `SCPSL.exe` 路径；
 3. **一键启动运行**：
    - **方式 A（推荐）**：双击运行 **`一键启动(守护+机器人).bat`**；
-   - **方式 B（免脚本）**：直接双击运行 **`Server_Qcha.Bot.exe`**，程序会自动检测并在后台拉起独立守护进程；
+   - **方式 B（免脚本）**。直接双击运行 **`Server_Qcha.Bot.exe`**。检测到守护进程未运行时，Bot 会在独立窗口中启动它。
    - 打开浏览器访问 `http://127.0.0.1:8080/`，使用控制台首次输出的初始管理员密码登录即可。
 
 > 插件部署：EXILED 服放置 `Server_Qcha-EXILED.dll`，LabAPI 服放置 `Server_Qcha-LabAPI.dll` 并将 `0Harmony.dll` 放入其 `dependencies` 子目录，详见[插件指南](guides/plugin-guide.md)。同一服务器实例请勿同时加载两套框架。
