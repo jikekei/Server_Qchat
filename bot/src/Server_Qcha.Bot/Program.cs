@@ -34,7 +34,7 @@ try
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine("===================================================================");
         Console.WriteLine("【提示】检测到 Server_Qcha.Bot 已经在后台运行中，请勿重复启动！");
-        Console.WriteLine("若需使用 Web 管理面板，请直接打开浏览器访问：http://127.0.0.1:8080");
+        Console.WriteLine("请查看已运行的 Bot 窗口中的 Now listening on，确认面板监听地址和端口。");
         Console.WriteLine("===================================================================");
         Console.ResetColor();
         Console.WriteLine("\n按任意键退出...");

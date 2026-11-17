@@ -35,6 +35,9 @@ catch
 }
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+builder.Configuration.AddEnvironmentVariables();
+builder.Configuration.AddCommandLine(args);
 
 // 确保 data/ 目录存在并完成迁移
 string contentRoot = builder.Environment.ContentRootPath;
@@ -109,7 +112,7 @@ var api = app.MapGroup("/api/daemon");
 api.MapGet("/ping", (LocalAdminManager manager) =>
 {
     int running = manager.Instances.Count(i => i.Running);
-    return Results.Json(new DaemonPingResult("ok", "2.4.0", Environment.ProcessId, manager.Instances.Count, running));
+    return Results.Json(new DaemonPingResult("ok", "2.4.1", Environment.ProcessId, manager.Instances.Count, running));
 });
 
 api.MapGet("/status", (LocalAdminManager manager, IOptions<LocalAdminOptions> options) =>
@@ -124,7 +127,7 @@ api.MapGet("/status", (LocalAdminManager manager, IOptions<LocalAdminOptions> op
     return Results.Json(new DaemonStatusResult(
         Online: true,
         Status: "running",
-        Version: "2.4.0",
+        Version: "2.4.1",
         Pid: Environment.ProcessId,
         StartTime: proc.StartTime,
         UptimeSeconds: uptime,
