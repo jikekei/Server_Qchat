@@ -1,4 +1,4 @@
-import { ref, onMounted, ElMessage } from '../deps.js';
+import { ref, onMounted, ElMessage, ElMessageBox } from '../deps.js';
 import { api, can } from '../api.js';
 
 export const OperationsView = {
@@ -25,18 +25,19 @@ export const OperationsView = {
       <div style="display:flex;flex-direction:column;gap:16px">
         <div class="toolbar">
           <el-switch v-model="enabled" active-text="启用运维 API" />
-          <el-switch v-model="control" active-text="允许启停和重启" />
-        </div>
-
-        <div style="font-size:12.5px;color:var(--c-text-secondary);line-height:1.6">
-          令牌只显示一次。重置后旧令牌立即失效。
+          <el-switch v-model="control" active-text="允许运维控制与机器人指令" />
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <el-button type="primary" @click="save(false)">保存设置</el-button>
-          <el-button type="warning" plain @click="save(true)">生成或重置令牌</el-button>
-          <span v-if="message" style="font-size:12.5px;color:var(--c-success);font-weight:600">{{ message }}</span>
+          <el-button type="primary" :loading="saving" :disabled="!settingsLoaded" @click="save">保存设置</el-button>
         </div>
+
+        <h4 style="margin:0">令牌管理</h4>
+        <p style="margin:0;color:var(--c-text-secondary)">为每个调用方创建独立令牌。令牌原文仅在创建时显示。</p>
+        <form class="toolbar" @submit.prevent="createToken">
+          <el-input v-model="tokenName" aria-label="令牌名称" placeholder="令牌名称，例如监控服务" maxlength="80" style="width:240px" />
+          <el-button type="primary" plain native-type="submit" :disabled="!settingsLoaded || !tokenName.trim() || !!tokenAction" :loading="tokenAction === 'create'">创建令牌</el-button>
+        </form>
 
         <div v-if="key" class="token-reveal-box">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -45,6 +46,14 @@ export const OperationsView = {
           </div>
           <pre>{{ key }}</pre>
         </div>
+        <el-table v-if="settingsLoaded" :data="tokens" row-key="id" empty-text="暂无令牌">
+          <el-table-column prop="name" label="令牌名称" />
+          <el-table-column label="操作" width="110">
+            <template #default="{ row }">
+              <el-button size="small" type="danger" plain :disabled="!!tokenAction" :aria-label="'撤销令牌 ' + row.name" @click="revokeToken(row)">撤销</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
         <details class="ops-api-reference">
           <summary>API 接口参考</summary>
           <p>请求头 <code>Authorization: Bearer &lt;令牌&gt;</code></p>
@@ -95,7 +104,9 @@ export const OperationsView = {
     </el-card>
   </div>`,
   setup() {
-    const enabled = ref(false), control = ref(false), key = ref(''), error = ref(''), message = ref('');
+    const enabled = ref(false), control = ref(false), key = ref(''), error = ref('');
+    const settingsLoaded = ref(false), saving = ref(false), tokens = ref([]), tokenName = ref(''), tokenAction = ref('');
+    let revealedTokenId = '';
     const endpoints = [
       { method: 'GET', path: '/api/ops/v1/panel/logs', desc: '最近 2000 条面板运行日志' },
       { method: 'GET', path: '/api/ops/v1/servers', desc: '服务器状态列表' },
@@ -108,6 +119,7 @@ export const OperationsView = {
       { method: 'POST', path: '/api/ops/v1/servers/{id}/start', desc: '启动指定服务器' },
       { method: 'POST', path: '/api/ops/v1/servers/{id}/stop', desc: '停止指定服务器' },
       { method: 'POST', path: '/api/ops/v1/servers/{id}/restart', desc: '重启指定服务器' },
+      { method: 'POST', path: '/api/ops/v1/bot/commands', desc: '执行 QQ 机器人指令并返回回复' },
     ];
 
     onMounted(async () => {
@@ -116,23 +128,75 @@ export const OperationsView = {
         const s = await api('/operations/settings');
         enabled.value = s.enabled;
         control.value = s.allowControl;
+        tokens.value = s.tokens;
+        settingsLoaded.value = true;
       } catch (e) {
         error.value = e.message;
       }
     });
 
-    async function save(rotateKey) {
+    async function save() {
+      if (saving.value || !settingsLoaded.value) return;
+      saving.value = true;
       error.value = '';
       try {
-        const s = await api('/operations/settings', {
+        await api('/operations/settings', {
           method: 'PUT',
-          body: JSON.stringify({ enabled: enabled.value, allowControl: control.value, rotateKey })
+          body: JSON.stringify({ enabled: enabled.value, allowControl: control.value })
         });
-        key.value = s.key || '';
-        message.value = '配置已保存，立即生效';
         ElMessage.success('运维 API 配置已保存');
       } catch (e) {
         error.value = e.message;
+      } finally {
+        saving.value = false;
+      }
+    }
+
+    async function createToken() {
+      const name = tokenName.value.trim();
+      if (!name || tokenAction.value || !settingsLoaded.value) return;
+      tokenAction.value = 'create';
+      error.value = '';
+      try {
+        const token = await api('/operations/tokens', {
+          method: 'POST',
+          body: JSON.stringify({ name })
+        });
+        tokens.value.push({ id: token.id, name: token.name });
+        revealedTokenId = token.id;
+        key.value = token.key;
+        tokenName.value = '';
+        ElMessage.success('令牌已创建');
+      } catch (e) {
+        error.value = e.message;
+      } finally {
+        tokenAction.value = '';
+      }
+    }
+
+    async function revokeToken(token) {
+      if (tokenAction.value) return;
+      tokenAction.value = token.id;
+      error.value = '';
+      try {
+        try {
+          await ElMessageBox.confirm('撤销后，使用该令牌的请求将被拒绝。', '撤销令牌「' + token.name + '」？', {
+            type: 'warning', confirmButtonText: '撤销令牌', cancelButtonText: '取消', autofocus: false
+          });
+        } catch {
+          return;
+        }
+        await api('/operations/tokens/' + encodeURIComponent(token.id), { method: 'DELETE' });
+        tokens.value = tokens.value.filter(item => item.id !== token.id);
+        if (revealedTokenId === token.id) {
+          key.value = '';
+          revealedTokenId = '';
+        }
+        ElMessage.success('令牌已撤销');
+      } catch (e) {
+        error.value = e.message;
+      } finally {
+        tokenAction.value = '';
       }
     }
 
@@ -219,7 +283,8 @@ export const OperationsView = {
     }
 
     return {
-      can, enabled, control, key, error, message, endpoints, save, copyToken,
+      can, enabled, control, key, error, endpoints, save, copyToken,
+      settingsLoaded, saving, tokens, tokenName, tokenAction, createToken, revokeToken,
       serverId, servers, dates, today, selectedDate, loadDates, files, file, content, more, listFiles, readFile
     };
   }

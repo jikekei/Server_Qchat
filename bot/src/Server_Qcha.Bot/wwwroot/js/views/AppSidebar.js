@@ -150,7 +150,7 @@ export const AppSidebar = {
                 </svg>
               </div>
               <span>Qridge</span>
-              <span class="brand-ver">v2.4.1</span>
+              <span class="brand-ver">v2.4.2</span>
             </div>
             <button class="mobile-drawer-close" @click="mobileMenuOpen = false" aria-label="关闭">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">

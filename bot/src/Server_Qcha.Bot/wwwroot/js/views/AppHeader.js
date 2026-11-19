@@ -42,7 +42,7 @@ export const AppHeader = {
             </svg>
           </div>
           <span>Qridge</span>
-          <span class="brand-ver">v2.4.1</span>
+          <span class="brand-ver">v2.4.2</span>
         </div>
 
         <div class="header-divider"></div>
