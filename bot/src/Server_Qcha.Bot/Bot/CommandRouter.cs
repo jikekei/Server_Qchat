@@ -4,6 +4,7 @@ using Server.Qcat.Socket;
 using System.Reflection;
 using System.Runtime.Versioning;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Server.Qcat.Bot;
 
@@ -101,11 +102,11 @@ public sealed class CommandRouter
                 return;
 
             case "cx":
-                await reply(await HandleCxAsync(ct));
+                await reply(await HandleServerSummaryAsync(includeDetails: false, ct));
                 return;
 
             case "info":
-                await reply(await HandleInfoAsync(ct));
+                await reply(await HandleServerSummaryAsync(includeDetails: true, ct));
                 return;
 
             case "list":
@@ -319,73 +320,60 @@ public sealed class CommandRouter
 
     // ---------------- 聚合查询 ----------------
 
-    private async Task<string> HandleCxAsync(CancellationToken ct)
+    private async Task<string> HandleServerSummaryAsync(bool includeDetails, CancellationToken ct)
     {
-        var servers = _registry.GetSorted();
-        if (servers.Count == 0)
-        {
-            _log.LogInformation("指令 [cx] 执行失败：当前没有服务器在线（注册表为空）");
+        var registered = _registry.GetSorted(includeOffline: true);
+        var servers = registered.Where(server => server.IsOnline).ToArray();
+        if (servers.Length == 0)
             return "当前没有服务器在线";
+
+        var results = await Task.WhenAll(servers.Select(async server =>
+        {
+            string? response = await QuerySummaryAsync(server, "cx", ct);
+            var match = Regex.Match(response ?? "", @"(?m)^在线人数[:：]\s*([0-9]+)\s*/");
+            int? count = match.Success && int.TryParse(match.Groups[1].Value, out int online) ? online : null;
+            string? detail = count == 0 || response is null
+                ? null
+                : includeDetails ? await QuerySummaryAsync(server, "info", ct) : response;
+            return (Count: count, Detail: detail);
+        }));
+
+        bool hasUnavailable = servers.Length < registered.Count || results.Any(result => result.Count is null);
+        int totalOnline = results.Sum(result => result.Count ?? 0);
+        if (!hasUnavailable && totalOnline == 0)
+            return "全服运行正常，当前暂无玩家在线，别等了，赶紧上线暖服！";
+
+        if (results.All(result => result.Count is null && result.Detail is null))
+            return "当前无法获取服务器在线人数，请稍后再试";
+
+        var lines = results.Where(result => result.Detail is not null)
+            .Select(result => result.Detail!.TrimEnd()).ToList();
+        if (!includeDetails)
+        {
+            lines.Add($"总在线人数: {totalOnline}");
+            lines.Add($"时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         }
 
-        int totalOnline = 0;
-        var sb = new StringBuilder();
+        if (hasUnavailable || results.Any(result => result.Count > 0 && result.Detail is null))
+            lines.Add("部分服务器状态暂不可用");
 
-        var tasks = servers.Select(async server =>
-        {
-            var resp = await _socket.SendAsync(server.ConnectHost, server.Port, "cx", ct);
-            if (string.IsNullOrWhiteSpace(resp))
-            {
-                _registry.MarkOffline(server.ConnectHost, server.Port);
-                _log.LogWarning("命令 [cx] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）",
-                    server.Name, server.ConnectHost, server.Port);
-                return "";
-            }
-
-            _log.LogInformation("命令 [cx] → [{ServerName}] {ConnectHost}:{Port} 执行成功",
-                server.Name, server.ConnectHost, server.Port);
-
-            var m = System.Text.RegularExpressions.Regex.Match(resp, @"在线人数:(\d+)");
-            if (m.Success && int.TryParse(m.Groups[1].Value, out int n))
-                Interlocked.Add(ref totalOnline, n);
-
-            return resp;
-        }).ToArray();
-
-        var results = await Task.WhenAll(tasks);
-        foreach (var r in results)
-            sb.Append(r);
-
-        sb.Append($"总在线人数: {totalOnline}\n时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        return sb.ToString();
+        return string.Join("\n", lines);
     }
 
-    private async Task<string> HandleInfoAsync(CancellationToken ct)
+    private async Task<string?> QuerySummaryAsync(ServerInfo server, string command, CancellationToken ct)
     {
-        var servers = _registry.GetSorted();
-        if (servers.Count == 0)
+        string? response = await _socket.SendAsync(server.ConnectHost, server.Port, command, ct);
+        if (string.IsNullOrWhiteSpace(response))
         {
-            _log.LogInformation("指令 [info] 执行失败：当前没有服务器在线（注册表为空）");
-            return "当前没有服务器在线";
+            _registry.MarkOffline(server.ConnectHost, server.Port);
+            _log.LogWarning("命令 [{Command}] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）",
+                command, server.Name, server.ConnectHost, server.Port);
+            return null;
         }
 
-        var tasks = servers.Select(async (server, index) =>
-        {
-            var resp = await _socket.SendAsync(server.ConnectHost, server.Port, "info", ct);
-            if (resp == null)
-            {
-                _registry.MarkOffline(server.ConnectHost, server.Port);
-                _log.LogWarning("命令 [info] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）",
-                    server.Name, server.ConnectHost, server.Port);
-                return $"#{index + 1} 服不在线\n";
-            }
-
-            _log.LogInformation("命令 [info] → [{ServerName}] {ConnectHost}:{Port} 执行成功",
-                server.Name, server.ConnectHost, server.Port);
-            return resp;
-        });
-
-        return string.Concat(await Task.WhenAll(tasks));
+        _log.LogInformation("命令 [{Command}] → [{ServerName}] {ConnectHost}:{Port} 执行成功",
+            command, server.Name, server.ConnectHost, server.Port);
+        return response;
     }
 
     private async Task<string> HandleListAsync(int serverIndex, CancellationToken ct)
@@ -482,7 +470,7 @@ public sealed class CommandRouter
         var name = asm.GetName();
         var informationalVersion = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? name.Version?.ToString()
-            ?? "2.4.2";
+            ?? "2.4.3";
 
         // 清理 git commit hash 等附加后缀（如 2.2.0+a1b2c3d -> 2.2.0）
         int plusIdx = informationalVersion.IndexOf('+');

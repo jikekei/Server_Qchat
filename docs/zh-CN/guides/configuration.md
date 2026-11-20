@@ -176,6 +176,14 @@
 |---|---|---|---|
 | `ConnectionString` | string | `""` | MySQL 数据库连接字符串（例如 `Server=127.0.0.1;Database=scpsl;User ID=root;Password=pass;`） |
 
+#### MySQL 自动备份
+
+在 Web 面板的「数据库管理 → MySQL 备份」查看备份或手动触发。配置连接后，Bot 默认在主机本地时间每天 03:00 备份。当时未运行的 Bot 会在当天 03:00 之后启动时补跑，失败后每 15 分钟重试。当天已有备份时不会再次导出。每月、每年使用该周期第一次成功的日备份，分别保留最近 5 份日备份和 5 份月备份，年备份不会自动清理。
+
+首次备份时，Bot 会尝试使用 PATH 中兼容的 `mysqldump`。Windows 和 Linux x64 上找不到兼容程序时，会从 MySQL 官方下载客户端并保存到 `data/tools/`，以后的备份自动复用。首次下载需要能访问 `cdn.mysql.com`，Linux 还需要系统提供 `tar` 和 `xz`。也可以在 `appsettings.Local.json` 中设置 `MySqlBackup:DumpExecutable`，指定已有的可执行文件。`MySqlBackup:Enabled=false` 可关闭自动备份，面板仍可手动触发。
+
+备份为压缩 SQL（`.sql.gz`），按服务器、端口和库名存放在 `data/mysql-backups/`。备份使用现有 MySQL 连接，导出该库的表结构、数据、视图和触发器。存储过程、函数和事件需要另外导出。数据库账户需要相应的读取权限，例如 `SELECT`、`SHOW VIEW` 和 `TRIGGER`。在独立测试数据库中验证恢复后，再用于正式恢复。[MySQL 备份工具手册](https://dev.mysql.com/doc/refman/8.4/en/mysqldump.html)
+
 ---
 
 ## 游戏服务端插件配置 (`config.yml`)

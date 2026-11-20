@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Server.Qcat.Configuration;
 using Server.Qcat.Data;
+using Server.Qcat.Services;
 
 namespace Server.Qcat.Web;
 
@@ -46,6 +47,8 @@ public static class DatabaseEndpoints
         api.MapPost("/config", UpdateConfigAsync);
         api.MapPost("/test-connection", TestConnectionAsync);
         api.MapPost("/init-tables", InitTablesAsync);
+        api.MapGet("/backups", GetBackupsAsync);
+        api.MapPost("/backups", RunBackupAsync);
 
         // ---- 玩家数据 (PlayerData) ----
         api.MapGet("/players", GetPlayersAsync);
@@ -59,6 +62,23 @@ public static class DatabaseEndpoints
         api.MapGet("/bans/{id}", GetBanByIdAsync);
         api.MapPost("/bans", SaveBanAsync);
         api.MapDelete("/bans/{id}", DeleteBanAsync);
+    }
+
+    private static async Task<IResult> GetBackupsAsync(
+        HttpContext ctx, PanelAuthService auth, MySqlBackupService backups)
+    {
+        var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.DatabaseManage);
+        return error ?? Results.Json(backups.GetStatus());
+    }
+
+    private static async Task<IResult> RunBackupAsync(
+        HttpContext ctx, PanelAuthService auth, MySqlBackupService backups, CancellationToken ct)
+    {
+        var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.DatabaseManage);
+        if (error is not null) return error;
+
+        var result = await backups.BackupNowAsync(ct);
+        return result.Success ? Results.Json(result) : Results.BadRequest(new { error = result.Message });
     }
 
     // ==================== 连接与概览 ====================

@@ -88,6 +88,9 @@ builder.Services.Configure<GoCqHttpOptions>(builder.Configuration.GetSection("Go
 builder.Services.Configure<OfficialQqOptions>(builder.Configuration.GetSection("OfficialQq"));
 builder.Services.Configure<SocketServerOptions>(builder.Configuration.GetSection("SocketServer"));
 builder.Services.Configure<MySqlOptions>(builder.Configuration.GetSection("MySql"));
+builder.Services.Configure<MySqlBackupOptions>(builder.Configuration.GetSection("MySqlBackup"));
+builder.Services.AddSingleton<MySqlBackupService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<MySqlBackupService>());
 builder.Services.Configure<BotOptions>(builder.Configuration.GetSection("Bot"));
 builder.Services.Configure<WebPanelOptions>(builder.Configuration.GetSection("WebPanel"));
 builder.Services.Configure<LocalAdminOptions>(builder.Configuration.GetSection("LocalAdmin"));

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Server.Qcat.Web;
 using Server.Qcat.LocalAdmin;
@@ -13,6 +14,9 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Server.Qcat.LocalAdmin.Models;
 using System.Net.Http.Json;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 
 namespace Server_Qcha.Bot.Tests;
@@ -47,6 +51,7 @@ public class OperationsApiTests
         try
         {
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { ContentRootPath = root });
+            builder.Logging.ClearProviders();
             builder.Services.AddSingleton<OperationsApiStore>();
             builder.Services.AddSingleton<PanelLogBuffer>();
             builder.Services.AddSingleton<PanelAuthService>();
@@ -59,6 +64,11 @@ public class OperationsApiTests
             builder.Services.AddSingleton<SocketCommandClient>();
             builder.Services.AddSingleton<ServerRegistry>();
             builder.Services.AddOptions();
+            builder.Services.Configure<SocketServerOptions>(options =>
+            {
+                options.AuthToken = "test-token";
+                options.Ports = [];
+            });
             builder.Services.AddSingleton(DispatchProxy.Create<ILocalAdminProvider, ArchiveProvider>());
             await using var app = builder.Build();
             app.MapOperationsApi();
@@ -110,6 +120,7 @@ public class OperationsApiTests
                 (await client.PostAsJsonAsync(commandPath, new { command = "/stat" })).StatusCode);
             Assert.Equal(System.Net.HttpStatusCode.BadRequest,
                 (await client.PostAsJsonAsync(commandPath, new { command = "/unknown" })).StatusCode);
+            await CheckPlayerSummariesAsync(client, commandPath, app.Services.GetRequiredService<ServerRegistry>());
 
             const string tokensPath = "/api/operations/tokens";
             Assert.Equal(System.Net.HttpStatusCode.Unauthorized,
@@ -158,6 +169,54 @@ public class OperationsApiTests
                 SqliteConnection.ClearPool(connection);
             }
             Directory.Delete(root, true);
+        }
+    }
+
+    private static async Task CheckPlayerSummariesAsync(HttpClient client, string path, ServerRegistry registry)
+    {
+        const string emptyMessage = "全服运行正常，当前暂无玩家在线，别等了，赶紧上线暖服！";
+        const string emptyServer = "空服\r\n在线人数:0/30\r\n在线管理:0人";
+        const string activeServer = "有人服\r\n在线人数:2/30\r\n在线管理:0人";
+        using var empty = new TcpListener(IPAddress.Loopback, 0);
+        using var active = new TcpListener(IPAddress.Loopback, 0);
+        empty.Start();
+        active.Start();
+        int emptyPort = ((IPEndPoint)empty.LocalEndpoint).Port;
+        int activePort = ((IPEndPoint)active.LocalEndpoint).Port;
+        registry.Register(new ServerInfo { ConnectHost = "127.0.0.1", Port = emptyPort });
+        registry.Register(new ServerInfo { ConnectHost = "127.0.0.1", Port = activePort });
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var emptyReplies = ReplyToQueriesAsync(empty, timeout.Token, emptyServer, emptyServer, emptyServer, emptyServer);
+        var activeReplies = ReplyToQueriesAsync(active, timeout.Token, activeServer, activeServer, "有人服详情", emptyServer, emptyServer, emptyServer);
+
+        async Task<string> ReportAsync(string command)
+        {
+            using var response = await client.PostAsJsonAsync(path, new { command }, timeout.Token);
+            response.EnsureSuccessStatusCode();
+            var payload = await response.Content.ReadFromJsonAsync<JsonElement>(timeout.Token);
+            return payload.GetProperty("content").GetString()!;
+        }
+
+        string players = await ReportAsync("/cx");
+        Assert.Contains("总在线人数: 2", players);
+        Assert.DoesNotContain("空服", players);
+        Assert.Equal("有人服详情", await ReportAsync("/info"));
+        Assert.Equal(emptyMessage, await ReportAsync("/cx"));
+        Assert.Equal(emptyMessage, await ReportAsync("/info"));
+        registry.MarkOffline("127.0.0.1", emptyPort);
+        Assert.Contains("部分服务器状态暂不可用", await ReportAsync("/cx"));
+        await Task.WhenAll(emptyReplies, activeReplies);
+    }
+
+    private static async Task ReplyToQueriesAsync(TcpListener listener, CancellationToken ct, params string[] replies)
+    {
+        foreach (string reply in replies)
+        {
+            using var connection = await listener.AcceptTcpClientAsync(ct);
+            using var stream = connection.GetStream();
+            var buffer = new byte[1024];
+            Assert.True(await stream.ReadAsync(buffer, ct) > 0);
+            await stream.WriteAsync(Encoding.UTF8.GetBytes(reply), ct);
         }
     }
     [Fact]
