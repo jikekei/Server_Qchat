@@ -78,7 +78,7 @@ public class OperationsApiTests
             Assert.Equal(System.Net.HttpStatusCode.Unauthorized, (await client.GetAsync("/api/ops/v1/panel/logs")).StatusCode);
             var store = app.Services.GetRequiredService<OperationsApiStore>();
             store.Save(true, false);
-            var key = store.CreateToken("initial").Key;
+            var (initial, key) = store.CreateToken("initial");
             client.DefaultRequestHeaders.Authorization = new("Bearer", "wrong");
             Assert.Equal(System.Net.HttpStatusCode.Unauthorized, (await client.GetAsync("/api/ops/v1/panel/logs")).StatusCode);
             client.DefaultRequestHeaders.Authorization = new("Bearer", key);
@@ -116,6 +116,7 @@ public class OperationsApiTests
             var reply = await help.Content.ReadFromJsonAsync<JsonElement>();
             Assert.Equal("help", reply.GetProperty("command").GetString());
             Assert.Contains("/ban", reply.GetProperty("content").GetString());
+            Assert.False(reply.TryGetProperty("success", out _));
             Assert.Equal(System.Net.HttpStatusCode.BadRequest,
                 (await client.PostAsJsonAsync(commandPath, new { command = "/stat" })).StatusCode);
             Assert.Equal(System.Net.HttpStatusCode.BadRequest,
@@ -148,6 +149,15 @@ public class OperationsApiTests
                 Assert.Equal(new[] { "id", "name" }, token.EnumerateObject().Select(property => property.Name)));
             client.DefaultRequestHeaders.Authorization = new("Bearer", addedKey);
             Assert.Equal(System.Net.HttpStatusCode.OK, (await client.GetAsync("/api/ops/v1/panel/logs")).StatusCode);
+            using var invalidRound = await client.PostAsJsonAsync(commandPath, new { command = "/round" });
+            Assert.Equal(HttpStatusCode.OK, invalidRound.StatusCode);
+            var roundReply = await invalidRound.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Contains("用法", roundReply.GetProperty("content").GetString());
+            var audit = await panelDatabase.ListAuditAsync(100);
+            Assert.Contains(audit, entry => entry.Username == $"api-key:{initial.Id}" &&
+                entry.Action == "api." + commandPath && entry.Success);
+            Assert.Contains(audit, entry => entry.Username == $"api-key:{addedId}" &&
+                entry.Action == "api." + commandPath && !entry.Success);
             client.DefaultRequestHeaders.Authorization = new("Bearer", session.Token);
             Assert.Equal(System.Net.HttpStatusCode.NoContent, (await client.DeleteAsync(tokensPath + "/" + addedId)).StatusCode);
             client.DefaultRequestHeaders.Authorization = new("Bearer", addedKey);

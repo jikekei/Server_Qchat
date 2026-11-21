@@ -833,9 +833,14 @@ public sealed partial class ServerUpdateService : IHostedService, IDisposable
 
         if (instance.Running && job.StagedBuildId is not null && job.StagedBuildId == job.LiveBuildId)
         {
-            TryDeleteDirectory(instance, job, staging);
-            Finish(instance, job, true, $"已是最新版本（build {job.LiveBuildId}），无需重启服务器", null);
-            return;
+            if (!job.Validate || (skipped == 0 && await Task.Run(() => InstallFilesMatch(live, staging, ct), ct)))
+            {
+                TryDeleteDirectory(instance, job, staging);
+                Finish(instance, job, true, $"已是最新版本（build {job.LiveBuildId}），无需重启服务器", null);
+                return;
+            }
+
+            Log(instance, job, "info", "构建号未变，但无法确认校验后的暂存文件与线上一致，将按所选方式切换");
         }
 
         if (isolate)
@@ -1750,6 +1755,67 @@ public sealed partial class ServerUpdateService : IHostedService, IDisposable
         }
 
         return skipped;
+    }
+
+    private static bool InstallFilesMatch(string live, string staging, CancellationToken ct)
+    {
+        var liveBuffer = new byte[64 * 1024];
+        var stagedBuffer = new byte[liveBuffer.Length];
+        var nameComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        try
+        {
+            return DirectoriesMatch(new DirectoryInfo(live), new DirectoryInfo(staging), root: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        bool DirectoriesMatch(DirectoryInfo left, DirectoryInfo right, bool root = false)
+        {
+            // SteamCMD rewrites installation metadata even if the game files are unchanged.
+            var stagedEntries = right.EnumerateFileSystemInfos()
+                .Where(entry => !root || !nameComparer.Equals(entry.Name, "steamapps"))
+                .ToDictionary(entry => entry.Name, nameComparer);
+            foreach (var entry in left.EnumerateFileSystemInfos())
+            {
+                ct.ThrowIfCancellationRequested();
+                if (root && nameComparer.Equals(entry.Name, "steamapps")) continue;
+                if (!stagedEntries.Remove(entry.Name, out var staged) ||
+                    (entry is DirectoryInfo) != (staged is DirectoryInfo) ||
+                    !string.Equals(entry.LinkTarget, staged.LinkTarget, StringComparison.Ordinal))
+                    return false;
+                if (entry.LinkTarget is not null) continue;
+                if (entry is DirectoryInfo directory)
+                {
+                    if (!DirectoriesMatch(directory, (DirectoryInfo)staged)) return false;
+                }
+                else if (!FilesMatch((FileInfo)entry, (FileInfo)staged))
+                {
+                    return false;
+                }
+            }
+            return stagedEntries.Count == 0;
+        }
+
+        bool FilesMatch(FileInfo left, FileInfo right)
+        {
+            if (left.Length != right.Length) return false;
+            if (!OperatingSystem.IsWindows() && File.GetUnixFileMode(left.FullName) != File.GetUnixFileMode(right.FullName))
+                return false;
+            using var original = left.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var updated = right.OpenRead();
+            int read;
+            do
+            {
+                ct.ThrowIfCancellationRequested();
+                read = original.ReadAtLeast(liveBuffer, liveBuffer.Length, false);
+                int updatedRead = updated.ReadAtLeast(stagedBuffer, stagedBuffer.Length, false);
+                if (read != updatedRead || !liveBuffer.AsSpan(0, read).SequenceEqual(stagedBuffer.AsSpan(0, read)))
+                    return false;
+            } while (read != 0);
+            return true;
+        }
     }
 
     private static long DirectorySize(string dir)

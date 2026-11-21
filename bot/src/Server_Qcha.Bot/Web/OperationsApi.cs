@@ -78,15 +78,19 @@ public sealed class OperationsApiStore
 
     private static string Hash(string key) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
 
-    public bool Validate(string key, out bool allowControl)
+    public bool Validate(string key, out bool allowControl) => Validate(key, out allowControl, out _);
+
+    public bool Validate(string key, out bool allowControl, out string? tokenId)
     {
         lock (_sync)
         {
             allowControl = _settings.AllowControl;
+            tokenId = null;
             if (!_settings.Enabled || key.Length > 256 || _settings.Tokens.Length == 0) return false;
             byte[] hash = Encoding.ASCII.GetBytes(Hash(key));
-            return _settings.Tokens.Any(token =>
-                CryptographicOperations.FixedTimeEquals(hash, Encoding.ASCII.GetBytes(token.KeyHash)));
+            tokenId = _settings.Tokens.FirstOrDefault(token =>
+                CryptographicOperations.FixedTimeEquals(hash, Encoding.ASCII.GetBytes(token.KeyHash)))?.Id;
+            return tokenId is not null;
         }
     }
 }
@@ -177,11 +181,24 @@ public static class OperationsApi
             ctx.Response.Headers.CacheControl = "no-store";
             var store = ctx.RequestServices.GetRequiredService<OperationsApiStore>();
             var header = ctx.Request.Headers.Authorization.ToString();
-            if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) || !store.Validate(header[7..], out bool allowControl)) return Results.Unauthorized();
+            if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ||
+                !store.Validate(header[7..], out bool allowControl, out string? tokenId)) return Results.Unauthorized();
             if (ctx.Request.Method != "GET" && !allowControl) return Results.StatusCode(403);
             var result = await next(context);
             if (ctx.Request.Method != "GET")
-                await ctx.RequestServices.GetRequiredService<PanelDatabase>().AddAuditAsync(new PanelAuditEntry { Username = "api-key", Action = "api." + ctx.Request.Path, Target = ctx.Connection.RemoteIpAddress?.ToString() ?? "", Detail = "API control request", Success = result is not IStatusCodeHttpResult status || status.StatusCode is null or < 400 });
+            {
+                bool success = result is IValueHttpResult { Value: BotCommandApiResponse response }
+                    ? response.Success
+                    : result is not IStatusCodeHttpResult status || status.StatusCode is null or < 400;
+                await ctx.RequestServices.GetRequiredService<PanelDatabase>().AddAuditAsync(new PanelAuditEntry
+                {
+                    Username = $"api-key:{tokenId}",
+                    Action = "api." + ctx.Request.Path,
+                    Target = ctx.Connection.RemoteIpAddress?.ToString() ?? "",
+                    Detail = "API control request",
+                    Success = success,
+                });
+            }
             return result;
         });
         api.MapGet("/panel/logs", (PanelLogBuffer logs) => Results.Json(new { lines = logs.Read(), capacity = 2000 }));
@@ -203,6 +220,8 @@ public static class OperationsApi
         api.MapPost("/bot/commands", ExecuteBotCommandAsync);
     }
 
+    private sealed record BotCommandApiResponse(string Command, string Content, [property: JsonIgnore] bool Success);
+
     private static async Task<IResult> ExecuteBotCommandAsync(
         BotCommandApiRequest body, BotClientAccessor accessor, CommandRouter router, CancellationToken ct)
     {
@@ -222,8 +241,8 @@ public static class OperationsApi
         if (client is null)
             return Results.Json(new { error = "机器人接入模式尚未就绪" }, statusCode: 503);
 
-        string content = await router.ExecuteForApiAsync(client, request, senderId, ct);
-        return Results.Json(new { command = definition.Name, content });
+        var outcome = await router.ExecuteForApiAsync(client, request, senderId, ct);
+        return Results.Json(new BotCommandApiResponse(definition.Name, outcome.Content, outcome.Success));
     }
 
     private static IResult ControlResult(LocalAdminResult result) => Results.Json(result, statusCode: result.Success ? 200 : 400);

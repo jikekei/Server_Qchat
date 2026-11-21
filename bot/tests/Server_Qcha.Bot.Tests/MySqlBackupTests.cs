@@ -59,6 +59,43 @@ public sealed class MySqlBackupTests
         Assert.Empty(Directory.EnumerateFiles(root, "*.partial", SearchOption.AllDirectories));
     }
 
+    [Fact]
+    public async Task LinuxBackupsUseOwnerOnlyPermissionsForExistingAndNewFiles()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+
+        using var fixture = new BackupFixture();
+        string dump = Path.Combine(fixture.Root, "mysqldump");
+        File.WriteAllText(dump, "#!/bin/sh\nprintf 'SELECT 1;'\n");
+        File.SetUnixFileMode(dump, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        using var service = fixture.CreateService(dump);
+        var yesterday = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
+        string root = Path.Combine(fixture.Root, service.GetStatus().Directory!);
+        WriteBackup(root, "daily", yesterday, "yyyy-MM-dd");
+        string existing = Path.Combine(root, "daily", FileName(yesterday, "yyyy-MM-dd"));
+        const UnixFileMode ownerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(existing, ownerOnly | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await service.StartAsync(timeout.Token);
+        try
+        {
+            while (File.GetUnixFileMode(existing) != ownerOnly || service.GetStatus().Running)
+                await Task.Delay(20, timeout.Token);
+
+            var result = await service.BackupNowAsync(timeout.Token);
+            Assert.True(result.Success, result.Message);
+            var files = service.GetStatus().Files;
+            Assert.Equal(4, files.Count);
+            foreach (var file in files)
+                Assert.Equal(ownerOnly, File.GetUnixFileMode(Path.Combine(root, file.Tier, file.Name)));
+        }
+        finally
+        {
+            await service.StopAsync(CancellationToken.None);
+        }
+    }
+
     private static string FileName(DateOnly date, string format) =>
         date.ToString(format, CultureInfo.InvariantCulture) + ".sql.gz";
 
@@ -74,9 +111,11 @@ public sealed class MySqlBackupTests
     private sealed class BackupFixture : IDisposable
     {
         public string Root { get; } = Directory.CreateTempSubdirectory("qcha-backup-test-").FullName;
-        public MySqlBackupService Service => new(
+        public MySqlBackupService Service => CreateService(Path.Combine(Root, "missing-mysqldump"));
+
+        public MySqlBackupService CreateService(string dumpExecutable) => new(
             new FixedOptions<MySqlOptions>(new() { ConnectionString = "Server=localhost;Database=test;User ID=test;Password=test" }),
-            new FixedOptions<MySqlBackupOptions>(new() { DumpExecutable = Path.Combine(Root, "missing-mysqldump") }),
+            new FixedOptions<MySqlBackupOptions>(new() { Enabled = false, DumpExecutable = dumpExecutable }),
             new TestEnvironment(Root), NullLogger<MySqlBackupService>.Instance);
 
         public void Dispose() => Directory.Delete(Root, recursive: true);

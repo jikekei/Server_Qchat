@@ -18,6 +18,8 @@ public sealed class MySqlBackupService(
     IHostEnvironment environment,
     ILogger<MySqlBackupService> log) : BackgroundService
 {
+    private const UnixFileMode PrivateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+    private string BackupRoot => Path.Combine(environment.ContentRootPath, "data", "mysql-backups");
     private readonly SemaphoreSlim _gate = new(1, 1);
     private volatile Failure? _failure;
 
@@ -45,6 +47,12 @@ public sealed class MySqlBackupService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Task.Yield();
+        if (OperatingSystem.IsLinux())
+        {
+            await _gate.WaitAsync(stoppingToken);
+            try { ProtectExistingBackups(stoppingToken); }
+            finally { _gate.Release(); }
+        }
         while (!stoppingToken.IsCancellationRequested)
         {
             if (options.CurrentValue.Enabled && DateTime.Now.Hour >= 3)
@@ -128,7 +136,7 @@ public sealed class MySqlBackupService(
         }
 
         string folder = $"db-{Uri.EscapeDataString(connection.Server)}-{connection.Port}-{Uri.EscapeDataString(connection.Database)}";
-        return new(connection, Path.Combine(environment.ContentRootPath, "data", "mysql-backups", folder));
+        return new(connection, Path.Combine(BackupRoot, folder));
     }
 
     private async Task DumpAsync(MySqlConnectionStringBuilder connection, string destination, CancellationToken ct)
@@ -140,6 +148,7 @@ public sealed class MySqlBackupService(
         string partial = destination + ".partial";
         try
         {
+            File.Delete(partial);
             await WriteCredentialsAsync(credentials, connection, ct);
             var start = new ProcessStartInfo
             {
@@ -159,7 +168,7 @@ public sealed class MySqlBackupService(
             Task stderr = process.StandardError.BaseStream.CopyToAsync(Stream.Null, ct);
             try
             {
-                await using (var file = File.Create(partial))
+                await using (var file = CreatePrivateFile(partial))
                 await using (var gzip = new GZipStream(file, CompressionLevel.Fastest))
                     await process.StandardOutput.BaseStream.CopyToAsync(gzip, ct);
 
@@ -190,9 +199,7 @@ public sealed class MySqlBackupService(
 
     private static async Task WriteCredentialsAsync(string path, MySqlConnectionStringBuilder connection, CancellationToken ct)
     {
-        var streamOptions = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write };
-        if (!OperatingSystem.IsWindows()) streamOptions.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-        await using var file = new FileStream(path, streamOptions);
+        await using var file = CreatePrivateFile(path);
         await using var writer = new StreamWriter(file);
         string sslMode = connection.SslMode switch
         {
@@ -222,6 +229,55 @@ public sealed class MySqlBackupService(
     private static string BackupPath(string root, string tier, DateOnly date, string format) =>
         Path.Combine(root, tier, date.ToString(format, CultureInfo.InvariantCulture) + ".sql.gz");
 
+    private static FileStream CreatePrivateFile(string path)
+    {
+        var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write };
+        if (!OperatingSystem.IsWindows()) options.UnixCreateMode = PrivateMode;
+        return new FileStream(path, options);
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("linux")]
+    private void ProtectExistingBackups(CancellationToken ct)
+    {
+        var root = new DirectoryInfo(BackupRoot);
+        if (!root.Exists || root.LinkTarget is not null) return;
+
+        try
+        {
+            foreach (var target in root.EnumerateDirectories("db-*"))
+            {
+                if (target.LinkTarget is not null) continue;
+                foreach (var (tier, format) in new[] { ("daily", "yyyy-MM-dd"), ("monthly", "yyyy-MM"), ("yearly", "yyyy") })
+                {
+                    var directory = new DirectoryInfo(Path.Combine(target.FullName, tier));
+                    if (!directory.Exists || directory.LinkTarget is not null) continue;
+                    foreach (var file in directory.EnumerateFiles("*.sql.gz*"))
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        string name = file.Name;
+                        if (name.EndsWith(".partial", StringComparison.Ordinal)) name = name[..^8];
+                        if (file.LinkTarget is not null || !name.EndsWith(".sql.gz", StringComparison.Ordinal) ||
+                            !DateOnly.TryParseExact(name[..^7], format, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+                            continue;
+                        try
+                        {
+                            if (File.GetUnixFileMode(file.FullName) != PrivateMode)
+                                File.SetUnixFileMode(file.FullName, PrivateMode);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            log.LogWarning(ex, "无法限制 MySQL 备份文件权限：{File}", file.FullName);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            log.LogWarning(ex, "无法检查已有 MySQL 备份文件的权限");
+        }
+    }
+
     private static IEnumerable<FileInfo> Enumerate(string root, string tier, string format)
     {
         var directory = new DirectoryInfo(Path.Combine(root, tier));
@@ -238,8 +294,9 @@ public sealed class MySqlBackupService(
         string partial = destination + ".partial";
         try
         {
+            File.Delete(partial);
             await using (var input = File.OpenRead(source))
-            await using (var output = File.Create(partial))
+            await using (var output = CreatePrivateFile(partial))
                 await input.CopyToAsync(output, ct);
             File.Move(partial, destination);
         }

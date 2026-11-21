@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Server.Qcat.Configuration;
 using Server.Qcat.Data;
 using Server.Qcat.Services;
@@ -83,14 +82,6 @@ public static class DatabaseEndpoints
 
     // ==================== 连接与概览 ====================
 
-    /// <summary>对连接字符串中的密码字段进行脱敏（替换为 ******）。</summary>
-    private static string MaskConnectionString(string? cs)
-    {
-        if (string.IsNullOrWhiteSpace(cs))
-            return "";
-        return Regex.Replace(cs, @"(?i)(Password|Pwd)\s*=\s*[^;]+", "$1=******");
-    }
-
     private static bool TryResolveConnectionString(string? input, string? current, out string resolved, out string? error) =>
         DbConnectionSecret.TryResolve(input, current, out resolved, out error);
 
@@ -109,7 +100,7 @@ public static class DatabaseEndpoints
         return Results.Json(new
         {
             summary,
-            connectionString = MaskConnectionString(repo.CurrentConnectionString),
+            connectionString = DbConnectionSecret.Redact(repo.CurrentConnectionString),
             hasConfigured = !string.IsNullOrWhiteSpace(repo.CurrentConnectionString),
         });
     }

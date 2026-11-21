@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 
 namespace Server.Qcat.Bot;
 
+internal sealed record BotCommandOutcome(string Content, bool Success);
+
 /// <summary>
 /// 指令路由：平台无关的指令分发与执行。
 ///
@@ -19,6 +21,7 @@ namespace Server.Qcat.Bot;
 /// </summary>
 public sealed class CommandRouter
 {
+    private delegate Task Reply(string content, bool success = true);
     private readonly SocketCommandClient _socket;
     private readonly PlayerRepository _players;
     private readonly BotBindingStore _bindings;
@@ -41,9 +44,9 @@ public sealed class CommandRouter
 
     public Task HandleAsync(IBotClient client, BotIncomingMessage msg, CancellationToken ct)
         => ExecuteAsync(client, msg, BotCommandParser.Parse(msg.Text),
-            text => ReplyAsync(client, msg, text, ct), ct);
+            (text, _) => ReplyAsync(client, msg, text, ct), ct);
 
-    internal async Task<string> ExecuteForApiAsync(IBotClient client, BotCommandRequest request, string senderId, CancellationToken ct)
+    internal async Task<BotCommandOutcome> ExecuteForApiAsync(IBotClient client, BotCommandRequest request, string senderId, CancellationToken ct)
     {
         var message = new BotIncomingMessage
         {
@@ -52,16 +55,16 @@ public sealed class CommandRouter
             SenderId = senderId,
             IsAdmin = true,
         };
-        var replies = new List<string>();
-        await ExecuteAsync(client, message, request, text =>
+        BotCommandOutcome outcome = new("", false);
+        await ExecuteAsync(client, message, request, (text, success) =>
         {
-            replies.Add(text);
+            outcome = new(text, success);
             return Task.CompletedTask;
         }, ct);
-        return string.Join("\n", replies);
+        return outcome;
     }
 
-    private async Task ExecuteAsync(IBotClient client, BotIncomingMessage msg, BotCommandRequest request, Func<string, Task> reply, CancellationToken ct)
+    private async Task ExecuteAsync(IBotClient client, BotIncomingMessage msg, BotCommandRequest request, Reply reply, CancellationToken ct)
     {
         if (request.IsEmpty)
             return;
@@ -72,7 +75,7 @@ public sealed class CommandRouter
         {
             // 只有显式带前缀（/ 或 #）的才提示未知指令，避免群里正常聊天被回怼
             if (request.ExplicitCommand)
-                await reply($"未知指令：{request.Name}\n发送 /help 查看全部可用指令");
+                await reply($"未知指令：{request.Name}\n发送 /help 查看全部可用指令", false);
             return;
         }
 
@@ -87,7 +90,7 @@ public sealed class CommandRouter
         {
             _log.LogWarning("用户 {Sender} 在 {Target} 尝试执行管理指令 [{Command}] 被拒绝（权限不足）",
                 msg.SenderId, msg.TargetId, definition.Name);
-            await reply(BotCommandCatalog.NoPermissionHint);
+            await reply(BotCommandCatalog.NoPermissionHint, false);
             return;
         }
 
@@ -102,11 +105,9 @@ public sealed class CommandRouter
                 return;
 
             case "cx":
-                await reply(await HandleServerSummaryAsync(includeDetails: false, ct));
-                return;
-
             case "info":
-                await reply(await HandleServerSummaryAsync(includeDetails: true, ct));
+                var summary = await HandleServerSummaryAsync(includeDetails: definition.Name == "info", ct);
+                await reply(summary.Content, summary.Success);
                 return;
 
             case "list":
@@ -150,28 +151,29 @@ public sealed class CommandRouter
                 return;
 
             default:
-                await reply($"指令 [{definition.Name}] 暂未实现");
+                await reply($"指令 [{definition.Name}] 暂未实现", false);
                 return;
         }
     }
 
     // ---------------- 指令实现 ----------------
 
-    private async Task HandleListCommandAsync(BotCommandRequest request, Func<string, Task> reply, CancellationToken ct)
+    private async Task HandleListCommandAsync(BotCommandRequest request, Reply reply, CancellationToken ct)
     {
         int? index = await ResolveServerIndexAsync(request.Arg(0), reply);
         if (index is null)
             return;
 
-        await reply(await HandleListAsync(index.Value, ct));
+        var result = await HandleListAsync(index.Value, ct);
+        await reply(result.Content, result.Success);
     }
 
-    private async Task HandleBindCommandAsync(IBotClient client, BotIncomingMessage msg, BotCommandRequest request, Func<string, Task> reply, CancellationToken ct)
+    private async Task HandleBindCommandAsync(IBotClient client, BotIncomingMessage msg, BotCommandRequest request, Reply reply, CancellationToken ct)
     {
         string playerId = request.Arg(0).Trim();
         if (playerId.Length == 0)
         {
-            await reply("用法: /bd <Steam64>");
+            await reply("用法: /bd <Steam64>", false);
             return;
         }
 
@@ -182,35 +184,35 @@ public sealed class CommandRouter
             {
                 if (!long.TryParse(msg.SenderId, out long qq))
                 {
-                    await reply("无法识别你的 QQ 号，绑定失败");
+                    await reply("无法识别你的 QQ 号，绑定失败", false);
                     return;
                 }
 
                 bool ok = await _players.BindQqAsync(playerId, qq, ct);
-                await reply(ok ? "绑定成功" : "服务器数据库内未找到该玩家的 ID");
+                await reply(ok ? "绑定成功" : "服务器数据库内未找到该玩家的 ID", ok);
                 return;
             }
 
             // 官方平台：身份是 OpenID（字符串），写入独立的绑定表
             if (!await _players.PlayerExistsAsync(playerId, ct))
             {
-                await reply("服务器数据库内未找到该玩家的 ID");
+                await reply("服务器数据库内未找到该玩家的 ID", false);
                 return;
             }
 
             bool bound = await _bindings.BindAsync(client.Platform, msg.SenderId, playerId, ct);
             await reply(bound
                 ? "绑定成功\n提示：官方平台使用 OpenID 记录身份，更换账号后需重新绑定"
-                : "绑定失败，请稍后重试");
+                : "绑定失败，请稍后重试", bound);
         }
         catch (Exception ex)
         {
             _log.LogError(ex, "执行 [/bd] 绑定失败（平台 {Platform}，用户 {Sender}）", client.Platform, msg.SenderId);
-            await reply("绑定失败，请检查数据库配置或稍后重试");
+            await reply("绑定失败，请检查数据库配置或稍后重试", false);
         }
     }
 
-    private async Task HandleMeCommandAsync(IBotClient client, BotIncomingMessage msg, Func<string, Task> reply, CancellationToken ct)
+    private async Task HandleMeCommandAsync(IBotClient client, BotIncomingMessage msg, Reply reply, CancellationToken ct)
     {
         try
         {
@@ -220,7 +222,7 @@ public sealed class CommandRouter
             {
                 if (!long.TryParse(msg.SenderId, out long qq))
                 {
-                    await reply("无法识别你的 QQ 号");
+                    await reply("无法识别你的 QQ 号", false);
                     return;
                 }
                 stats = await _players.GetByQqAsync(qq, ct);
@@ -231,12 +233,12 @@ public sealed class CommandRouter
                 stats = playerId is null ? null : await _players.GetByPlayerIdAsync(playerId, ct);
             }
 
-            await reply(stats is null ? "您没有绑定账号，请输入 /bd <Steam64>" : FormatStats(stats));
+            await reply(stats is null ? "您没有绑定账号，请输入 /bd <Steam64>" : FormatStats(stats), stats is not null);
         }
         catch (Exception ex)
         {
             _log.LogError(ex, "执行 [/me] 查询失败（平台 {Platform}，用户 {Sender}）", client.Platform, msg.SenderId);
-            await reply("查询失败，请检查数据库配置或稍后重试");
+            await reply("查询失败，请检查数据库配置或稍后重试", false);
         }
     }
 
@@ -245,7 +247,7 @@ public sealed class CommandRouter
     /// </summary>
     private async Task HandleServerCommandAsync(
         BotCommandRequest request,
-        Func<string, Task> reply,
+        Reply reply,
         int minArgs,
         Func<string[], string> buildPayload,
         string commandLabel,
@@ -254,7 +256,7 @@ public sealed class CommandRouter
         if (request.Args.Length < minArgs)
         {
             string usage = BotCommandCatalog.Resolve(commandLabel)?.Usage ?? $"/{commandLabel}";
-            await reply($"用法: {usage}");
+            await reply($"用法: {usage}", false);
             return;
         }
 
@@ -265,7 +267,7 @@ public sealed class CommandRouter
         var server = GetServerByIndex(index.Value);
         if (server == null)
         {
-            await reply("服务器不在线");
+            await reply("服务器不在线", false);
             return;
         }
 
@@ -279,7 +281,7 @@ public sealed class CommandRouter
         catch (Exception ex)
         {
             _log.LogError(ex, "构造 [{Command}] 指令载荷失败", commandLabel);
-            await reply("参数解析失败，请检查用法");
+            await reply("参数解析失败，请检查用法", false);
             return;
         }
 
@@ -289,21 +291,29 @@ public sealed class CommandRouter
             _registry.MarkOffline(server.ConnectHost, server.Port);
             _log.LogWarning("命令 [{Command}] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）",
                 commandLabel, server.Name, server.ConnectHost, server.Port);
-            await reply("服务器不在线");
+            await reply("服务器不在线", false);
             return;
         }
 
-        _log.LogInformation("命令 [{Command}] → [{ServerName}] {ConnectHost}:{Port} 执行成功",
-            commandLabel, server.Name, server.ConnectHost, server.Port);
-        await reply(resp);
+        var firstLine = resp.Split('\n', 2)[0].Trim();
+        bool success = commandLabel switch
+        {
+            "bc" => firstLine == "bc发送成功",
+            "round" => firstLine == "回合重启成功",
+            "ban" => firstLine == "封禁成功",
+            _ => false,
+        };
+        _log.LogInformation("命令 [{Command}] → [{ServerName}] {ConnectHost}:{Port} 执行结果：{Success}",
+            commandLabel, server.Name, server.ConnectHost, server.Port, success);
+        await reply(resp, success);
     }
 
     /// <summary>解析并校验服务器索引；返回 null 表示无效（此时已向用户回发提示）。</summary>
-    private async Task<int?> ResolveServerIndexAsync(string raw, Func<string, Task> reply)
+    private async Task<int?> ResolveServerIndexAsync(string raw, Reply reply)
     {
         if (string.IsNullOrWhiteSpace(raw) || !int.TryParse(raw.Trim(), out int index))
         {
-            await reply("服务器索引无效");
+            await reply("服务器索引无效", false);
             return null;
         }
 
@@ -311,7 +321,7 @@ public sealed class CommandRouter
         if (index < 1 || index > onlineCount)
         {
             _log.LogWarning("指令服务器索引 #{Index} 无效，当前在线 {Count} 台", index, onlineCount);
-            await reply("服务器索引无效");
+            await reply("服务器索引无效", false);
             return null;
         }
 
@@ -320,12 +330,12 @@ public sealed class CommandRouter
 
     // ---------------- 聚合查询 ----------------
 
-    private async Task<string> HandleServerSummaryAsync(bool includeDetails, CancellationToken ct)
+    private async Task<BotCommandOutcome> HandleServerSummaryAsync(bool includeDetails, CancellationToken ct)
     {
         var registered = _registry.GetSorted(includeOffline: true);
         var servers = registered.Where(server => server.IsOnline).ToArray();
         if (servers.Length == 0)
-            return "当前没有服务器在线";
+            return new("当前没有服务器在线", false);
 
         var results = await Task.WhenAll(servers.Select(async server =>
         {
@@ -341,10 +351,10 @@ public sealed class CommandRouter
         bool hasUnavailable = servers.Length < registered.Count || results.Any(result => result.Count is null);
         int totalOnline = results.Sum(result => result.Count ?? 0);
         if (!hasUnavailable && totalOnline == 0)
-            return "全服运行正常，当前暂无玩家在线，别等了，赶紧上线暖服！";
+            return new("全服运行正常，当前暂无玩家在线，别等了，赶紧上线暖服！", true);
 
         if (results.All(result => result.Count is null && result.Detail is null))
-            return "当前无法获取服务器在线人数，请稍后再试";
+            return new("当前无法获取服务器在线人数，请稍后再试", false);
 
         var lines = results.Where(result => result.Detail is not null)
             .Select(result => result.Detail!.TrimEnd()).ToList();
@@ -354,10 +364,11 @@ public sealed class CommandRouter
             lines.Add($"时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         }
 
-        if (hasUnavailable || results.Any(result => result.Count > 0 && result.Detail is null))
+        hasUnavailable |= results.Any(result => result.Count > 0 && result.Detail is null);
+        if (hasUnavailable)
             lines.Add("部分服务器状态暂不可用");
 
-        return string.Join("\n", lines);
+        return new(string.Join("\n", lines), !hasUnavailable);
     }
 
     private async Task<string?> QuerySummaryAsync(ServerInfo server, string command, CancellationToken ct)
@@ -373,27 +384,27 @@ public sealed class CommandRouter
 
         _log.LogInformation("命令 [{Command}] → [{ServerName}] {ConnectHost}:{Port} 执行成功",
             command, server.Name, server.ConnectHost, server.Port);
-        return response;
+        return response == "Unauthorized" ? null : response;
     }
 
-    private async Task<string> HandleListAsync(int serverIndex, CancellationToken ct)
+    private async Task<BotCommandOutcome> HandleListAsync(int serverIndex, CancellationToken ct)
     {
         int onlineCount = _registry.Count;
         if (onlineCount == 0)
         {
             _log.LogInformation("指令 [list] 执行失败：当前没有服务器在线（注册表为空）");
-            return "当前没有服务器在线";
+            return new("当前没有服务器在线", false);
         }
 
         if (serverIndex < 1 || serverIndex > onlineCount)
         {
             _log.LogWarning("指令 [list] 服务器索引 #{Index} 无效，当前在线 {Count} 台", serverIndex, onlineCount);
-            return "服务器索引无效";
+            return new("服务器索引无效", false);
         }
 
         var server = GetServerByIndex(serverIndex);
         if (server == null)
-            return "服务器不在线";
+            return new("服务器不在线", false);
 
         var resp = await _socket.SendAsync(server.ConnectHost, server.Port, "list", ct);
         if (resp == null)
@@ -401,12 +412,12 @@ public sealed class CommandRouter
             _registry.MarkOffline(server.ConnectHost, server.Port);
             _log.LogWarning("命令 [list] → [{ServerName}] {ConnectHost}:{Port} 执行失败（连接超时/断开）",
                 server.Name, server.ConnectHost, server.Port);
-            return "服务器不在线";
+            return new("服务器不在线", false);
         }
 
         _log.LogInformation("命令 [list] → [{ServerName}] {ConnectHost}:{Port} 执行成功",
             server.Name, server.ConnectHost, server.Port);
-        return $"服务器 #{serverIndex} 玩家列表\n{resp}";
+        return new($"服务器 #{serverIndex} 玩家列表\n{resp}", !string.IsNullOrWhiteSpace(resp) && resp != "Unauthorized");
     }
 
     private ServerInfo? GetServerByIndex(int idx)

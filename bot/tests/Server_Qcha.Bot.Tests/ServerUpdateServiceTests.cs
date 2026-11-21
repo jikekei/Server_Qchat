@@ -588,21 +588,45 @@ public class ServerUpdateServiceTests
     }
 
     [Fact]
-    public async Task RunningServer_SameBuild_NoRestart()
+    public async Task RunningServer_SameBuild_UnchangedValidationDoesNotRestart()
     {
         if (OperatingSystem.IsWindows())
             return;
 
-        await using var env = Create(newBuild: "100");
+        await using var env = Create(steamScriptBody: "#!/bin/bash\nprintf '\\n' >> \"$2/steamapps/appmanifest_996560.acf\"\necho \"Success! App '996560' fully installed.\"\n");
         await StartGameAsync(env);
         int oldPid = env.Instance.GetStatus().ProcessId!.Value;
 
-        Assert.True(env.Updater.StartUpdate("main", new LocalUpdateRequest(Mode: "roundEnd"), "tester").Success);
+        Assert.True(env.Updater.StartUpdate("main", new LocalUpdateRequest(Mode: "roundEnd", Validate: true), "tester").Success);
         var done = await WaitDoneAsync(env.Updater);
         Assert.Equal("succeeded", done.State);
         Assert.Contains("已是最新版本", done.Message);
         Assert.Equal(oldPid, env.Instance.GetStatus().ProcessId);
         Assert.Equal("v1", File.ReadAllText(Path.Combine(env.Live, "version.txt")).Trim());
+    }
+
+    [Fact]
+    public async Task RunningServer_SameBuild_ValidationRepairIsAppliedAtRoundEnd()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        await using var env = Create(steamScriptBody: "#!/bin/bash\nprintf v2 > \"$2/version.txt\"\necho \"Success! App '996560' fully installed.\"\n");
+        await StartGameAsync(env);
+        int oldPid = env.Instance.GetStatus().ProcessId!.Value;
+
+        Assert.True(env.Updater.StartUpdate("main", new LocalUpdateRequest(Mode: "roundEnd", Validate: true), "tester").Success);
+        var pending = await WaitAsync(env.Updater, s => s.State == "pending" || !s.Active);
+        Assert.Equal("pending", pending.State);
+        await WaitAsync(env.Updater, s => s.Lines.Any(l => l.Text.Contains("restartnextround")));
+        Assert.Equal("v1", File.ReadAllText(Path.Combine(env.Live, "version.txt")));
+        await env.Instance.SendConsoleAsync("roundrestart", CancellationToken.None);
+
+        var done = await WaitDoneAsync(env.Updater);
+        Assert.True(done.State == "succeeded", done.Error);
+        Assert.Equal("100", done.LiveBuildId);
+        Assert.NotEqual(oldPid, env.Instance.GetStatus().ProcessId);
+        Assert.Equal("v2", File.ReadAllText(Path.Combine(env.Live, "version.txt")));
     }
 
     [Fact]
