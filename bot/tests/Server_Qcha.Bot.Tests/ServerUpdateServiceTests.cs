@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Server.Qcat.Configuration;
 using Server.Qcat.LocalAdmin;
 using Server.Qcat.LocalAdmin.Models;
+using System.Text.Json;
 using Xunit;
 
 namespace Server_Qcha.Bot.Tests;
@@ -225,6 +226,176 @@ public class ServerUpdateServiceTests
             Assert.False(env.Instance.UpdateInProgress);
         }
         finally { second.EndUpdate(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SharedDirectory_SwitchesOnlySelectedServerAtRoundEnd(bool broken)
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        await using var env = Create(options =>
+        {
+            var main = options.Servers[0];
+            options.Servers.Add(new LocalServerDefinition
+            {
+                Id = "second",
+                Name = "二服",
+                GamePort = 7778,
+                ExecutablePath = main.ExecutablePath,
+                GracefulStopTimeoutSeconds = 5,
+            });
+        }, newVersionBroken: broken);
+        var second = env.Manager.Find("second")!;
+        await StartGameAsync(env);
+        int oldPid = env.Instance.GetStatus().ProcessId!.Value;
+        Assert.True(second.Start().Success);
+        int siblingPid = second.GetStatus().ProcessId!.Value;
+
+        var request = new LocalUpdateRequest(Mode: "roundEnd", Validate: true);
+        var start = env.Updater.StartUpdate("main", request, "tester");
+        Assert.True(start.Success, start.Error);
+        var waiting = await WaitAsync(env.Updater, status =>
+            status.Lines.Any(line => line.Text.StartsWith("已设置：本回合结束后重启服务器")) || !status.Active);
+        Assert.Equal("pending", waiting.State);
+        Assert.Equal(oldPid, env.Instance.GetStatus().ProcessId);
+        Assert.Equal(siblingPid, second.GetStatus().ProcessId);
+        Assert.False(second.StartBlocked);
+
+        await env.Instance.SendConsoleAsync("roundrestart", CancellationToken.None);
+        var done = await WaitDoneAsync(env.Updater);
+        Assert.True(done.State == (broken ? "rolledback" : "succeeded"),
+            done.Error + "\n" + string.Join("\n", done.Lines.Select(line => line.Text)));
+        Assert.Equal("roundRestart", done.TriggerReason);
+        Assert.Equal(broken ? "100" : "200", done.LiveBuildId);
+        Assert.NotEqual(oldPid, env.Instance.GetStatus().ProcessId);
+        Assert.Equal(siblingPid, second.GetStatus().ProcessId);
+        Assert.Equal("v1", File.ReadAllText(Path.Combine(env.Live, "version.txt")).Trim());
+        Assert.False(Directory.Exists(ServerUpdateService.StagingPathFor(env.Live)));
+
+        var store = new LocalServerStore(env.Root, NullLogger.Instance);
+        var saved = store.TryLoad(out string? error);
+        Assert.Null(error);
+        var selected = Assert.Single(saved!, server => server.Id == "main");
+        Assert.NotEqual(env.Live, selected.InstallDirectory);
+        Assert.Equal(selected.InstallDirectory, selected.WorkingDirectory);
+        Assert.Equal(selected.ExecutablePath, env.Instance.Definition.ExecutablePath);
+        Assert.Equal(broken ? "v1" : "v2", File.ReadAllText(Path.Combine(selected.InstallDirectory, "version.txt")).Trim());
+        var untouched = Assert.Single(saved!, server => server.Id == "second");
+        Assert.Equal(env.Live, Path.GetDirectoryName(untouched.ExecutablePath));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BatchUpdate_WaitsForPreviousSharedServerAndCanCancelQueuedWork(bool cancel)
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        await using var env = Create(options =>
+        {
+            options.Servers.Add(new LocalServerDefinition
+            {
+                Id = "second",
+                Name = "二服",
+                GamePort = 7778,
+                ExecutablePath = options.Servers[0].ExecutablePath,
+                GracefulStopTimeoutSeconds = 5,
+            });
+        });
+        var second = env.Manager.Find("second")!;
+        await StartGameAsync(env);
+        Assert.True(second.Start().Success);
+        int siblingPid = second.GetStatus().ProcessId!.Value;
+        var request = new LocalUpdateBatchRequest(["main", "second", "MAIN"], new LocalUpdateRequest(Mode: "roundEnd", Validate: true));
+        var batch = env.Updater.StartBatch(request, "tester");
+        Assert.True(batch.Success, batch.Error);
+        Assert.Equal(2, batch.Status!.Items.Count);
+        Assert.False(env.Updater.StartBatch(request, "tester").Success);
+
+        var first = await WaitAsync(env.Updater, status =>
+            status.Lines.Any(line => line.Text.StartsWith("已设置：本回合结束后重启服务器")));
+        Assert.Equal("pending", first.State);
+        Assert.Equal("batchQueued", env.Updater.GetBatchStatus().Items[1].State);
+        Assert.Equal(siblingPid, second.GetStatus().ProcessId);
+        if (cancel)
+            Assert.True(env.Updater.CancelBatch(batch.Status.Id!.Value).Success);
+
+        await env.Instance.SendConsoleAsync("roundrestart", CancellationToken.None);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        if (!cancel)
+        {
+            while (!env.Updater.GetStatus("second")!.Lines.Any(line => line.Text.StartsWith("已设置：本回合结束后重启服务器")))
+                await Task.Delay(100, deadline.Token);
+            Assert.Equal("succeeded", env.Updater.GetBatchStatus().Items[0].State);
+            Assert.Equal(siblingPid, second.GetStatus().ProcessId);
+            await second.SendConsoleAsync("roundrestart", deadline.Token);
+        }
+
+        while (env.Updater.GetBatchStatus().Active)
+            await Task.Delay(100, deadline.Token);
+        Assert.Equal(new[] { "succeeded", cancel ? "canceled" : "succeeded" },
+            env.Updater.GetBatchStatus().Items.Select(item => item.State));
+        Assert.Equal(cancel ? "100" : "200", env.Updater.GetStatus("second")!.LiveBuildId);
+    }
+
+    [Theory]
+    [InlineData(false, true, "100", "current")]
+    [InlineData(false, true, "200", "succeeded")]
+    [InlineData(true, false, "200", "available")]
+    [InlineData(true, true, "200", "succeeded")]
+    public async Task ScheduledCheck_UpdatesOnlyWhenConfiguredAndSteamHasNewerBuild(
+        bool daily, bool autoUpdate, string remoteBuild, string expected)
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        string script = $$"""
+            #!/bin/bash
+            if [ "$1" = "+login" ]; then
+              echo '"996560" { "depots" { "branches" { "public" { "buildid" "{{remoteBuild}}" } } } }'
+              exit 0
+            fi
+            echo v2 > "$2/version.txt"
+            echo '"AppState" { "buildid" "{{remoteBuild}}" }' > "$2/steamapps/appmanifest_996560.acf"
+            echo "Success! App '996560' fully installed."
+            """.Replace("\r", "");
+        await using var env = Create(steamScriptBody: script + "\n");
+        string path = Path.Combine(Path.GetDirectoryName(env.Manager.ConfigPath)!, "localadmin-update-schedules.json");
+        if (daily)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var schedule = new LocalUpdateSchedule(Guid.NewGuid(), ["main"], "00:00", null, "auto",
+                autoUpdate, "tester", DateTimeOffset.Now.AddDays(-1));
+            File.WriteAllText(path, JsonSerializer.Serialize(new[] { schedule }));
+        }
+        else
+        {
+            var appointment = DateTimeOffset.UtcNow.AddSeconds(1);
+            Assert.True(env.Updater.AddSchedule(new(["main"], null, appointment, "auto"), "tester").Success);
+            await Task.Delay(TimeSpan.FromSeconds(1.1));
+        }
+
+        await env.Updater.StartAsync(CancellationToken.None);
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+            while (Assert.Single(env.Updater.GetSchedules().Schedules).LastRunAt is null)
+                await Task.Delay(100, timeout.Token);
+
+            var saved = Assert.Single(JsonSerializer.Deserialize<LocalUpdateSchedule[]>(File.ReadAllText(path))!);
+            Assert.NotNull(saved.LastRunAt);
+            Assert.Equal(expected, Assert.Single(saved.Results!).State);
+            Assert.Equal(expected == "succeeded" ? "200" : "100", env.Updater.GetStatus("main")!.LiveBuildId);
+            Assert.Equal(expected == "succeeded", env.Updater.GetBatchStatus().Id.HasValue);
+        }
+        finally
+        {
+            await env.Updater.StopAsync(CancellationToken.None);
+        }
     }
 
     [Fact]

@@ -61,6 +61,13 @@ public interface ILocalAdminProvider
     /// <summary>查询更新任务状态与环境预检；服务器不存在返回 null。</summary>
     Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default, string? checkBranch = null);
 
+    Task<LocalUpdateBatchStatus?> GetUpdateBatchAsync(CancellationToken ct = default);
+    Task<LocalUpdateBatchResult> StartUpdateBatchAsync(LocalUpdateBatchRequest request, string? requestedBy, CancellationToken ct = default);
+    Task<LocalUpdateBatchResult> CancelUpdateBatchAsync(Guid id, CancellationToken ct = default);
+    Task<LocalUpdateSchedules?> GetUpdateSchedulesAsync(CancellationToken ct = default);
+    Task<LocalUpdateScheduleResult> AddUpdateScheduleAsync(LocalUpdateScheduleRequest request, string? requestedBy, CancellationToken ct = default);
+    Task<LocalUpdateScheduleResult> RemoveUpdateScheduleAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>取消重启倒计时。</summary>
     Task<LocalAdminResult> CancelRestartAsync(string id, CancellationToken ct = default);
 

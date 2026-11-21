@@ -302,6 +302,30 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
         }
     }
 
+    public Task<LocalUpdateBatchStatus?> GetUpdateBatchAsync(CancellationToken ct = default)
+        => SendAsync<LocalUpdateBatchStatus>(() => _http.GetAsync("api/daemon/update-batch", ct), ct);
+
+    public async Task<LocalUpdateBatchResult> StartUpdateBatchAsync(LocalUpdateBatchRequest request, string? requestedBy, CancellationToken ct = default)
+        => await SendAsync<LocalUpdateBatchResult>(() => _http.PostAsJsonAsync(
+            "api/daemon/update-batch?by=" + Uri.EscapeDataString(requestedBy ?? ""), request, ct), ct)
+            ?? new(false, "无法提交批量更新，请确认守护进程已更新并在线", null);
+
+    public async Task<LocalUpdateBatchResult> CancelUpdateBatchAsync(Guid id, CancellationToken ct = default)
+        => await SendAsync<LocalUpdateBatchResult>(() => _http.PostAsync($"api/daemon/update-batch/{id}/cancel", null, ct), ct)
+            ?? new(false, "无法取消批量更新，请确认守护进程在线", null);
+
+    public Task<LocalUpdateSchedules?> GetUpdateSchedulesAsync(CancellationToken ct = default)
+        => SendAsync<LocalUpdateSchedules>(() => _http.GetAsync("api/daemon/update-schedules", ct), ct);
+
+    public async Task<LocalUpdateScheduleResult> AddUpdateScheduleAsync(LocalUpdateScheduleRequest request, string? requestedBy, CancellationToken ct = default)
+        => await SendAsync<LocalUpdateScheduleResult>(() => _http.PostAsJsonAsync(
+            "api/daemon/update-schedules?by=" + Uri.EscapeDataString(requestedBy ?? ""), request, ct), ct)
+            ?? new(false, "无法保存更新计划，请确认守护进程已更新并在线");
+
+    public async Task<LocalUpdateScheduleResult> RemoveUpdateScheduleAsync(Guid id, CancellationToken ct = default)
+        => await SendAsync<LocalUpdateScheduleResult>(() => _http.DeleteAsync($"api/daemon/update-schedules/{id}", ct), ct)
+            ?? new(false, "无法删除更新计划，请确认守护进程在线");
+
     public async Task<LocalUpdateStartResult> StartUpdateAsync(string id, LocalUpdateRequest request, string? requestedBy, CancellationToken ct = default)
     {
         try
@@ -459,7 +483,7 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
                 return new DaemonStatusResult(
                     Online: false,
                     Status: "unresponsive",
-                    Version: "2.4.1",
+                    Version: "2.4.4-beta.1",
                     Pid: p.Id,
                     StartTime: p.StartTime,
                     UptimeSeconds: uptime,
@@ -480,7 +504,7 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
         return new DaemonStatusResult(
             Online: false,
             Status: "offline",
-            Version: "2.4.1",
+            Version: "2.4.4-beta.1",
             Pid: null,
             StartTime: null,
             UptimeSeconds: 0,
