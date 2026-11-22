@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://github.com/jikekei/Server_Qchat">
-  <img src="../../assets/readme/hero-zh.svg" width="100%" alt="Server_Qcha (Qridge)">
+  <img src="../../assets/readme/hero.svg" width="100%" alt="Server_Qcha (Qridge)">
 </a>
 
 <h1>Server_Qcha (Qridge)</h1>
@@ -69,8 +69,8 @@
 ## 面板概览
 
 <div align="center">
-  <img src="../../assets/readme/panel-modules-zh.svg" width="100%" alt="Qridge 面板九大模块概览">
-  <p><sub>九大功能模块覆盖 <b>监控与运行</b>、<b>社群与权限</b>、<b>数据与追溯</b> · <a href="guides/web-panel.md">查看完整面板指南 →</a></sub></p>
+  <img src="../../assets/readme/fwqylt-cn.png" width="100%" alt="Qridge 面板界面概览">
+  <p><sub>Qridge 网页运维面板预览 · <a href="guides/web-panel.md">查看完整面板指南 →</a></sub></p>
 </div>
 
 ## 快速开始
