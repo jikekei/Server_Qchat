@@ -1,136 +1,151 @@
 <div align="center">
 
-<img src="../../assets/readme/hero-zh.svg" width="100%" alt="Server_Qcha (Qridge) — 面向 SCP:SL 的现代化 Web 运维面板与 QQ 群桥接工具">
+<a href="https://github.com/jikekei/Server_Qchat">
+  <img src="../../assets/readme/hero-zh.svg" width="100%" alt="Server_Qcha (Qridge)">
+</a>
 
-### 面向 SCP: Secret Laboratory 的现代 Web 运维面板与 QQ 机器人桥接
+<h1>Server_Qcha (Qridge)</h1>
 
-[English](../../README.md) · [简体中文](README.md) · [完整文档](../README.zh-CN.md) · [下载最新版](https://github.com/jikekei/Server_Qchat/releases/latest) · [反馈问题](https://github.com/jikekei/Server_Qchat/issues)
+<p>
+  <strong>现代化的 SCP: Secret Laboratory 浏览器运维面板与 QQ 机器人桥接系统</strong>
+</p>
 
-[![Release](https://img.shields.io/github/v/release/jikekei/Server_Qchat?color=blue&logo=github)](https://github.com/jikekei/Server_Qchat/releases)
-[![CI](https://img.shields.io/github/actions/workflow/status/jikekei/Server_Qchat/ci.yml?label=CI)](https://github.com/jikekei/Server_Qchat/actions/workflows/ci.yml)
-[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Plugin](https://img.shields.io/badge/Plugin-EXILED%20%7C%20LabAPI-009688)](https://github.com/jikekei/Server_Qchat/releases/latest)
-[![QQ Bot](https://img.shields.io/badge/QQ%20Bot-官方%20%7C%20NapCat-12B7F5?logo=tencent-qq&logoColor=white)](https://bot.q.qq.com/)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](../../LICENSE)
+<p>
+  <a href="../../README.md">English</a> ·
+  <strong>简体中文</strong> ·
+  <a href="#核心特性">核心特性</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#系统架构">系统架构</a> ·
+  <a href="../README.zh-CN.md">完整文档</a>
+</p>
+
+<p>
+  <a href="https://github.com/jikekei/Server_Qchat/releases">
+    <img src="https://img.shields.io/github/v/release/jikekei/Server_Qchat?style=flat-square&color=2563EB" alt="Release">
+  </a>
+  <a href="https://github.com/jikekei/Server_Qchat/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/jikekei/Server_Qchat/ci.yml?style=flat-square&label=CI" alt="CI">
+  </a>
+  <a href="https://dotnet.microsoft.com/">
+    <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square" alt=".NET 8">
+  </a>
+  <a href="https://github.com/jikekei/Server_Qchat/releases/latest">
+    <img src="https://img.shields.io/badge/Plugin-EXILED%20%7C%20LabAPI-0D9488?style=flat-square" alt="Plugins">
+  </a>
+  <a href="https://bot.q.qq.com/">
+    <img src="https://img.shields.io/badge/QQ%20Bot-官方%20%7C%20NapCat-0EA5E9?style=flat-square" alt="QQ Bot">
+  </a>
+  <a href="../../LICENSE">
+    <img src="https://img.shields.io/badge/License-Apache%202.0-16A34A?style=flat-square" alt="License">
+  </a>
+</p>
 
 </div>
 
 ---
 
-**Server_Qcha（Qridge）** 将传统的本地命令行开服升级为**浏览器一站式运维**：集成独立进程守护、Web 实时控制台、可视化权限管理、双引擎 QQ 机器人，以及 EXILED / LabAPI 配套插件。
+**Server_Qcha（Qridge）** 将 SCP:SL 专用服务器从传统的本地命令行窗口升级为**全端浏览器运维工作台**。通过将游戏服进程托管与 Web 面板、QQ 机器人解耦，面板的日常更新与重启不会中断任何正在进行的对局。
 
-## 核心能力
+## 为什么选择 Qridge
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <b>🛡️ 独立进程守护，重启不掉服</b><br>
-      游戏服由独立守护进程托管。更新、重启甚至异常退出面板或机器人，在线玩家均不受影响；支持异常卡死检测与内存超限自动回合末重启。
-    </td>
-    <td width="50%" valign="top">
-      <b>🔄 SteamCMD 无感更新与回滚</b><br>
-      面板一键触发后台预下载，运行中零中断，回合结束自动切换新版本（空闲时立即生效）。保留旧版支持一键回滚，启动失败自动回退。
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <b>💻 全端 Web 控制台与监控</b><br>
-      兼容桌面与移动端浏览器。支持彩色实时日志、级别过滤与历史回看锁定，内置 24 小时在线趋势、峰值统计与实时进程资源监控。
-    </td>
-    <td width="50%" valign="top">
-      <b>👑 游戏内权限可视化热生效</b><br>
-      在线管理各服管理员与权限组（徽章、颜色、细粒度节点、跨服复制），告别手动编辑配置文件；撤销在线管理员即时生效，无需重启游戏服。
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <b>💬 双引擎 QQ 社群联动</b><br>
-      同时支持腾讯官方 QQ 机器人与 NapCat（OneBot 11），可在线热切换。支持群内查服控服，玩家在游戏内发送 <code>.ac</code> 可实时推送求助至 QQ 群。
-    </td>
-    <td width="50%" valign="top">
-      <b>🔐 多人协作审计与插件生态</b><br>
-      内置多账号权限隔离（RBAC）与完整操作审计日志。官方提供 EXILED 与 LabAPI 双框架插件，可选对接 MySQL 实现玩家数据统计与封禁同步。
-    </td>
-  </tr>
-</table>
+| 能力维度 | 原生 LocalAdmin | Qridge |
+| :--- | :---: | :---: |
+| **面板 / 机器人重启不掉服** | ❌ 关闭即断开 | ✅ 独立守护进程托管 |
+| **桌面与移动端浏览器运维** | ❌ 需 RDP / SSH | ✅ 自适应全端 Web 控制台 |
+| **SteamCMD 无感更新与回滚** | ❌ 手动停服更新 | ✅ 后台预下载 · 回合末切换 · 自动回滚 |
+| **游戏内管理员与权限组热编辑** | ❌ 手改配置文件 | ✅ 面板可视化编辑 · 插件即时生效 |
+| **多账号权限隔离与操作审计** | ❌ 无 | ✅ 细粒度 RBAC + 完整审计日志 |
+| **QQ 群指令与游戏内求助告警** | ❌ 无 | ✅ 支持官方 QQ 机器人 / NapCat 双引擎 |
 
-## 面板模块
+## 核心特性
+
+- **独立守护进程** — 游戏服由 `Server_Qcha.Daemon` 独立托管，面板与机器人崩溃、更新或重启均不影响在线玩家；内置心跳监控、静默卡死检测与内存超限自动回合末重启。
+- **一键无感更新** — 通过面板调用 SteamCMD 在后台暂存下载新版本，回合结束自动切换（空闲时立即生效），支持一键回滚及启动失败自动回退。
+- **实时 Web 控制台** — 桌面与移动端自适应，支持彩色实时日志流、日志级别过滤、历史回看位置锁定，以及 24 小时在线趋势与资源占用监控。
+- **可视化游戏权限管理** — 在线编辑各服务器管理员、权限组徽章与细粒度节点，支持跨服复制分组；撤销在线管理员通过插件立即生效，无需重启服务器。
+- **双引擎 QQ 机器人** — 同时兼容腾讯官方 QQ 机器人（OpenAPI v2）与 NapCat（OneBot 11），支持运行期热切换，并支持游戏内 `.ac` 一键向 QQ 群发送求助告警。
+- **团队协作与插件生态** — 提供多账号 RBAC 权限管理与操作审计；配套 **EXILED (`9.15.2`)** 与 **LabAPI (`1.1.7+`)** 双框架插件，可选接入 MySQL 实现玩家统计与封禁同步。
+
+## 面板概览
 
 <div align="center">
-  <img src="../../assets/readme/panel-modules-zh.svg" width="100%" alt="Qridge 面板九大功能模块">
-  <sub>九大核心模块覆盖 <b>监控与运行</b>、<b>社群与权限</b>、<b>数据与追溯</b>（<a href="guides/web-panel.md">查看面板使用指南</a>）</sub>
+  <img src="../../assets/readme/panel-modules-zh.svg" width="100%" alt="Qridge 面板九大模块概览">
+  <p><sub>九大功能模块覆盖 <b>监控与运行</b>、<b>社群与权限</b>、<b>数据与追溯</b> · <a href="guides/web-panel.md">查看完整面板指南 →</a></sub></p>
 </div>
-
-## 相比原生 LocalAdmin
-
-| 运维场景 | 原生 LocalAdmin | Qridge |
-| :--- | :--- | :--- |
-| **进程稳定性** | 关闭窗口即断开服务器 | 独立守护托管，面板与机器人重启**不掉服** |
-| **版本更新** | 手动停服执行 SteamCMD | 后台预下载、回合末切换、**启动失败自动回滚** |
-| **远程与多服** | 依赖 RDP/SSH，每服独立窗口 | 桌面/手机浏览器统一管理全部实例 |
-| **权限管理** | 手动修改 `config_remoteadmin.txt` | 面板可视化编辑，**插件实时热生效** |
-| **协作与社群** | 无账号隔离、无群通知 | 多账号 RBAC 审计 + QQ 机器人指令与 `.ac` 告警 |
 
 ## 快速开始
 
-1. **下载与配置**：前往 [Releases](https://github.com/jikekei/Server_Qchat/releases/latest) 下载 Windows / Linux 自包含包并解压；复制 `appsettings.Example.json` 为 `appsettings.Local.json`，填写游戏服路径、QQ 机器人配置与强随机令牌。
-2. **安装插件**：下载对应的 EXILED（`9.15.2`）或 LabAPI（`1.1.7+`）插件包，解压至游戏服插件目录（保持 `dependencies/` 与 `Server_Qcha.dll` 同级）。
-3. **启动并登录**：Windows 运行 `一键启动(守护+机器人).bat`（Linux 运行 `./Server_Qcha.Bot`），浏览器访问 `http://127.0.0.1:8080/`，使用控制台输出的初始凭据登录。
+### 1. 下载与配置
 
-<details>
-<summary><b>📐 查看系统架构图</b></summary>
-<br>
+前往 [Releases](https://github.com/jikekei/Server_Qchat/releases/latest) 下载对应平台（Windows / Linux）的自包含发布包并解压。复制示例配置文件并填写游戏服路径、QQ 机器人信息与强随机通信令牌（建议 ≥ 24 位）：
+
+```bash
+cp appsettings.Example.json appsettings.Local.json
+```
+
+> [!TIP]
+> 升级现有版本前，请先备份 `data/` 目录与 `appsettings.json`。
+
+### 2. 安装游戏插件
+
+下载对应框架的 **EXILED** 或 **LabAPI** 插件压缩包，解压至游戏服务器的插件目录，并确保 `dependencies/` 文件夹与 `Server_Qcha.dll` 位于同级目录。
+
+### 3. 启动服务
+
+- **Windows**：运行 `一键启动(守护+机器人).bat`（或直接启动 `Server_Qcha.Bot.exe`）
+- **Linux**：运行 `./Server_Qcha.Bot`（将自动拉起守护进程）
+
+启动后打开浏览器访问 `http://127.0.0.1:8080/`，使用控制台输出的初始凭据登录即可。
+
+> [!WARNING]
+> **网络安全提示**
+> - 面板默认仅监听本机回环地址（`127.0.0.1`），如需公网或局域网访问，请修改 `WebPanel:Host` 为 `0.0.0.0` 并配置防火墙。
+> - 插件与机器人之间的 TCP 通道仅做 HMAC 签名鉴权而**不加密**，切勿直接暴露至公网，跨机部署请使用 VPN 或防火墙白名单。
+
+## 系统架构
 
 ```mermaid
-graph TD
+graph LR
   subgraph Clients["客户端"]
     Browser["桌面 / 移动端浏览器"]
     QQ["QQ 群聊 / 私聊"]
   end
+
   subgraph BotHost["Server_Qcha.Bot"]
-    Web["Web 面板 API · 鉴权 · RBAC · 审计"]
-    Bot["NapCat / 官方 QQ 机器人引擎"]
-    Data[("data/ 持久化存储")]
+    Web["Web 面板 · RBAC · 审计"]
+    Bot["官方 QQ / NapCat 引擎"]
+    Data[("data/ 持久化")]
   end
+
   subgraph Supervisor["Server_Qcha.Daemon"]
-    API["本地守护 API"]
-    Manager["多服托管 · 心跳 · 自动恢复 · 日志"]
+    Manager["多服托管 · 心跳 · 恢复 · 日志"]
   end
-  subgraph Servers["SCP:SL 独立服务器"]
+
+  subgraph Servers["SCP:SL 专用服务器"]
     Game["SCPSL.exe"]
     Plugin["EXILED / LabAPI 插件"]
   end
+
   Browser <--> Web
   Web <--> Data
   QQ <--> Bot
-  Web <--> API
-  API --> Manager
+  Web <-->|内部 HTTP API| Manager
   Manager --> Game
   Plugin <-->|HMAC 鉴权 TCP| Bot
 ```
 
-</details>
+## 文档中心
 
-<details>
-<summary><b>🔒 安全与部署注意事项</b></summary>
-<br>
-
-- **公网访问**：面板默认仅监听本机回环地址（`127.0.0.1`）。如需跨设备访问，请将 `WebPanel:Host` 设为 `0.0.0.0` 并配置防火墙规则。
-- **通信安全**：插件与机器人之间的 TCP 通道仅做 **HMAC 签名鉴权而不加密**，切勿直接暴露至公网，跨机部署请使用 VPN 或防火墙 IP 白名单。
-- **凭据与白名单**：建议为机器人、守护进程与插件配置一致的 **≥ 24 位随机令牌**；如需严格控制 QQ 端操作权限，请显式配置管理员与群白名单。
-
-</details>
-
-## 文档导航
-
-| 分类 | 文档链接 |
+| 分类 | 文档 |
 | :--- | :--- |
-| **入门与面板** | [中文文档索引](../README.zh-CN.md) · [English Docs](../README.md) · [Web 面板指南](guides/web-panel.md) |
-| **机器人与配置** | [机器人指南](guides/bot-guide.md) · [配置参考](guides/configuration.md) · [插件与数据库](guides/plugin-guide.md#玩家统计与数据库封禁) |
-| **安全与维护** | [数据库与构建安全](guides/database-security.md) · [自动化发布指南](reference/automation.md) |
+| **入门与面板** | [中文文档索引](../README.zh-CN.md) · [English Docs](../README.md) · [Web 面板使用指南](guides/web-panel.md) |
+| **机器人与配置** | [机器人配置指南](guides/bot-guide.md) · [完整配置参考](guides/configuration.md) · [插件与数据库](guides/plugin-guide.md#玩家统计与数据库封禁) |
+| **安全与维护** | [数据库与构建安全说明](guides/database-security.md) · [自动化与发布指南](reference/automation.md) |
 
----
+## 参与贡献
 
-<div align="center">
-  基于 <a href="../../LICENSE">Apache License 2.0</a> 开源 · 本仓库不分发游戏服务器引用程序集
-</div>
+欢迎通过 [GitHub Issues](https://github.com/jikekei/Server_Qchat/issues) 提交 Bug 反馈或功能建议，也欢迎直接发起 Pull Request。
+
+## 开源协议
+
+本项目基于 [Apache License 2.0](../../LICENSE) 协议开源。SCP: Secret Laboratory、Unity、EXILED 与 LabAPI 均归各自版权方所有，本仓库不分发游戏服务器引用程序集。
