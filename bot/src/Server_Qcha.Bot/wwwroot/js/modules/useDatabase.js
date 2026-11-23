@@ -16,6 +16,13 @@ const dbForm = reactive({
   connectionString: '',
 });
 
+const backupState = reactive({
+  status: null,
+  loading: false,
+  running: false,
+  error: '',
+});
+
 const playerQuery = reactive({
   search: '',
   page: 1,
@@ -440,16 +447,47 @@ async function deleteBan(row, actionType) {
   }
 }
 
+async function loadBackups() {
+  if (backupState.loading) return;
+  backupState.loading = true;
+  backupState.error = '';
+  try {
+    backupState.status = await api('/db/backups');
+  } catch (error) {
+    backupState.error = error.message;
+  } finally {
+    backupState.loading = false;
+  }
+}
+
+async function runBackup() {
+  if (backupState.running) return;
+  backupState.running = true;
+  try {
+    const result = await api('/db/backups', { method: 'POST' });
+    ElMessage.success(result.message);
+  } catch (error) {
+    ElMessage.error(error.message);
+  } finally {
+    await loadBackups();
+    backupState.running = false;
+  }
+}
+
 function onDbTabChange(tab) {
   if (tab === 'players') loadPlayers();
   else if (tab === 'bans') loadBans();
   else if (tab === 'config') loadDbStatus();
+  else if (tab === 'backups') loadBackups();
 }
 
 export function useDatabase() {
   return {
     db,
     dbForm,
+    backupState,
+    loadBackups,
+    runBackup,
     playerQuery,
     playerState,
     playerDialog,

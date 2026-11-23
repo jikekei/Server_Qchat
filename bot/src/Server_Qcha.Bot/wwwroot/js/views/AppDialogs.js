@@ -165,142 +165,265 @@ export const AppDialogs = {
   </el-dialog>
 
   <!-- ==================== 更新服务器（SteamCMD） ==================== -->
-  <el-dialog v-model="updateDialog.visible" :title="'更新服务器 · ' + updateDialog.serverName"
-             width="min(760px, 94vw)" :close-on-click-modal="false" :before-close="closeUpdateDialog">
-    <div v-loading="updateDialog.loading">
-      <template v-if="updateDialog.status">
-        <el-descriptions :column="1" border size="small" style="margin-bottom:12px">
-          <el-descriptions-item label="状态">
-            <el-tag :type="updateStateType(updateDialog.status.state)" effect="dark" size="small">
-              {{ updateStateText(updateDialog.status.state) }}
-            </el-tag>
-            <span v-if="updateDialog.status.startedAt" class="muted" style="margin-left:8px">
-              {{ fmtTime(updateDialog.status.startedAt) }}
-              <template v-if="updateDialog.status.finishedAt"> → {{ fmtTime(updateDialog.status.finishedAt) }}</template>
-              <template v-if="updateDialog.status.requestedBy">（{{ updateDialog.status.requestedBy }}）</template>
-            </span>
-          </el-descriptions-item>
-          <el-descriptions-item label="SteamCMD">
-            <el-tag size="small" :type="updateDialog.status.steamCmdFound ? 'success' : updateDialog.status.steamCmdError ? 'danger' : 'info'">
-              {{ updateDialog.status.steamCmdFound ? '已找到' : updateDialog.status.steamCmdError ? '路径无效' : '按需自动下载' }}
-            </el-tag>
-            <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.steamCmdPath }}</code>
-          </el-descriptions-item>
-          <el-descriptions-item label="安装目录">
-            <el-tag size="small" :type="updateDialog.status.installDirectoryExists ? 'success' : 'danger'">
-              {{ updateDialog.status.installDirectoryExists ? '存在' : '不存在' }}
-            </el-tag>
-            <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.installDirectory || '-' }}</code>
-          </el-descriptions-item>
-          <el-descriptions-item label="App Id">{{ updateDialog.status.steamAppId }}</el-descriptions-item>
-          <el-descriptions-item label="当前安装版本">
-            {{ updateDialog.status.liveBuildId ? 'Build ' + updateDialog.status.liveBuildId : '未找到本地 Steam 安装清单' }}
-          </el-descriptions-item>
-          <el-descriptions-item :label="'最新版本（' + updateVersionBranch + '）'">
-            <span v-if="updateDialog.status.version?.checking">正在查询 Steam…</span>
-            <template v-else-if="updateVersion?.latestBuildId">
-              Build {{ updateVersion.latestBuildId }}
-              <el-tag v-if="updateDialog.status.liveBuildId" size="small"
-                      :type="updateVersion.latestBuildId === updateDialog.status.liveBuildId ? 'success' : 'warning'">
-                {{ updateVersion.latestBuildId === updateDialog.status.liveBuildId ? '已是最新' : '版本不同' }}
-              </el-tag>
-            </template>
-            <span v-else>{{ updateVersion?.error || '待查询' }}</span>
-            <el-button link type="primary" :loading="updateDialog.requestingVersion || !!updateDialog.status.version?.checking"
-                       :disabled="updateActive || !!updateDialog.status.steamCmdError"
-                       @click="checkUpdateVersion">查询最新</el-button>
-          </el-descriptions-item>
-          <el-descriptions-item v-if="updateDialog.status.stagedBuildId && updateActive" label="暂存版本">
-            Build {{ updateDialog.status.stagedBuildId }}
-          </el-descriptions-item>
-          <el-descriptions-item v-if="updateDialog.status.triggerReason" label="切换时机">
-            {{ updateTriggerText(updateDialog.status.triggerReason) }}
-          </el-descriptions-item>
-          <el-descriptions-item v-if="updateDialog.status.rollbackAvailable" label="回滚目录">
-            <code style="word-break:break-all">{{ updateDialog.status.rollbackDirectory }}</code>
-          </el-descriptions-item>
-          <el-descriptions-item v-if="updateDialog.status.exitCode !== null && updateDialog.status.exitCode !== undefined" label="退出码">
-            {{ updateDialog.status.exitCode }}
-          </el-descriptions-item>
-        </el-descriptions>
+  <el-dialog v-model="updateManagement.visible" title="SteamCMD 更新" width="min(760px, 94vw)"
+             :close-on-click-modal="false" @close="closeUpdateManagement">
+    <el-tabs v-model="updateManagement.tab" @tab-change="onUpdateManagementTab">
+      <el-tab-pane label="单服更新" name="single">
+        <p v-if="updateDialog.serverName" class="muted" style="margin-top:0">当前服务器 · {{ updateDialog.serverName }}</p>
+        <div v-loading="updateDialog.loading">
+          <template v-if="updateDialog.status">
+            <el-descriptions :column="1" border size="small" style="margin-bottom:12px">
+              <el-descriptions-item label="状态">
+                <el-tag :type="updateStateType(updateDialog.status.state)" effect="dark" size="small">
+                  {{ updateStateText(updateDialog.status.state) }}
+                </el-tag>
+                <span v-if="updateDialog.status.startedAt" class="muted" style="margin-left:8px">
+                  {{ fmtTime(updateDialog.status.startedAt) }}
+                  <template v-if="updateDialog.status.finishedAt"> → {{ fmtTime(updateDialog.status.finishedAt) }}</template>
+                  <template v-if="updateDialog.status.requestedBy">（{{ updateDialog.status.requestedBy }}）</template>
+                </span>
+              </el-descriptions-item>
+              <el-descriptions-item label="SteamCMD">
+                <el-tag size="small" :type="updateDialog.status.steamCmdFound ? 'success' : updateDialog.status.steamCmdError ? 'danger' : 'info'">
+                  {{ updateDialog.status.steamCmdFound ? '已找到' : updateDialog.status.steamCmdError ? '路径无效' : '按需自动下载' }}
+                </el-tag>
+                <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.steamCmdPath }}</code>
+              </el-descriptions-item>
+              <el-descriptions-item label="安装目录">
+                <el-tag size="small" :type="updateDialog.status.installDirectoryExists ? 'success' : 'danger'">
+                  {{ updateDialog.status.installDirectoryExists ? '存在' : '不存在' }}
+                </el-tag>
+                <code style="margin-left:8px;word-break:break-all">{{ updateDialog.status.installDirectory || '-' }}</code>
+              </el-descriptions-item>
+              <el-descriptions-item label="App Id">{{ updateDialog.status.steamAppId }}</el-descriptions-item>
+              <el-descriptions-item label="当前安装版本">
+                {{ updateDialog.status.liveBuildId ? 'Build ' + updateDialog.status.liveBuildId : '未找到本地 Steam 安装清单' }}
+              </el-descriptions-item>
+              <el-descriptions-item :label="'最新版本（' + updateVersionBranch + '）'">
+                <span v-if="updateDialog.status.version?.checking">正在查询 Steam…</span>
+                <template v-else-if="updateVersion?.latestBuildId">
+                  Build {{ updateVersion.latestBuildId }}
+                  <el-tag v-if="updateDialog.status.liveBuildId" size="small"
+                          :type="updateVersion.latestBuildId === updateDialog.status.liveBuildId ? 'success' : 'warning'">
+                    {{ updateVersion.latestBuildId === updateDialog.status.liveBuildId ? '已是最新' : '版本不同' }}
+                  </el-tag>
+                </template>
+                <span v-else>{{ updateVersion?.error || '待查询' }}</span>
+                <el-button link type="primary" :loading="updateDialog.requestingVersion || !!updateDialog.status.version?.checking"
+                           :disabled="updateActive || !!updateDialog.status.steamCmdError"
+                           @click="checkUpdateVersion">查询最新</el-button>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="updateDialog.status.stagedBuildId && updateActive" label="暂存版本">
+                Build {{ updateDialog.status.stagedBuildId }}
+              </el-descriptions-item>
+              <el-descriptions-item v-if="updateDialog.status.triggerReason" label="切换时机">
+                {{ updateTriggerText(updateDialog.status.triggerReason) }}
+              </el-descriptions-item>
+              <el-descriptions-item v-if="updateDialog.status.rollbackAvailable" label="回滚目录">
+                <code style="word-break:break-all">{{ updateDialog.status.rollbackDirectory }}</code>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="updateDialog.status.exitCode !== null && updateDialog.status.exitCode !== undefined" label="退出码">
+                {{ updateDialog.status.exitCode }}
+              </el-descriptions-item>
+            </el-descriptions>
 
-        <div v-if="updateActive && updateDialog.status.progressPercent !== null && updateDialog.status.progressPercent !== undefined"
-             style="margin-bottom:10px">
-          <div class="muted" style="margin-bottom:4px">SteamCMD：{{ updateDialog.status.progressPhase || '-' }}</div>
-          <el-progress :percentage="Math.round(updateDialog.status.progressPercent * 10) / 10" :stroke-width="14"></el-progress>
+            <div v-if="updateActive && updateDialog.status.progressPercent !== null && updateDialog.status.progressPercent !== undefined"
+                 style="margin-bottom:10px">
+              <div class="muted" style="margin-bottom:4px">SteamCMD：{{ updateDialog.status.progressPhase || '-' }}</div>
+              <el-progress :percentage="Math.round(updateDialog.status.progressPercent * 10) / 10" :stroke-width="14"></el-progress>
+            </div>
+            <el-alert v-if="updateDialog.status.steamCmdError" type="error" :closable="false" show-icon style="margin-bottom:10px"
+                      :title="updateDialog.status.steamCmdError"></el-alert>
+            <el-alert v-if="updateDialog.status.sharedInstallServers?.length" type="info" :closable="false" show-icon style="margin-bottom:10px"
+                      :title="'共用此安装目录的实例：' + updateDialog.status.sharedInstallServers.join('、')"
+                      description="更新只切换当前实例，其余实例可继续运行。当前实例将在切换时使用独立安装目录，并保留可回滚的旧版本。"></el-alert>
+            <el-alert v-if="updateDialog.status.state === 'pending'" type="info" :closable="false" show-icon style="margin-bottom:10px"
+                      title="等待回合结束后更新">
+              <div style="line-height:1.7">
+                新版本已下载到暂存目录，服务器继续以当前版本运行；已对游戏下发 restartnextround，
+                当前回合结束时会自动切换到新版本并重启。
+                <template v-if="updateDialog.status.pendingDeadline">
+                  最迟 <b>{{ fmtTime(updateDialog.status.pendingDeadline) }}</b> 超时后立即切换。
+                </template>
+                <br>也可以点「立即更新」不再等待（在线玩家会掉线），或「取消更新」放弃本次更新。
+              </div>
+            </el-alert>
+            <el-alert v-if="(updateDialog.status.state === 'failed' || updateDialog.status.state === 'rolledback') && updateDialog.status.error" type="error" :closable="false" show-icon
+                      :title="updateDialog.status.error" style="margin-bottom:10px"></el-alert>
+            <el-alert v-if="updateDialog.status.state === 'canceled' && updateDialog.status.message" type="info" :closable="false" show-icon
+                      :title="updateDialog.status.message" style="margin-bottom:10px"></el-alert>
+            <el-alert v-if="updateDialog.status.state === 'succeeded' && updateDialog.status.message" type="success" :closable="false" show-icon
+                      :title="updateDialog.status.message" style="margin-bottom:10px"></el-alert>
+
+            <el-form v-if="!updateActive" label-width="110px" style="margin-bottom:6px">
+              <el-form-item label="切换时机">
+                <el-radio-group v-model="updateDialog.form.mode">
+                  <el-radio-button v-for="opt in UPDATE_MODE_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.value">{{ opt.label }}</el-radio-button>
+                </el-radio-group>
+                <div class="muted" style="width:100%;margin-top:4px;line-height:1.5">
+                  {{ (UPDATE_MODE_OPTIONS.find(o => o.value === updateDialog.form.mode) || {}).desc }}
+                </div>
+              </el-form-item>
+              <el-form-item label="更新分支">
+                <el-input v-model="updateDialog.form.betaBranch" style="max-width:260px"
+                          placeholder="留空 = public 正式版"></el-input>
+                <span class="muted" style="margin-left:10px">默认分支：{{ updateDialog.status.defaultBetaBranch }}</span>
+              </el-form-item>
+              <el-form-item label="选项">
+                <div class="perm-list">
+                  <el-checkbox v-model="updateDialog.form.validate">校验全部文件（耗时更长）</el-checkbox>
+                  <el-checkbox v-model="updateDialog.form.restartAfter">服务器未运行时，更新后也启动它</el-checkbox>
+                </div>
+              </el-form-item>
+            </el-form>
+
+            <div class="terminal-window">
+              <div class="terminal-header">
+                <div class="terminal-title">
+                  <span>更新日志</span>
+                </div>
+              </div>
+              <div class="terminal" ref="updateLogRef" style="height:260px">
+                <div v-if="!updateDialog.status.lines || updateDialog.status.lines.length === 0" class="terminal-empty">（暂无更新日志）</div>
+                <div v-for="line in updateDialog.status.lines" :key="line.seq" class="term-line">
+                  <span class="term-time">{{ timeOnly(line.time) }}</span>
+                  <span :style="{ color: updateLineColor(line.level) }">{{ line.text }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
-        <el-alert v-if="updateDialog.status.steamCmdError" type="error" :closable="false" show-icon style="margin-bottom:10px"
-                  :title="updateDialog.status.steamCmdError"></el-alert>
-        <el-alert v-if="updateDialog.status.sharedInstallServers?.length" type="info" :closable="false" show-icon style="margin-bottom:10px"
-                  :title="'共用此安装目录的实例：' + updateDialog.status.sharedInstallServers.join('、')"
-                  description="同一目录只需更新一次。更新或回滚前请停止其他共用实例。"></el-alert>
-        <el-alert v-if="updateDialog.status.state === 'pending'" type="info" :closable="false" show-icon style="margin-bottom:10px"
-                  title="等待回合结束后更新">
-          <div style="line-height:1.7">
-            新版本已下载到暂存目录，服务器继续以当前版本运行；已对游戏下发 restartnextround，
-            当前回合结束时会自动切换到新版本并重启。
-            <template v-if="updateDialog.status.pendingDeadline">
-              最迟 <b>{{ fmtTime(updateDialog.status.pendingDeadline) }}</b> 超时后立即切换。
+      </el-tab-pane>
+      <el-tab-pane label="批量更新" name="batch">
+      <el-alert v-if="batchUpdate.error" type="error" :title="batchUpdate.error" :closable="false" show-icon style="margin-bottom:12px" />
+      <div v-loading="batchUpdate.loading">
+        <template v-if="batchUpdate.status && !batchUpdate.status.active">
+          <fieldset style="margin:0 0 16px;padding:10px 12px;border:1px solid var(--el-border-color);border-radius:6px">
+            <legend>选择服务器</legend>
+            <el-checkbox :model-value="local.servers.length > 0 && batchUpdate.serverIds.length === local.servers.length"
+                         :indeterminate="batchUpdate.serverIds.length > 0 && batchUpdate.serverIds.length < local.servers.length"
+                         @change="value => batchUpdate.serverIds = value ? local.servers.map(server => server.id) : []">全选服务器</el-checkbox>
+            <el-checkbox-group v-model="batchUpdate.serverIds">
+              <el-checkbox v-for="server in local.servers" :key="server.id" :value="server.id">
+                {{ server.name || server.id }}
+              </el-checkbox>
+            </el-checkbox-group>
+          </fieldset>
+          <el-form label-position="top">
+            <el-form-item label="切换时机">
+              <el-select v-model="batchUpdate.mode">
+                <el-option v-for="option in UPDATE_MODE_OPTIONS" :key="option.value" :label="option.label" :value="option.value" />
+              </el-select>
+              <div class="muted">{{ UPDATE_MODE_OPTIONS.find(option => option.value === batchUpdate.mode)?.desc }}</div>
+            </el-form-item>
+            <el-form-item label="Steam 分支">
+              <el-input v-model="batchUpdate.branch" placeholder="留空时沿用各服配置的分支" />
+            </el-form-item>
+            <el-checkbox v-model="batchUpdate.validate">校验全部文件</el-checkbox>
+          </el-form>
+        </template>
+        <p v-if="batchUpdate.status?.active" class="muted" role="status">按选择顺序逐台更新。当前实例完成后，下一台才开始。</p>
+        <el-table v-if="batchUpdate.status?.items.length" :data="batchUpdate.status.items" row-key="serverId" style="margin-top:14px">
+          <el-table-column prop="name" label="服务器" min-width="110" />
+          <el-table-column label="进度" min-width="150">
+            <template #default="{ row }">
+              <el-tag :type="updateStateType(row.state)">{{ updateStateText(row.state) }}</el-tag>
             </template>
-            <br>也可以点「立即更新」不再等待（在线玩家会掉线），或「取消更新」放弃本次更新。
-          </div>
-        </el-alert>
-        <el-alert v-if="(updateDialog.status.state === 'failed' || updateDialog.status.state === 'rolledback') && updateDialog.status.error" type="error" :closable="false" show-icon
-                  :title="updateDialog.status.error" style="margin-bottom:10px"></el-alert>
-        <el-alert v-if="updateDialog.status.state === 'canceled' && updateDialog.status.message" type="info" :closable="false" show-icon
-                  :title="updateDialog.status.message" style="margin-bottom:10px"></el-alert>
-        <el-alert v-if="updateDialog.status.state === 'succeeded' && updateDialog.status.message" type="success" :closable="false" show-icon
-                  :title="updateDialog.status.message" style="margin-bottom:10px"></el-alert>
-
-        <el-form v-if="!updateActive" label-width="110px" style="margin-bottom:6px">
-          <el-form-item label="切换时机">
-            <el-radio-group v-model="updateDialog.form.mode">
-              <el-radio-button v-for="opt in UPDATE_MODE_OPTIONS" :key="opt.value" :value="opt.value" :label="opt.value">{{ opt.label }}</el-radio-button>
-            </el-radio-group>
-            <div class="muted" style="width:100%;margin-top:4px;line-height:1.5">
-              {{ (UPDATE_MODE_OPTIONS.find(o => o.value === updateDialog.form.mode) || {}).desc }}
-            </div>
-          </el-form-item>
-          <el-form-item label="更新分支">
-            <el-input v-model="updateDialog.form.betaBranch" style="max-width:260px"
-                      placeholder="留空 = public 正式版"></el-input>
-            <span class="muted" style="margin-left:10px">默认分支：{{ updateDialog.status.defaultBetaBranch }}</span>
-          </el-form-item>
-          <el-form-item label="选项">
-            <div class="perm-list">
-              <el-checkbox v-model="updateDialog.form.validate">校验全部文件（耗时更长）</el-checkbox>
-              <el-checkbox v-model="updateDialog.form.restartAfter">服务器未运行时，更新后也启动它</el-checkbox>
-            </div>
-          </el-form-item>
-        </el-form>
-
-        <div class="terminal-window">
-          <div class="terminal-header">
-            <div class="terminal-title">
-              <span>更新日志</span>
-            </div>
-          </div>
-          <div class="terminal" ref="updateLogRef" style="height:260px">
-            <div v-if="!updateDialog.status.lines || updateDialog.status.lines.length === 0" class="terminal-empty">（暂无更新日志）</div>
-            <div v-for="line in updateDialog.status.lines" :key="line.seq" class="term-line">
-              <span class="term-time">{{ timeOnly(line.time) }}</span>
-              <span :style="{ color: updateLineColor(line.level) }">{{ line.text }}</span>
-            </div>
-          </div>
+          </el-table-column>
+          <el-table-column prop="message" label="结果" min-width="170" show-overflow-tooltip />
+        </el-table>
+      </div>
+      </el-tab-pane>
+      <el-tab-pane v-for="plan in UPDATE_PLAN_TABS" :key="plan.value" :label="plan.label" :name="plan.value" lazy>
+        <el-alert v-if="updatePlans.forms[plan.value].error || updatePlans.error" type="error" :title="updatePlans.forms[plan.value].error || updatePlans.error" :closable="false" show-icon style="margin-bottom:12px" />
+        <div v-loading="updatePlans.loading">
+          <template v-if="updatePlans.data">
+            <fieldset style="margin:0 0 16px;padding:10px 12px;border:1px solid var(--el-border-color);border-radius:6px">
+              <legend>选择服务器</legend>
+              <el-checkbox :model-value="local.servers.length > 0 && updatePlans.forms[plan.value].serverIds.length === local.servers.length"
+                           :indeterminate="updatePlans.forms[plan.value].serverIds.length > 0 && updatePlans.forms[plan.value].serverIds.length < local.servers.length"
+                           @change="value => updatePlans.forms[plan.value].serverIds = value ? local.servers.map(server => server.id) : []">全选服务器</el-checkbox>
+              <el-checkbox-group v-model="updatePlans.forms[plan.value].serverIds">
+                <el-checkbox v-for="server in local.servers" :key="server.id" :value="server.id">
+                  {{ server.name || server.id }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </fieldset>
+            <el-form label-position="top">
+              <template v-if="plan.value === 'daily'">
+                <el-form-item :label="'每日检查时间（托管主机：' + updatePlans.data.timeZone + '）'">
+                  <el-time-picker v-model="updatePlans.forms.daily.dailyAt" format="HH:mm" value-format="HH:mm" />
+                </el-form-item>
+                <el-form-item label="发现新版本时">
+                  <el-radio-group v-model="updatePlans.forms.daily.autoUpdate">
+                    <el-radio-button :value="false">弹窗提醒</el-radio-button>
+                    <el-radio-button :value="true">自动更新</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+              </template>
+              <el-form-item v-else label="预约时间（浏览器本地时间）">
+                <el-date-picker v-model="updatePlans.forms.appointment.updateAt" type="datetime" format="YYYY-MM-DD HH:mm" placeholder="选择日期和时间" />
+                <div class="muted">到点检查 Steam 版本，有新版的服务器才进入更新队列。</div>
+              </el-form-item>
+              <el-form-item v-if="plan.value === 'appointment' || updatePlans.forms.daily.autoUpdate" label="切换时机">
+                <el-select v-model="updatePlans.forms[plan.value].mode">
+                  <el-option v-for="option in UPDATE_MODE_OPTIONS" :key="option.value" :label="option.label" :value="option.value" />
+                </el-select>
+              </el-form-item>
+            </el-form>
+            <el-table :data="updatePlans.data.schedules.filter(item => plan.value === 'daily' ? item.dailyAt : item.updateAt)" row-key="id" :empty-text="plan.emptyText" style="margin-top:14px">
+              <el-table-column label="计划" min-width="175">
+                <template #default="{ row }">
+                  <div>{{ row.dailyAt ? '每天 ' + row.dailyAt : fmtTime(row.updateAt) }}</div>
+                  <div class="muted">{{ row.dailyAt ? (row.autoUpdate ? '发现新版后自动更新' : '发现新版后提醒') : '预约更新' }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column label="服务器与最新结果" min-width="235">
+                <template #default="{ row }">
+                  <div>{{ row.serverIds.map(id => local.servers.find(server => server.id === id)?.name || id).join('、') }}</div>
+                  <div v-if="updatePlans.data.runningIds.includes(row.id)" class="muted">正在执行</div>
+                  <template v-else-if="row.lastRunAt">
+                    <div class="muted">{{ fmtTime(row.lastRunAt) }}</div>
+                    <div v-for="result in row.results" :key="result.serverId">
+                      {{ result.name }} · {{ result.message || updateStateText(result.state) }}
+                    </div>
+                  </template>
+                  <div v-else class="muted">等待执行</div>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="78">
+                <template #default="{ row }">
+                  <el-button link type="danger" :loading="updatePlans.deleting === row.id"
+                             :disabled="updatePlans.data.runningIds.includes(row.id)" @click="removeUpdatePlan(row.id)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
         </div>
-      </template>
-    </div>
+      </el-tab-pane>
+    </el-tabs>
     <template #footer>
-      <el-button @click="closeUpdateDialog">{{ updateActive ? '后台运行，关闭窗口' : '关闭' }}</el-button>
-      <el-button v-if="updateActive && ['queued','staging','updating','pending'].includes(updateDialog.status.state)"
-                 :loading="updateDialog.acting === 'cancel'" @click="updateAction('cancel')">取消更新</el-button>
-      <el-button v-if="updateActive && ['staging','updating','pending'].includes(updateDialog.status.state) && updateDialog.status.mode !== 'inplace'"
-                 type="danger" :loading="updateDialog.acting === 'apply-now'" @click="updateAction('apply-now')">立即更新</el-button>
-      <el-button v-if="!updateActive && updateDialog.status && updateDialog.status.rollbackAvailable"
-                 :loading="updateDialog.acting === 'rollback'" @click="updateAction('rollback')">回滚到上一版本</el-button>
-      <el-button v-if="!updateActive" type="warning" :loading="updateDialog.submitting"
-                 :disabled="!updateDialog.status || !!updateDialog.status.steamCmdError || !updateDialog.status.installDirectoryExists"
-                 @click="submitUpdate">开始更新</el-button>
+      <el-button @click="updateManagement.visible = false">关闭</el-button>
+      <template v-if="updateManagement.tab === 'single'">
+        <el-button v-if="updateActive && ['queued','staging','updating','pending'].includes(updateDialog.status.state)"
+                   :loading="updateDialog.acting === 'cancel'" @click="updateAction('cancel')">取消更新</el-button>
+        <el-button v-if="updateActive && ['staging','updating','pending'].includes(updateDialog.status.state) && updateDialog.status.mode !== 'inplace'"
+                   type="danger" :loading="updateDialog.acting === 'apply-now'" @click="updateAction('apply-now')">立即更新</el-button>
+        <el-button v-if="!updateActive && updateDialog.status && updateDialog.status.rollbackAvailable"
+                   :loading="updateDialog.acting === 'rollback'" @click="updateAction('rollback')">回滚到上一版本</el-button>
+        <el-button v-if="!updateActive" type="warning" :loading="updateDialog.submitting"
+                   :disabled="!updateDialog.status || !!updateDialog.status.steamCmdError || !updateDialog.status.installDirectoryExists"
+                   @click="submitUpdate">开始更新</el-button>
+      </template>
+      <template v-else-if="updateManagement.tab === 'batch'">
+        <el-button v-if="batchUpdate.status?.active" :disabled="batchUpdate.status.cancelRequested || !batchUpdate.status.items.some(item => item.state === 'batchQueued')"
+                   :loading="batchUpdate.acting" @click="cancelQueuedUpdates">停止后续更新</el-button>
+        <el-button v-else type="primary" :loading="batchUpdate.acting" :disabled="!batchUpdate.status || !batchUpdate.serverIds.length || batchUpdate.loading"
+                   @click="submitBatchUpdate">{{ batchUpdate.serverIds.length && batchUpdate.serverIds.length === local.servers.length ? '更新全部服务器' : '开始批量更新' }}</el-button>
+      </template>
+      <el-button v-else type="primary" :loading="updatePlans.saving === updateManagement.tab"
+                 :disabled="!updatePlans.data || !updatePlans.forms[updateManagement.tab].serverIds.length"
+                 @click="saveUpdatePlan(updateManagement.tab)">{{ updateManagement.tab === 'daily' ? '保存自动检查' : '保存预约' }}</el-button>
     </template>
   </el-dialog>
 

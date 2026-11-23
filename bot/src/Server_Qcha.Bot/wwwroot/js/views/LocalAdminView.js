@@ -173,8 +173,8 @@ export const LocalAdminView = {
                 </el-dropdown>
                 <el-button type="primary" :disabled="!localRunning || localUpdating" @click="localRestart(false)">↻ 平滑重启</el-button>
                 <el-button type="danger" plain :disabled="!localRunning || localUpdating" @click="localRestart(true)">⚡ 强制重启</el-button>
-                <el-button type="warning" plain :disabled="!local.selectedId" @click="openUpdateDialog">
-                  {{ localUpdating ? '⏳ 查看更新进度' : '⬆ 更新服务器 (SteamCMD)' }}
+                <el-button type="warning" plain :disabled="!local.selectedId" @click="openUpdateManagement">
+                  {{ localUpdating ? '⏳ SteamCMD 更新进度' : 'SteamCMD 更新' }}
                 </el-button>
                 <el-button v-if="local.status && local.status.restartCountdownSeconds > 0" type="danger" @click="localCancelRestart">
                   中止重启倒计时 ({{ local.status.restartCountdownSeconds }}s)

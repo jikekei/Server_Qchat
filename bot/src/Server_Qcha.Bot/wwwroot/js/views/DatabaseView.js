@@ -1,5 +1,6 @@
 import { useDatabase } from '../modules/useDatabase.js';
 import { fmtTime } from '../api.js';
+import { onMounted } from '../deps.js';
 
 export const DatabaseView = {
   name: 'DatabaseView',
@@ -212,12 +213,39 @@ export const DatabaseView = {
                   </el-col>
                 </el-row>
               </el-tab-pane>
+              <el-tab-pane label="MySQL 备份" name="backups">
+                <p class="muted">每天凌晨 03:00（Bot 主机时间）备份。保留最近 5 份日备份、5 份月备份，年备份永久保留。</p>
+                <div class="toolbar">
+                  <el-button type="primary" :loading="backupState.running" :disabled="!backupState.status?.configured || backupState.status?.running || backupState.loading" @click="runBackup">立即备份</el-button>
+                  <el-button :loading="backupState.loading" @click="loadBackups">刷新</el-button>
+                  <span role="status" v-if="backupState.status">
+                    {{ backupState.running || backupState.status.running ? '正在备份' : !backupState.status.configured ? '请先配置 MySQL 连接' : backupState.status.enabled ? '自动备份已启用' : '自动备份已关闭' }}
+                  </span>
+                </div>
+                <el-alert v-if="backupState.error || backupState.status?.error" :title="backupState.error || backupState.status.error" type="error" :closable="false" show-icon style="margin-bottom:12px" />
+                <p v-if="backupState.status?.directory" class="muted">备份位置 <code>{{ backupState.status.directory }}</code></p>
+                <el-table v-if="backupState.status?.configured" :data="backupState.status.files" border stripe empty-text="暂无备份">
+                  <el-table-column label="类型" width="100">
+                    <template #default="{ row }">{{ { daily: '日备份', monthly: '月备份', yearly: '年备份' }[row.tier] }}</template>
+                  </el-table-column>
+                  <el-table-column prop="name" label="备份文件" min-width="150" />
+                  <el-table-column label="大小" width="120">
+                    <template #default="{ row }">{{ (row.size / 1024).toFixed(1) }} KiB</template>
+                  </el-table-column>
+                  <el-table-column label="写入时间" min-width="175">
+                    <template #default="{ row }">{{ fmtTime(row.lastWriteUtc) }}</template>
+                  </el-table-column>
+                </el-table>
+              </el-tab-pane>
             </el-tabs>
           </el-card>
         </div>
 `,
   setup() {
     const database = useDatabase();
+    onMounted(() => {
+      if (database.db.activeTab === 'backups') database.loadBackups();
+    });
     return {
       ...database,
       fmtTime,

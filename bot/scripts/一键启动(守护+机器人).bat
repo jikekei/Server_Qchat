@@ -16,5 +16,5 @@ echo.
 echo 启动完成！
 echo 提示：
 echo - 游戏服在守护进程窗口中受保护运行，更新或重启机器人不会影响游戏服。
-echo - 访问控制台面板：http://127.0.0.1:8080
+echo - Web 面板的实际监听地址和端口，请查看 Bot 窗口中的 Now listening on。
 timeout /t 3 >nul
