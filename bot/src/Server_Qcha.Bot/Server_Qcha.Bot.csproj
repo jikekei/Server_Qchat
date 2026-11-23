@@ -20,7 +20,7 @@
     <!-- Web 面板本地数据库（SQLite，单文件） -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.15" />
     <!-- SCPSL 玩家统计库（可选，用于 /me、/bd 指令） -->
-    <PackageReference Include="MySqlConnector" Version="2.6.2" />
+    <PackageReference Include="MySqlConnector" Version="3.0.0" />
   </ItemGroup>
 
   <ItemGroup>
