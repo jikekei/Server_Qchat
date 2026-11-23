@@ -167,6 +167,24 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
         return Task.FromResult(_updater.StartUpdate(id, request, requestedBy));
     }
 
+    public Task<LocalUpdateBatchStatus?> GetUpdateBatchAsync(CancellationToken ct = default)
+        => Task.FromResult<LocalUpdateBatchStatus?>(_updater.GetBatchStatus());
+
+    public Task<LocalUpdateBatchResult> StartUpdateBatchAsync(LocalUpdateBatchRequest request, string? requestedBy, CancellationToken ct = default)
+        => Task.FromResult(_updater.StartBatch(request, requestedBy));
+
+    public Task<LocalUpdateBatchResult> CancelUpdateBatchAsync(Guid id, CancellationToken ct = default)
+        => Task.FromResult(_updater.CancelBatch(id));
+
+    public Task<LocalUpdateSchedules?> GetUpdateSchedulesAsync(CancellationToken ct = default)
+        => Task.FromResult<LocalUpdateSchedules?>(_updater.GetSchedules());
+
+    public Task<LocalUpdateScheduleResult> AddUpdateScheduleAsync(LocalUpdateScheduleRequest request, string? requestedBy, CancellationToken ct = default)
+        => Task.FromResult(_updater.AddSchedule(request, requestedBy));
+
+    public Task<LocalUpdateScheduleResult> RemoveUpdateScheduleAsync(Guid id, CancellationToken ct = default)
+        => Task.FromResult(_updater.RemoveSchedule(id));
+
     public Task<LocalUpdateStartResult> ControlUpdateAsync(string id, string action, string? requestedBy, CancellationToken ct = default)
     {
         var result = action switch
@@ -228,7 +246,7 @@ public sealed class EmbeddedLocalAdminProvider : ILocalAdminProvider
         return Task.FromResult(new DaemonStatusResult(
             Online: true,
             Status: "running (embedded)",
-            Version: "2.4.0",
+            Version: "2.4.4-beta.1",
             Pid: Environment.ProcessId,
             StartTime: proc.StartTime,
             UptimeSeconds: uptime,

@@ -1,4 +1,5 @@
 using System.Net;
+using MySqlConnector;
 using Server.Qcat.Bot;
 using Server.Qcat.Configuration;
 using Server.Qcat.LocalAdmin;
@@ -168,13 +169,26 @@ public class SecurityFixTests
     [Fact]
     public void DatabasePassword_ReusedOnlyWhenEndpointUnchanged()
     {
-        const string saved = "Server=127.0.0.1;Port=3306;Database=game;Uid=app;Pwd=pa$$word;";
+        const string password = "first;second\"part";
+        const string certPassword = "cert;password";
+        var saved = new MySqlConnectionStringBuilder("Server=127.0.0.1;Port=3306;Database=game;Uid=app;Certificate File=client.pfx")
+        {
+            Password = password,
+            CertificatePassword = certPassword,
+        }.ConnectionString;
+        string redacted = DbConnectionSecret.Redact(saved);
+        Assert.DoesNotContain("second", redacted);
+        Assert.DoesNotContain(certPassword, redacted);
+        Assert.Equal(DbConnectionSecret.Mask, new MySqlConnectionStringBuilder(redacted).Password);
+        Assert.Equal(DbConnectionSecret.Mask, new MySqlConnectionStringBuilder(redacted).CertificatePassword);
         Assert.True(DbConnectionSecret.TryResolve(
-            "Server=127.0.0.1;Database=game;Uid=app;Pwd=******;",
+            redacted,
             saved,
             out string sameHost,
             out _));
-        Assert.Contains("Pwd=pa$$word;", sameHost);
+        var resolved = new MySqlConnectionStringBuilder(sameHost);
+        Assert.Equal(password, resolved.Password);
+        Assert.Equal(certPassword, resolved.CertificatePassword);
         Assert.DoesNotContain("******", sameHost);
 
         Assert.False(DbConnectionSecret.TryResolve(
@@ -182,7 +196,9 @@ public class SecurityFixTests
             saved,
             out _,
             out string? error));
-        Assert.Contains("主机或端口", error);
+        Assert.Contains("数据库主机", error);
+        Assert.False(DbConnectionSecret.TryResolve("Host=127.0.0.1;Port=3307;Pwd=******", saved, out _, out _));
+        Assert.Equal("", DbConnectionSecret.Redact("Server=localhost;Pwd=\"unterminated"));
 
         Assert.True(DbConnectionSecret.TryResolve(
             "Server=203.0.113.8;Pwd=fresh-secret;",
@@ -190,7 +206,7 @@ public class SecurityFixTests
             out string replaced,
             out _));
         Assert.Contains("fresh-secret", replaced);
-        Assert.DoesNotContain("pa$$word", replaced);
+        Assert.DoesNotContain("second", replaced);
     }
 
     [Fact]

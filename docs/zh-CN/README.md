@@ -1,191 +1,131 @@
 <div align="center">
 
-<img src="../../assets/readme/hero.svg" width="100%" alt="Server_Qcha (Qridge) —— 把 SCP:SL 游戏服从本地黑框命令行搬进浏览器，面板或机器人重启也不会让游戏服掉线。右侧是面板界面示意：九个模块的导航列表、在线玩家与守护进程指标卡、24 小时在线走势图与实时控制台输出。">
+<a href="https://github.com/jikekei/Server_Qchat">
+  <img src="../../assets/readme/hero.svg" width="100%" alt="Server_Qcha (Qridge)">
+</a>
 
-[简体中文](README.md) · [English](../../README.md)
+<h1>Server_Qcha (Qridge)</h1>
 
-[![Release](https://img.shields.io/github/v/release/jikekei/Server_Qchat?color=blue&logo=github)](https://github.com/jikekei/Server_Qchat/releases)
-[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![SCPSL](https://img.shields.io/badge/Game-SCPSL-red?logo=steam&logoColor=white)](https://scpslgame.com/)
-[![EXILED](https://img.shields.io/badge/Plugin-EXILED-blue)](https://github.com/Exiled-Team/EXILED)
-[![LabAPI](https://img.shields.io/badge/Plugin-LabAPI-darkgreen)](https://github.com/northwood-studios/LabAPI)
-[![Vue 3](https://img.shields.io/badge/Frontend-Vue%203-4FC08D?logo=vue.js&logoColor=white)](https://vuejs.org/)
-[![Element Plus](https://img.shields.io/badge/UI-Element%20Plus-409EFF?logo=element&logoColor=white)](https://element-plus.org/)
-[![QQ Bot](https://img.shields.io/badge/QQ%20Bot-Official%20%26%20OneBot%2011-12B7F5?logo=tencent-qq&logoColor=white)](https://bot.q.qq.com/)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](../../LICENSE)
+<p><strong>现代化的 SCP: Secret Laboratory 浏览器运维面板与 QQ 机器人桥接系统</strong></p>
 
-[中文文档中心](../README.zh-CN.md) · [English documentation](../README.md) · [下载最新发布包 (Releases)](https://github.com/jikekei/Server_Qchat/releases) · [提交 Issue 报障](https://github.com/jikekei/Server_Qchat/issues)
+<p><a href="../../README.md">English</a> · <strong>简体中文</strong> · <a href="#核心特性">核心特性</a> · <a href="#快速开始">快速开始</a> · <a href="#系统架构">系统架构</a> · <a href="../README.zh-CN.md">完整文档</a></p>
+
+[![Release](https://img.shields.io/github/v/release/jikekei/Server_Qchat?style=flat-square&color=2563EB)](https://github.com/jikekei/Server_Qchat/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/jikekei/Server_Qchat/ci.yml?style=flat-square&label=CI)](https://github.com/jikekei/Server_Qchat/actions/workflows/ci.yml)
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square)](https://dotnet.microsoft.com/)
+[![游戏插件](https://img.shields.io/badge/Plugin-EXILED%20%7C%20LabAPI-0D9488?style=flat-square)](https://github.com/jikekei/Server_Qchat/releases)
+[![QQ Bot](https://img.shields.io/badge/QQ%20Bot-%E5%AE%98%E6%96%B9%20%7C%20NapCat-0EA5E9?style=flat-square)](https://bot.q.qq.com/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-16A34A?style=flat-square)](../../LICENSE)
 
 </div>
 
 ---
 
-## 核心特性概览
+**Server_Qcha（Qridge）** 将 SCP:SL 专用服务器的控制台、进程管理和 QQ 群联动集中到浏览器。由独立守护进程托管时，更新或重启面板和机器人，游戏服仍可继续运行。
 
-- **LocalAdmin 独立守护架构 (Server_Qcha.Daemon)**：
-  - 将游戏服生命周期维系与面板/机器人彻底解耦。
-  - 更新面板、重启机器人甚至 Bot 意外崩溃，游戏服（SCPSL.exe）绝不关闭，在线玩家零感知、零掉线。
-  - 支持免脚本启动，启动 Bot 时全自动静默检测并在后台拉起守护进程。
-- **Web 实时守护监控与生命周期管理**：
-  - 在 Web 面板直观监控守护进程的运行状态、PID、物理内存占用（工作集 MB）、专用内存、存活时长、线程数与托管服务器运行负载。
-  - 支持在 Web 端一键启动、带二次确认的停机与平滑重启、手动刷新状态。
-- **QQ 机器人双模式引擎（NapCat + 腾讯官方 Bot OpenAPI v2）**：
-  - **NapCat (OneBot 11)**：传统正向 WebSocket 协议，群聊私聊全量支持。
-  - **QQ 官方机器人开放平台**：基于 WebSocket 网关、Token 自动刷新、消息保活与频控配额管理。
-  - **在线平滑热切换**：在 Web 控制台中一键切换机器人接入引擎，无需重启服务。
-  - **官方指令面板 (/v2/panels)**：支持一键同步指令至腾讯官方客户端菜单，支持管理员权限标记。
-- **现代化 Web 运维控制台 (Qridge)**：
-  - 基于 Vue 3 + Element Plus 的纯原生 ES Modules 架构，零构建打包编译依赖，开箱即用。
-  - 提供实时交互控制台、环形内存日志缓冲（ANSI 彩色高亮解码与日志级别过滤）。
-- **移动端专属自适应 UI 界面**：
-  - 视口宽度 <= 768px 自动激活移动专属布局，提供侧滑抽屉导航与 94vw 触控优化弹窗。
-- **24 小时在线走势与运营看板**：
-  - 全服在线总数与今日峰值 KPI 统计，后台周期采样精准剔除 Dedicated Server 虚假占位。
-- **细粒度 RBAC 权限体系与全量审计**：
-  - 支持多管理员并发登录，PBKDF2-SHA256 强哈希存储，操作审计精确记录人员、时间、来源 IP 与执行结果。
-- **游戏内管理员与权限组管理（游戏管理员）**：
-  - 在面板中直接读取并编辑各游戏服 `config_remoteadmin.txt` 里的管理员与权限组，无需手动改配置文件。
-  - 逐项勾选游戏内权限；权限组可设置称号与徽章颜色并同步影响组内成员；插件权限按节点配置允许/拒绝与总开关，关闭后权限检查直接拒绝，不会被继承或通配符重新放行。
-  - 支持个人权限覆盖（不改动权限组即可单独调整）与权限组跨服复制，便于集群统一权限体系。
-  - 修改由插件热应用，撤销在线管理员实时生效，全程无需重启游戏服。入口需要 `game-admin.manage` 面板权限，内置管理员默认具备。
-- **双生态游戏服务端插件**：
-  - 提供 EXILED 插件（按仓库依赖 EXILED 9.5.0 构建）与 LabAPI 插件（LabAPI 1.1+），双向 TCP 通信使用 AuthToken 做 HMAC 鉴权（信道不加密），支持游戏内 `.ac <内容>` 一键报警呼叫群管理。其他 EXILED 版本尚未在本仓库验证。Token 为空或仍使用默认密钥时会在启动日志中输出醒目的安全警告，请尽快修改。
+## 为什么选择 Qridge
 
----
+| 能力 | 原生 LocalAdmin | Qridge |
+| --- | --- | --- |
+| 面板或机器人重启 | 本地控制台随 LocalAdmin 进程运行 | 游戏服由独立守护进程托管 |
+| 桌面与移动端运维 | 本地命令行 | 自适应 Web 控制台 |
+| SteamCMD 更新与回滚 | 手动更新 | 后台暂存、回合结束切换、启动失败自动回滚 |
+| 游戏管理员与权限组 | 编辑配置文件 | 面板编辑，插件在线应用 |
+| 团队协作 | 通过主机管理访问权限 | 多账号角色权限和操作审计 |
+| QQ 群联动 | 通过外部集成实现 | 官方 QQ 机器人或 NapCat，支持游戏内求助 |
 
-## 面板模块一览
+## 核心特性
 
-<img src="../../assets/readme/panel-modules.svg" width="100%" alt="Qridge 面板的九个功能模块：服务器总览、服务器、服务器进程、QQ 机器人、游戏管理员、账号管理、数据库管理、日志级别、审计日志，按监控与运行、社群与权限、数据与追溯三组排列。">
+- **独立守护进程**。`Server_Qcha.Daemon` 独立托管多台游戏服，提供心跳监控、卡死检测和内存超限恢复。有玩家在线时，内存恢复可安排到回合结束。
+- **SteamCMD 在线更新**。游戏服运行期间可下载并暂存新版本，支持批量更新、定时检查和预约更新。新版本可在回合结束时切换，空闲服可立即切换。支持手动回滚，启动失败时自动回退。
+- **实时 Web 控制台**。桌面和移动端可查看彩色日志、按级别过滤，以及回看历史日志。向上滚动时保留当前位置，点击「跟随日志」回到最新输出。总览显示 24 小时在线趋势和资源占用。
+- **游戏管理员与权限组**。在面板里编辑各服管理员、权限组徽章和权限节点，支持跨服复制分组。插件在线应用修改，撤销在线管理员权限无需重启。
+- **双引擎 QQ 机器人**。支持腾讯官方 QQ 机器人（OpenAPI v2）与 NapCat（OneBot 11），可在线切换。玩家可用 `.ac <内容>` 向指定 QQ 群发送求助。
+- **团队协作与插件**。提供多账号角色权限管理与操作审计。EXILED 插件以 `9.15.2` 为构建依赖，LabAPI 插件以 `1.1.7` 为构建依赖。可选用 MySQL 记录玩家统计、同步封禁。
 
-*结构示意图：九个模块按「监控与运行 / 社群与权限 / 数据与追溯」三组组织，各模块的具体能力见 [Web 面板指南](guides/web-panel.md)。*
+## 面板概览
 
----
+<div align="center">
+  <img src="../../assets/readme/fwqylt-cn.png" width="100%" alt="Qridge 中文网页运维面板">
+  <p><sub><a href="guides/web-panel.md">查看 Web 面板指南</a></sub></p>
+</div>
 
-## 官方 LocalAdmin 与 Qridge 对比
+## 快速开始
 
-| 运维能力 | 官方 LocalAdmin (LA) | Qridge 现代化运维系统 (v2.0) |
-|---|---|---|
-| **交互媒介** | 本地黑框命令行 (CLI) | 现代 Web 控制台（PC 端 + 手机专属 UI） |
-| **进程解耦** | 关掉窗口游戏服必掉线 | **独立守护架构**：更新或关闭面板，游戏服绝对不关、玩家不掉线 |
-| **集群多服管控** | 一服一窗口，多开杂乱易混 | 单一控制台集中监控管理所有游戏服与守护进程 |
-| **远程运维** | 必须依赖 Windows RDP / SSH | 任意设备浏览器即可安全访问，随时随地手机运维 |
-| **守护与自愈** | 基础退出重启 | 完备心跳状态机、静默卡死检测、重启频次限流保护 |
-| **性能监控** | 无指标统计 | 实时监控物理内存占用 (MB)、专用内存、PID 与存活时长 |
-| **控制台交互** | 简单黑框打印 | Web 交互控制台、环形日志缓冲区、ANSI 颜色高亮与日志级别热过滤 |
-| **权限体系** | 无，接触者均为最高管理员 | 细粒度多账号 RBAC 权限系统，可精确授权各模块操作 |
-| **游戏内权限** | 手动编辑 `config_remoteadmin.txt` | 面板内编辑管理员与权限组，修改实时生效 |
-| **运营分析** | 无 | 24 小时动态折线图、全服今日最高在线峰值分析 |
-| **社群联动** | 无 | 深度集成 NapCat / QQ 官方机器人，打通群服双向指令与游戏内报警呼叫 |
+### 1. 下载与配置
 
----
+下载对应系统的 Windows 或 Linux 自包含包并解压。复制示例配置，填写游戏服路径、QQ 机器人信息和通信令牌。使用至少 24 字符的随机令牌，并让插件和 Bot 的通信令牌一致。 [发布包下载](https://github.com/jikekei/Server_Qchat/releases) · [配置参考](guides/configuration.md)
+
+**Windows PowerShell**
+
+```powershell
+Copy-Item appsettings.Example.json appsettings.Local.json
+```
+
+**Linux**
+
+```bash
+cp appsettings.Example.json appsettings.Local.json
+```
+
+> [!TIP]
+> 升级前备份 `data/` 和现有的 `appsettings*.json` 配置文件。
+
+### 2. 安装游戏插件
+
+按游戏服使用的框架下载 EXILED 或 LabAPI 插件包。按插件指南部署 `Server_Qcha.dll` 和随包提供的 `dependencies/`，并配置与 Bot 一致的通信令牌。 [插件指南](guides/plugin-guide.md)
+
+### 3. 启动服务
+
+- **Windows** 可运行 `一键启动(守护+机器人).bat`，或直接启动 `Server_Qcha.Bot.exe`。
+- **Linux** 可运行 `./Server_Qcha.Bot`。启用守护进程自动启动后，Bot 会在需要时启动它。
+
+打开 `http://127.0.0.1:8080/`，使用首次启动时打印的初始凭据登录。 [部署指南](guides/getting-started.md)
+
+> [!WARNING]
+> 面板默认监听 `127.0.0.1`。如需从其他设备访问，可调整 `WebPanel:Host` 并通过防火墙限制来源。插件与 Bot 的 TCP 通信使用 HMAC 鉴权，传输内容未加密，跨机部署请使用私有网络或 VPN。
 
 ## 系统架构
 
 ```mermaid
-graph TD
-    subgraph ClientLayer["终端交互层"]
-        BrowserPC["PC 浏览器 (Web 面板)"]
-        BrowserMobile["手机浏览器 (移动专属 UI)"]
-        QQUser["QQ 群聊 / 私聊 (玩家 & 管理员)"]
-    end
-
-    subgraph BotHost["机器人与面板服务宿主 (Server_Qcha.Bot)"]
-        WebApis["Minimal APIs (路由 / 鉴权 / 审计 / RBAC)"]
-        DaemonProvider["DaemonLocalAdminProvider (HTTP 客户端)"]
-        BotEngine["BotHostService (双模式热切换中心)"]
-        NapCatClient["NapCat / OneBot 11 客户端"]
-        OfficialClient["QQ 官方 OpenAPI v2 网关客户端"]
-        DataDir[("持久化存储 data/ (panel.db, 配置文件)")]
-    end
-
-    subgraph StandaloneDaemon["LocalAdmin 独立守护进程 (Server_Qcha.Daemon)"]
-        DaemonHttp["内部守护 API (127.0.0.1:10090)"]
-        ManagerPool["LocalAdminManager 实例管理池"]
-        FsmSupervisor["心跳状态机 & 静默崩溃自愈 & 重启限流"]
-        LogBuffer["环形日志缓冲 & ANSI 解析解码"]
-        SingleMutex["单例运行互斥锁"]
-    end
-
-    subgraph GameServers["SCPSL Dedicated Server 游戏集群"]
-        Server1["SCPSL.exe (游戏主服)"]
-        Server2["SCPSL.exe (测试服)"]
-        Plugin1["Server_Qcha-EXILED.dll"]
-        Plugin2["Server_Qcha-LabAPI.dll"]
-    end
-
-    BrowserPC <--> WebApis
-    BrowserMobile <--> WebApis
-    WebApis <--> DataDir
-
-    WebApis <-->|内部 HTTP 接口 /api/daemon/*| DaemonProvider
-    DaemonProvider <-->|X-Daemon-Token 鉴权| DaemonHttp
-
-    DaemonHttp --> ManagerPool
-    ManagerPool --> FsmSupervisor
-    ManagerPool --> LogBuffer
-    ManagerPool --> SingleMutex
-
-    FsmSupervisor -->|托管启动与 PID 维系| Server1
-    FsmSupervisor -->|托管启动与 PID 维系| Server2
-    LogBuffer <-->|管道控制台长连接| Server1
-    LogBuffer <-->|管道控制台长连接| Server2
-
-    Plugin1 <-->|TCP 10087 命令 / 10088 通知| WebApis
-    Plugin2 <-->|TCP 10087 命令 / 10088 通知| WebApis
-
-    BotEngine --> NapCatClient
-    BotEngine --> OfficialClient
-    NapCatClient <-->|正向 WebSocket| QQUser
-    OfficialClient <-->|WSS 官方网关| QQUser
-
-    BotHost -.->|随意重启 / 关闭升级 / 异常退出| Protection["独立守护进程不受任何影响，SCPSL 游戏服持续平稳运行"]
+graph LR
+  subgraph Clients["客户端"]
+    Browser["桌面或移动端浏览器"]
+    QQ["QQ 群聊或私聊"]
+  end
+  subgraph BotHost["Server_Qcha.Bot"]
+    Web["Web 面板 · 权限 · 审计"]
+    Bot["官方 QQ 或 NapCat"]
+    Data[("data/ 持久化")]
+  end
+  subgraph Supervisor["Server_Qcha.Daemon"]
+    Manager["多服托管 · 心跳 · 恢复 · 日志"]
+  end
+  subgraph Servers["SCP:SL 专用服务器"]
+    Game["游戏服进程"]
+    Plugin["EXILED 或 LabAPI 插件"]
+  end
+  Browser <--> Web
+  Web <--> Data
+  QQ <--> Bot
+  Web <-->|内部 HTTP API| Manager
+  Manager --> Game
+  Game --- Plugin
+  Plugin <-->|HMAC 鉴权 TCP| Bot
 ```
 
----
+## 文档中心
 
-## 官方文档导航
+| 分类 | 文档 |
+| --- | --- |
+| 入门与面板 | [中文文档索引](../README.zh-CN.md) · [English Docs](../README.md) · [Web 面板指南](guides/web-panel.md) |
+| 机器人与配置 | [机器人配置指南](guides/bot-guide.md) · [完整配置参考](guides/configuration.md) · [插件与数据库](guides/plugin-guide.md#玩家统计与数据库封禁) |
+| 安全与维护 | [数据库与构建安全说明](guides/database-security.md) · [自动化与发布指南](reference/automation.md) |
 
-项目包含完整且经过实机验证的专题文档：
+## 参与贡献
 
-| 文档名称 | 内容概览 | 快速链接 |
-|---|---|---|
-| **快速上手与全平台部署** | 基础要求、开箱运行、单机与多机集群部署指南 | [快速开始](guides/getting-started.md) |
-| **Web 面板与 LocalAdmin 替代说明** | 独立守护架构详解、心跳自愈机制、Web 监控管理、游戏管理员与移动端适配 | [Web 面板指南](guides/web-panel.md) |
-| **游戏服务端插件指南** | EXILED 与 LabAPI 插件安装、TCP 双向通信、Token 鉴权与 `.ac` 呼叫 | [插件指南](guides/plugin-guide.md) |
-| **QQ 机器人与群服联动指南** | 官方机器人 (OpenAPI v2) 与 NapCat 快速配置、指令表与指令面板同步 | [机器人指南](guides/bot-guide.md) |
-| **配置文件参考手册** | `appsettings.json`、守护配置与插件 `config.yml` 完整字段速查 | [配置参考](guides/configuration.md) |
-| **常见问题与排错手册 (FAQ)** | 端口占用、权限冲突、进程闪退排查与自愈诊断方案 | [FAQ](guides/faq.md) |
-| **轻量级 API 查服机器人** | 零插件无侵入独立部署、NapCat 接入与列表 API 查服说明 | [API 查服机器人](guides/api-bot.md) |
+欢迎反馈问题、提出功能建议或提交改进。 [GitHub Issues](https://github.com/jikekei/Server_Qchat/issues) · [Pull Requests](https://github.com/jikekei/Server_Qchat/pulls)
 
----
+## 开源协议
 
-## 3 步极速上手
-
-1. **下载发行包**。下载与你的系统对应的 Windows 或 Linux 自包含包，并解压至部署目录。[最新发行版](https://github.com/jikekei/Server_Qchat/releases/latest)
-2. **确认配置**：复制 `appsettings.Example.json` 为 `appsettings.Local.json`（或直接使用内置配置），按需配置游戏服的 `SCPSL.exe` 路径；
-3. **一键启动运行**：
-   - **方式 A（推荐）**：双击运行 **`一键启动(守护+机器人).bat`**；
-   - **方式 B（免脚本）**。直接双击运行 **`Server_Qcha.Bot.exe`**。检测到守护进程未运行时，Bot 会在独立窗口中启动它。
-   - 打开浏览器访问 `http://127.0.0.1:8080/`，使用控制台首次输出的初始管理员密码登录即可。
-
-> 插件部署：EXILED 服放置 `Server_Qcha-EXILED.dll`，LabAPI 服放置 `Server_Qcha-LabAPI.dll` 并将 `0Harmony.dll` 放入其 `dependencies` 子目录，详见[插件指南](guides/plugin-guide.md)。同一服务器实例请勿同时加载两套框架。
-
----
-
-## 常见脚本命令速查
-
-解压目录中内置了开箱即用的快捷脚本：
-
-- **`一键启动(守护+机器人).bat`**：按推荐依赖顺序同时启动后台守护进程与机器人面板；
-- **`启动守护进程(Daemon).bat`**：仅启动守护进程（用于需要常驻游戏服而无需开启 Web 控制台的服务器场景）；
-- **`停止守护进程.bat`**：一键安全停机并终止后台运行的守护进程。
-
----
-
-## 开源协议与版权声明
-
-本项目基于 [Apache License 2.0](../../LICENSE) 协议开源。
-
-Copyright 2025 hmyhserver.top
-
-欢迎提交 Issue 与 Pull Request 共同完善 SCP: Secret Laboratory 中文生态。
+本项目按 Apache License 2.0 开源。SCP: Secret Laboratory、Unity、EXILED 和 LabAPI 适用各自的许可条款。 [Apache License 2.0](../../LICENSE)

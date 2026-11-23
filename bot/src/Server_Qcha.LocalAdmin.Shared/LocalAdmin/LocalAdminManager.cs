@@ -361,6 +361,26 @@ public sealed class LocalAdminManager : IHostedService, IAsyncDisposable
         BetaBranch = d.BetaBranch,
     };
 
+    internal void PersistUpdatedInstall(LocalServerInstance instance, string directory, string executable, string workingDirectory)
+    {
+        lock (_gate)
+        {
+            if (!_byId.TryGetValue(instance.Id, out var current) || current != instance ||
+                !instance.UpdateInProgress || !instance.StartBlocked || instance.Running)
+                throw new InvalidOperationException("服务器状态已变更，无法切换安装目录");
+
+            var definition = instance.Definition;
+            var updated = Clone(definition);
+            updated.InstallDirectory = directory;
+            updated.ExecutablePath = executable;
+            updated.WorkingDirectory = workingDirectory;
+            _store.Save(_definitions.Select(item => item == definition ? updated : item).ToArray());
+            definition.InstallDirectory = directory;
+            definition.ExecutablePath = executable;
+            definition.WorkingDirectory = workingDirectory;
+        }
+    }
+
     /// <summary>
     /// 持久化某实例的控制台捕获级别。
     ///

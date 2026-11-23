@@ -1,6 +1,6 @@
-using System.Text.RegularExpressions;
 using Server.Qcat.Configuration;
 using Server.Qcat.Data;
+using Server.Qcat.Services;
 
 namespace Server.Qcat.Web;
 
@@ -46,6 +46,8 @@ public static class DatabaseEndpoints
         api.MapPost("/config", UpdateConfigAsync);
         api.MapPost("/test-connection", TestConnectionAsync);
         api.MapPost("/init-tables", InitTablesAsync);
+        api.MapGet("/backups", GetBackupsAsync);
+        api.MapPost("/backups", RunBackupAsync);
 
         // ---- 玩家数据 (PlayerData) ----
         api.MapGet("/players", GetPlayersAsync);
@@ -61,15 +63,24 @@ public static class DatabaseEndpoints
         api.MapDelete("/bans/{id}", DeleteBanAsync);
     }
 
-    // ==================== 连接与概览 ====================
-
-    /// <summary>对连接字符串中的密码字段进行脱敏（替换为 ******）。</summary>
-    private static string MaskConnectionString(string? cs)
+    private static async Task<IResult> GetBackupsAsync(
+        HttpContext ctx, PanelAuthService auth, MySqlBackupService backups)
     {
-        if (string.IsNullOrWhiteSpace(cs))
-            return "";
-        return Regex.Replace(cs, @"(?i)(Password|Pwd)\s*=\s*[^;]+", "$1=******");
+        var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.DatabaseManage);
+        return error ?? Results.Json(backups.GetStatus());
     }
+
+    private static async Task<IResult> RunBackupAsync(
+        HttpContext ctx, PanelAuthService auth, MySqlBackupService backups, CancellationToken ct)
+    {
+        var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.DatabaseManage);
+        if (error is not null) return error;
+
+        var result = await backups.BackupNowAsync(ct);
+        return result.Success ? Results.Json(result) : Results.BadRequest(new { error = result.Message });
+    }
+
+    // ==================== 连接与概览 ====================
 
     private static bool TryResolveConnectionString(string? input, string? current, out string resolved, out string? error) =>
         DbConnectionSecret.TryResolve(input, current, out resolved, out error);
@@ -89,7 +100,7 @@ public static class DatabaseEndpoints
         return Results.Json(new
         {
             summary,
-            connectionString = MaskConnectionString(repo.CurrentConnectionString),
+            connectionString = DbConnectionSecret.Redact(repo.CurrentConnectionString),
             hasConfigured = !string.IsNullOrWhiteSpace(repo.CurrentConnectionString),
         });
     }

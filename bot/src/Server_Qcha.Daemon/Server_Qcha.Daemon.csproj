@@ -6,9 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Server_Qcha.Daemon</RootNamespace>
-    <Version>2.4.0</Version>
-    <AssemblyVersion>2.4.0.0</AssemblyVersion>
-    <FileVersion>2.4.0.0</FileVersion>
+    <Version>2.4.4</Version>
+    <AssemblyVersion>2.4.4.0</AssemblyVersion>
+    <FileVersion>2.4.4.0</FileVersion>
+    <InformationalVersion>2.4.4-beta.1</InformationalVersion>
     <Product>Qcha LocalAdmin Daemon</Product>
     <Description>SCPSL Qcha LocalAdmin 独立守护进程</Description>
   </PropertyGroup>

@@ -203,3 +203,15 @@ public sealed record LocalUpdateStartResult(
     string? Response,
     string? Error,
     LocalUpdateStatus? Status);
+
+public sealed record LocalUpdateBatchRequest(string[]? ServerIds, LocalUpdateRequest? Update);
+public sealed record LocalUpdateBatchItem(string ServerId, string Name, string State, string? Message = null);
+public sealed record LocalUpdateBatchStatus(Guid? Id, bool Active, bool CancelRequested, IReadOnlyList<LocalUpdateBatchItem> Items);
+public sealed record LocalUpdateBatchResult(bool Success, string? Error, LocalUpdateBatchStatus? Status);
+
+public sealed record LocalUpdateScheduleRequest(string[]? ServerIds, string? DailyAt, DateTimeOffset? UpdateAt, string? Mode, bool AutoUpdate = false);
+public sealed record LocalUpdateSchedule(
+    Guid Id, string[] ServerIds, string? DailyAt, DateTimeOffset? UpdateAt, string Mode, bool AutoUpdate,
+    string? RequestedBy, DateTimeOffset CreatedAt, DateTimeOffset? LastRunAt = null, LocalUpdateBatchItem[]? Results = null);
+public sealed record LocalUpdateSchedules(string TimeZone, IReadOnlyList<LocalUpdateSchedule> Schedules, IReadOnlyList<Guid> RunningIds);
+public sealed record LocalUpdateScheduleResult(bool Success, string? Error = null);
