@@ -35,7 +35,7 @@
 |---|---|---|
 | **操作系统** | Windows 10/11 / Windows Server 2016+ 或 Linux x64 | 推荐 Windows 或 Linux 容器 |
 | **.NET 环境** | .NET 8.0 Runtime 或 SDK | 运行主程序与独立守护进程所必需 |
-| **SCPSL 服务端** | SCP: Secret Laboratory Dedicated Server | EXILED 插件按仓库依赖 9.5.0 构建；LabAPI 插件按 1.1+ 构建 |
+| **SCPSL 服务端** | SCP: Secret Laboratory Dedicated Server | EXILED 插件按仓库依赖 9.15.2 构建，LabAPI 插件按 1.1.7 构建 |
 | **QQ 框架（可选）** | NapCatQQ (OneBot 11) 或 QQ 官方机器人开放平台 | 仅在使用社群机器人联动时需要 |
 
 ---
@@ -59,12 +59,11 @@
 
 ### 第一步：获取程序包
 
-前往项目的 [Releases 发布页面](https://github.com/jikekei/Server_Qchat/releases) 下载最新版本的发行包：
-- `Server_Qcha.Bot-v2.0.0.zip`（完整发行包，包含 Bot、Daemon、Web 静态资源与启动脚本）
-- `Server_Qcha-EXILED.dll`（若您的游戏服使用 EXILED 框架）
-- `Server_Qcha-LabAPI.dll`（若您的游戏服使用 LabAPI 框架）
+下载与你的系统对应的 Windows 或 Linux 自包含包。包内包含 Bot、守护进程和 Web 面板，Windows 包另含启动脚本。[最新发行版](https://github.com/jikekei/Server_Qchat/releases/latest)
 
-解压 `Server_Qcha.Bot-v2.0.0.zip` 到任意英文目录，例如 `C:\Server_Qcha\`。
+按游戏服框架下载对应的完整插件 ZIP，同时部署 `Server_Qcha.dll` 和 `dependencies/`。[EXILED 和 LabAPI 插件下载](https://github.com/jikekei/Server_Qchat/releases/latest)
+
+将主程序包解压到部署目录，例如 `C:\Server_Qcha\`。
 
 ---
 

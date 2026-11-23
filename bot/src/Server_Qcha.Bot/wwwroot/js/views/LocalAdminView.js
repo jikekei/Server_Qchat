@@ -1,8 +1,26 @@
 import { useLocalAdmin } from '../modules/useLocalAdmin.js';
 import { capabilities, can } from '../api.js';
 
+const LocalConsoleOutput = {
+  template: `
+    <div class="terminal" ref="termRef">
+      <div v-if="local.lines.length === 0" class="terminal-empty">（终端就绪，等待服务器控制台输出…）</div>
+      <div v-for="line in local.lines" :key="line.seq" class="term-line">
+        <span class="term-time">{{ line.timeText }}</span>
+        <span v-if="line.kind !== 'output'" class="term-badge">[{{ lineLabel(line.kind) }}]</span>
+        <span :style="{ color: line.colorHex }">{{ line.text }}</span>
+      </div>
+    </div>
+  `,
+  setup() {
+    const { local, termRef, lineLabel } = useLocalAdmin();
+    return { local, termRef, lineLabel };
+  }
+};
+
 export const LocalAdminView = {
   name: 'LocalAdminView',
+  components: { LocalConsoleOutput },
   template: `
         <div>
           <div class="page-header">
@@ -113,6 +131,14 @@ export const LocalAdminView = {
                   <div class="metric-tile-sub">运行时长：{{ formatUptime(local.status && local.status.uptimeSeconds) }}</div>
                 </div>
                 <div class="metric-tile">
+                  <div class="metric-tile-label">游戏进程物理内存</div>
+                  <div class="metric-tile-value">{{ local.status?.workingSetMb != null ? local.status.workingSetMb + ' MiB' : '—' }}</div>
+                  <div v-if="local.status?.memoryRestartLimitMb" class="metric-tile-sub">
+                    {{ local.status.memoryRestartNextRound ? '已安排回合结束后回收' : (local.status.memoryRestartPending ? '超限，等待回收' : '回收上限 ' + local.status.memoryRestartLimitMb + ' MiB') }}
+                  </div>
+                  <div v-else class="metric-tile-sub">自动回收已关闭</div>
+                </div>
+                <div class="metric-tile">
                   <div class="metric-tile-label">网络与管道端口</div>
                   <div class="metric-tile-value">游戏 {{ local.status ? local.status.gamePort : '-' }}</div>
                   <div class="metric-tile-sub">控制台端口：{{ local.status && local.status.consolePort ? local.status.consolePort : '-' }}</div>
@@ -147,8 +173,8 @@ export const LocalAdminView = {
                 </el-dropdown>
                 <el-button type="primary" :disabled="!localRunning || localUpdating" @click="localRestart(false)">↻ 平滑重启</el-button>
                 <el-button type="danger" plain :disabled="!localRunning || localUpdating" @click="localRestart(true)">⚡ 强制重启</el-button>
-                <el-button type="warning" plain :disabled="!local.selectedId" @click="openUpdateDialog">
-                  {{ localUpdating ? '⏳ 查看更新进度' : '⬆ 更新服务器 (SteamCMD)' }}
+                <el-button type="warning" plain :disabled="!local.selectedId" @click="openUpdateManagement">
+                  {{ localUpdating ? '⏳ SteamCMD 更新进度' : 'SteamCMD 更新' }}
                 </el-button>
                 <el-button v-if="local.status && local.status.restartCountdownSeconds > 0" type="danger" @click="localCancelRestart">
                   中止重启倒计时 ({{ local.status.restartCountdownSeconds }}s)
@@ -191,37 +217,31 @@ export const LocalAdminView = {
                       <el-option v-for="o in local.consoleLevels" :key="o.key" :label="o.label" :value="o.key"></el-option>
                     </el-select>
                     <el-checkbox v-model="local.autoScroll" style="color:#cbd5e1">自动滚动</el-checkbox>
+                    <el-button size="small" @click="localFollowLatest">跟随最新</el-button>
                     <el-button size="small" @click="localClearConsole">清空屏幕</el-button>
                   </div>
                 </div>
 
-                <div class="terminal" ref="termRef">
-                  <div v-if="local.lines.length === 0" class="terminal-empty">（终端就绪，等待服务器控制台输出…）</div>
-                  <div v-for="line in local.lines" :key="line.seq" class="term-line">
-                    <span class="term-time">{{ timeOnly(line.time) }}</span>
-                    <span v-if="line.kind !== 'output'" class="term-badge">[{{ lineLabel(line.kind) }}]</span>
-                    <span :style="{ color: line.colorHex }">{{ line.text }}</span>
-                  </div>
-                </div>
+                <local-console-output></local-console-output>
 
                 <div class="terminal-footer">
                   <div class="console-input">
                     <el-input v-model="local.command" placeholder="输入控制台指令…"
-                              @keyup.enter="localSendCommand">
+                              @keyup.enter="localSendCommand()">
                       <template #prefix>
                         <span style="font-family:var(--qb-mono);color:var(--qb-accent);font-weight:700">&gt;</span>
                       </template>
                     </el-input>
-                    <el-button type="primary" :loading="local.sending" @click="localSendCommand">发送指令</el-button>
+                    <el-button type="primary" :loading="local.sending" @click="localSendCommand()">发送指令</el-button>
                   </div>
                   <div class="quick-cmd-bar">
                     <span class="muted">快捷指令：</span>
-                    <span class="quick-cmd-chip" @click="local.command = 'help'; localSendCommand()">help</span>
-                    <span class="quick-cmd-chip" @click="local.command = 'hbctrl status'; localSendCommand()">hbctrl status</span>
-                    <span class="quick-cmd-chip" @click="local.command = 'players'; localSendCommand()">players</span>
-                    <span class="quick-cmd-chip" @click="local.command = 'roundrestart'; localSendCommand()">roundrestart</span>
-                    <span class="quick-cmd-chip" @click="local.command = 'forcestart'; localSendCommand()">forcestart</span>
-                    <span class="quick-cmd-chip" @click="local.command = 'clear'; localSendCommand()">clear</span>
+                    <span class="quick-cmd-chip" @click="localSendCommand('help')">help</span>
+                    <span class="quick-cmd-chip" @click="localSendCommand('hbctrl status')">hbctrl status</span>
+                    <span class="quick-cmd-chip" @click="localSendCommand('players')">players</span>
+                    <span class="quick-cmd-chip" @click="localSendCommand('roundrestart')">roundrestart</span>
+                    <span class="quick-cmd-chip" @click="localSendCommand('forcestart')">forcestart</span>
+                    <span class="quick-cmd-chip" @click="localSendCommand('clear')">clear</span>
                   </div>
                 </div>
               </div>

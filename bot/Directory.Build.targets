@@ -1,0 +1,9 @@
+<Project>
+  <Target Name="CreateReleaseAppHost" AfterTargets="Publish"
+          Condition="'$(ReleaseRuntimeDirectory)' != '' and '$(UseAppHost)' == 'true' and '$(_IsExecutable)' == 'true'">
+    <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
+                   AppHostDestinationPath="$(PublishDir)$(AssemblyName)$(_NativeExecutableExtension)"
+                   AppBinaryName="$(ReleaseRuntimeDirectory)/$(TargetFileName)"
+                   IntermediateAssembly="@(IntermediateAssembly->'%(FullPath)')" />
+  </Target>
+</Project>

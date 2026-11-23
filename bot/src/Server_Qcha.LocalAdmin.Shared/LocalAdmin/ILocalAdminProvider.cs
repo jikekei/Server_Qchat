@@ -20,7 +20,7 @@ public interface ILocalAdminProvider
     Task<LocalServerStatus?> GetStatusAsync(string id, CancellationToken ct = default);
 
     /// <summary>轮询指定服务器的状态与增量控制台输出。</summary>
-    Task<LocalPollResult?> PollAsync(string id, long? after, int? limit, CancellationToken ct = default);
+    Task<LocalPollResult?> PollAsync(string id, long? after, int? limit, CancellationToken ct = default, bool waitForLines = false);
 
     /// <summary>创建新服务器定义并落盘。</summary>
     Task<LocalSaveResult> CreateServerAsync(LocalServerSaveRequest request, CancellationToken ct = default);
@@ -60,6 +60,13 @@ public interface ILocalAdminProvider
 
     /// <summary>查询更新任务状态与环境预检；服务器不存在返回 null。</summary>
     Task<LocalUpdateStatus?> GetUpdateStatusAsync(string id, CancellationToken ct = default, string? checkBranch = null);
+
+    Task<LocalUpdateBatchStatus?> GetUpdateBatchAsync(CancellationToken ct = default);
+    Task<LocalUpdateBatchResult> StartUpdateBatchAsync(LocalUpdateBatchRequest request, string? requestedBy, CancellationToken ct = default);
+    Task<LocalUpdateBatchResult> CancelUpdateBatchAsync(Guid id, CancellationToken ct = default);
+    Task<LocalUpdateSchedules?> GetUpdateSchedulesAsync(CancellationToken ct = default);
+    Task<LocalUpdateScheduleResult> AddUpdateScheduleAsync(LocalUpdateScheduleRequest request, string? requestedBy, CancellationToken ct = default);
+    Task<LocalUpdateScheduleResult> RemoveUpdateScheduleAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>取消重启倒计时。</summary>
     Task<LocalAdminResult> CancelRestartAsync(string id, CancellationToken ct = default);

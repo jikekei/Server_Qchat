@@ -1,15 +1,22 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Server.Qcat.Bot;
 using Server.Qcat.LocalAdmin;
 
 namespace Server.Qcat.Web;
 
-public sealed class OperationsApiSettings
+public sealed record OperationsApiToken(string Id, string Name, string KeyHash);
+
+public sealed record OperationsApiSettings
 {
-    public bool Enabled { get; set; }
-    public bool AllowControl { get; set; }
-    public string KeyHash { get; set; } = "";
+    public bool Enabled { get; init; }
+    public bool AllowControl { get; init; }
+    public OperationsApiToken[] Tokens { get; init; } = [];
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? KeyHash { get; init; }
 }
 
 public sealed class OperationsApiStore
@@ -21,27 +28,70 @@ public sealed class OperationsApiStore
     {
         _path = Path.Combine(env.ContentRootPath, "data", "operations-api.json");
         _settings = File.Exists(_path) ? JsonSerializer.Deserialize<OperationsApiSettings>(File.ReadAllText(_path)) ?? new() : new();
+        if (_settings.KeyHash is { Length: 64 } legacyHash)
+            _settings = _settings with
+            {
+                KeyHash = null,
+                Tokens = [.. _settings.Tokens, new("legacy", "原有令牌", legacyHash)],
+            };
     }
-    public OperationsApiSettings Snapshot() { lock (_sync) return new() { Enabled = _settings.Enabled, AllowControl = _settings.AllowControl, KeyHash = _settings.KeyHash }; }
-    public string? Save(bool enabled, bool allowControl, bool rotate)
+    public OperationsApiSettings Snapshot()
+    {
+        lock (_sync) return _settings with { Tokens = [.. _settings.Tokens] };
+    }
+
+    public void Save(bool enabled, bool allowControl)
+    {
+        lock (_sync) Persist(_settings with { Enabled = enabled, AllowControl = allowControl });
+    }
+
+    public (OperationsApiToken Token, string Key) CreateToken(string name)
     {
         lock (_sync)
         {
-            string? key = rotate || _settings.KeyHash.Length == 0 ? Convert.ToHexString(RandomNumberGenerator.GetBytes(32)) : null;
-            var next = new OperationsApiSettings { Enabled = enabled, AllowControl = allowControl, KeyHash = key is null ? _settings.KeyHash : Hash(key) };
-            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            string temp = _path + ".tmp";
-            File.WriteAllText(temp, JsonSerializer.Serialize(next));
-            File.Move(temp, _path, true);
-            _settings = next;
-            return key;
+            string key = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+            var token = new OperationsApiToken(Guid.NewGuid().ToString("N"), name, Hash(key));
+            Persist(_settings with { Tokens = [.. _settings.Tokens, token] });
+            return (token, key);
         }
     }
-    private static string Hash(string key) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
-    public bool Validate(string key)
+
+    public OperationsApiToken? RevokeToken(string id)
     {
-        var s = Snapshot();
-        return s.Enabled && s.KeyHash.Length == 64 && key.Length <= 256 && CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(Hash(key)), Encoding.ASCII.GetBytes(s.KeyHash));
+        lock (_sync)
+        {
+            var token = Array.Find(_settings.Tokens, token => token.Id == id);
+            if (token is null) return null;
+            Persist(_settings with { Tokens = Array.FindAll(_settings.Tokens, token => token.Id != id) });
+            return token;
+        }
+    }
+
+    private void Persist(OperationsApiSettings next)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+        string temp = _path + ".tmp";
+        File.WriteAllText(temp, JsonSerializer.Serialize(next));
+        File.Move(temp, _path, true);
+        _settings = next;
+    }
+
+    private static string Hash(string key) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
+
+    public bool Validate(string key, out bool allowControl) => Validate(key, out allowControl, out _);
+
+    public bool Validate(string key, out bool allowControl, out string? tokenId)
+    {
+        lock (_sync)
+        {
+            allowControl = _settings.AllowControl;
+            tokenId = null;
+            if (!_settings.Enabled || key.Length > 256 || _settings.Tokens.Length == 0) return false;
+            byte[] hash = Encoding.ASCII.GetBytes(Hash(key));
+            tokenId = _settings.Tokens.FirstOrDefault(token =>
+                CryptographicOperations.FixedTimeEquals(hash, Encoding.ASCII.GetBytes(token.KeyHash)))?.Id;
+            return tokenId is not null;
+        }
     }
 }
 
@@ -66,7 +116,10 @@ public sealed class PanelLogBuffer : ILoggerProvider
     }
 }
 
-public sealed record OperationsSettingsRequest(bool Enabled, bool AllowControl, bool RotateKey);
+public sealed record OperationsSettingsRequest(bool Enabled, bool AllowControl);
+public sealed record CreateOperationsTokenRequest(string? Name);
+public sealed record BotCommandApiRequest(string? Command, string? SenderId);
+
 public static class OperationsApi
 {
     public static void MapOperationsApi(this WebApplication app)
@@ -76,15 +129,39 @@ public static class OperationsApi
             var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.AccountsManage);
             if (error is not null) return error;
             var s = store.Snapshot();
-            return Results.Json(new { s.Enabled, s.AllowControl, hasKey = s.KeyHash.Length > 0 });
+            return Results.Json(new { s.Enabled, s.AllowControl, tokens = s.Tokens.Select(token => new { token.Id, token.Name }) });
         });
         app.MapPut("/api/operations/settings", async (OperationsSettingsRequest request, HttpContext ctx, PanelAuthService auth, OperationsApiStore store, PanelDatabase db, CancellationToken ct) =>
         {
             var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.AccountsManage);
             if (error is not null) return error;
-            var key = store.Save(request.Enabled, request.AllowControl, request.RotateKey);
-            await db.AddAuditAsync(new PanelAuditEntry { Username = session!.Username, Action = "api.settings", Target = "Operations API", Detail = $"enabled={request.Enabled}, control={request.AllowControl}, rotate={request.RotateKey}", Success = true }, ct);
-            return Results.Json(new { key });
+            store.Save(request.Enabled, request.AllowControl);
+            await db.AddAuditAsync(new PanelAuditEntry { Username = session!.Username, Action = "api.settings", Target = "Operations API", Detail = $"enabled={request.Enabled}, control={request.AllowControl}", Success = true }, ct);
+            return Results.NoContent();
+        });
+        app.MapPost("/api/operations/tokens", async (CreateOperationsTokenRequest request, HttpContext ctx, PanelAuthService auth, OperationsApiStore store, PanelDatabase db, CancellationToken ct) =>
+        {
+            var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.AccountsManage);
+            if (error is not null) return error;
+
+            string name = request.Name?.Trim() ?? "";
+            if (name.Length is 0 or > 80)
+                return Results.BadRequest(new { error = "请输入 1 到 80 个字符的令牌名称" });
+
+            ctx.Response.Headers.CacheControl = "no-store";
+            var (token, key) = store.CreateToken(name);
+            await db.AddAuditAsync(new PanelAuditEntry { Username = session!.Username, Action = "api.token.create", Target = token.Id, Detail = token.Name, Success = true }, ct);
+            return Results.Json(new { token.Id, token.Name, key }, statusCode: 201);
+        });
+        app.MapDelete("/api/operations/tokens/{id}", async (string id, HttpContext ctx, PanelAuthService auth, OperationsApiStore store, PanelDatabase db, CancellationToken ct) =>
+        {
+            var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.AccountsManage);
+            if (error is not null) return error;
+
+            var token = store.RevokeToken(id);
+            if (token is null) return Results.NotFound(new { error = "该令牌已不存在" });
+            await db.AddAuditAsync(new PanelAuditEntry { Username = session!.Username, Action = "api.token.revoke", Target = token.Id, Detail = token.Name, Success = true }, ct);
+            return Results.NoContent();
         });
         var api = app.MapGroup("/api/ops/v1");
         app.MapGet("/api/operations/archive/{id}", async (string id, string? file, string? date, long? offset, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct) =>
@@ -104,11 +181,24 @@ public static class OperationsApi
             ctx.Response.Headers.CacheControl = "no-store";
             var store = ctx.RequestServices.GetRequiredService<OperationsApiStore>();
             var header = ctx.Request.Headers.Authorization.ToString();
-            if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) || !store.Validate(header[7..])) return Results.Unauthorized();
-            if (ctx.Request.Method != "GET" && !store.Snapshot().AllowControl) return Results.StatusCode(403);
+            if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ||
+                !store.Validate(header[7..], out bool allowControl, out string? tokenId)) return Results.Unauthorized();
+            if (ctx.Request.Method != "GET" && !allowControl) return Results.StatusCode(403);
             var result = await next(context);
             if (ctx.Request.Method != "GET")
-                await ctx.RequestServices.GetRequiredService<PanelDatabase>().AddAuditAsync(new PanelAuditEntry { Username = "api-key", Action = "api." + ctx.Request.Path, Target = ctx.Connection.RemoteIpAddress?.ToString() ?? "", Detail = "API control request", Success = result is not IStatusCodeHttpResult status || status.StatusCode is null or < 400 });
+            {
+                bool success = result is IValueHttpResult { Value: BotCommandApiResponse response }
+                    ? response.Success
+                    : result is not IStatusCodeHttpResult status || status.StatusCode is null or < 400;
+                await ctx.RequestServices.GetRequiredService<PanelDatabase>().AddAuditAsync(new PanelAuditEntry
+                {
+                    Username = $"api-key:{tokenId}",
+                    Action = "api." + ctx.Request.Path,
+                    Target = ctx.Connection.RemoteIpAddress?.ToString() ?? "",
+                    Detail = "API control request",
+                    Success = success,
+                });
+            }
             return result;
         });
         api.MapGet("/panel/logs", (PanelLogBuffer logs) => Results.Json(new { lines = logs.Read(), capacity = 2000 }));
@@ -127,7 +217,34 @@ public static class OperationsApi
         api.MapPost("/servers/{id}/start", async (string id, ILocalAdminProvider provider, CancellationToken ct) => ControlResult(await provider.StartAsync(id, ct)));
         api.MapPost("/servers/{id}/stop", async (string id, ILocalAdminProvider provider, CancellationToken ct) => ControlResult(await provider.StopAsync(id, false, ct)));
         api.MapPost("/servers/{id}/restart", async (string id, ILocalAdminProvider provider, CancellationToken ct) => ControlResult(await provider.RestartAsync(id, false, ct)));
+        api.MapPost("/bot/commands", ExecuteBotCommandAsync);
     }
+
+    private sealed record BotCommandApiResponse(string Command, string Content, [property: JsonIgnore] bool Success);
+
+    private static async Task<IResult> ExecuteBotCommandAsync(
+        BotCommandApiRequest body, BotClientAccessor accessor, CommandRouter router, CancellationToken ct)
+    {
+        var request = BotCommandParser.Parse(body.Command ?? "");
+        if (request.IsEmpty)
+            return Results.BadRequest(new { error = "请输入 QQ 机器人指令" });
+
+        var definition = BotCommandCatalog.Resolve(request.Name);
+        if (definition is null)
+            return Results.BadRequest(new { error = $"未知指令：{request.Name}" });
+
+        string senderId = body.SenderId?.Trim() ?? "";
+        if (definition.Name is "bind" or "me" && senderId.Length == 0)
+            return Results.BadRequest(new { error = "该指令需要 senderId（QQ 号或 OpenID）" });
+
+        var client = accessor.Current;
+        if (client is null)
+            return Results.Json(new { error = "机器人接入模式尚未就绪" }, statusCode: 503);
+
+        var outcome = await router.ExecuteForApiAsync(client, request, senderId, ct);
+        return Results.Json(new BotCommandApiResponse(definition.Name, outcome.Content, outcome.Success));
+    }
+
     private static IResult ControlResult(LocalAdminResult result) => Results.Json(result, statusCode: result.Success ? 200 : 400);
     private static async Task<IResult> Dates(string id, ILocalAdminProvider provider, CancellationToken ct)
     {

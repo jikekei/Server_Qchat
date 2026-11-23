@@ -11,9 +11,9 @@
 
     <!-- 插件版本：LabAPI 默认用 Assembly.GetName().Version 作为插件版本，
          这里显式声明，需与 Main.cs 中的 Version 属性保持一致。 -->
-    <Version>2.2.0</Version>
-    <AssemblyVersion>2.2.0.0</AssemblyVersion>
-    <FileVersion>2.2.0.0</FileVersion>
+    <Version>2.4.0</Version>
+    <AssemblyVersion>2.4.0.0</AssemblyVersion>
+    <FileVersion>2.4.0.0</FileVersion>
 
     <AssemblyName>Server_Qcha</AssemblyName>
     <RootNamespace>SocketServer</RootNamespace>
@@ -78,12 +78,22 @@
   <PropertyGroup><DefineConstants>$(DefineConstants);LABAPI</DefineConstants></PropertyGroup>
   <ItemGroup>
     <Compile Include="../shared/*.cs" Link="GameAdmin/%(Filename)%(Extension)" />
+    <Compile Include="../shared/GameDatabase/*.cs" Link="GameDatabase/%(Filename)%(Extension)" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="YamlDotNet"><HintPath>$(ScpslReferences)/YamlDotNet.dll</HintPath><Private>false</Private></Reference>
     <PackageReference Include="Lib.Harmony" Version="2.4.3" GeneratePathProperty="true" />
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
   </ItemGroup>
   <Target Name="CopyGameAdminDependency" AfterTargets="Build">
-    <MakeDir Directories="$(OutputPath)dependencies" />
-    <Copy SourceFiles="$(PkgLib_Harmony)/lib/net48/0Harmony.dll" DestinationFolder="$(OutputPath)dependencies" />
+    <ItemGroup>
+      <DatabaseDependency Include="@(RuntimeCopyLocalItems)"
+                          Condition="'%(RuntimeCopyLocalItems.CopyLocal)' == 'true' and
+                                     '%(RuntimeCopyLocalItems.NuGetPackageId)' != 'Northwood.LabAPI' and
+                                     '%(RuntimeCopyLocalItems.NuGetPackageId)' != 'Lib.Harmony' and
+                                     '%(RuntimeCopyLocalItems.NuGetPackageId)' != 'YamlDotNet'" />
+    </ItemGroup>
+    <MakeDir Directories="$(TargetDir)dependencies" />
+    <Copy SourceFiles="$(PkgLib_Harmony)/lib/net48/0Harmony.dll" DestinationFolder="$(TargetDir)dependencies" />
+    <Copy SourceFiles="@(DatabaseDependency)" DestinationFolder="$(TargetDir)dependencies" SkipUnchangedFiles="true" />
   </Target>
 </Project>

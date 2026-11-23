@@ -31,7 +31,7 @@ namespace Server.Qcat.LocalAdmin;
 /// 运行在真正托管游戏进程的那一侧（Daemon 守护进程或 Embedded 内嵌模式的 Bot 进程）。
 /// 同一台服务器同时只允许一个更新任务；SteamCMD 自身不支持并发，多台服务器的下载阶段会排队串行执行。
 /// </summary>
-public sealed class ServerUpdateService : IHostedService, IDisposable
+public sealed partial class ServerUpdateService : IHostedService, IDisposable
 {
     public const string StagingSuffix = ".qcha-staging";
     public const string RollbackSuffix = ".qcha-rollback";
@@ -57,6 +57,8 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
     private readonly Dictionary<string, LocalUpdateVersion> _versions = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _versionGate = new();
     private readonly object _installGate = new();
+    private readonly object _batchGate = new();
+    private UpdateBatch? _batch;
 
     private string ManagedSteamCmdDirectory
     {
@@ -103,7 +105,11 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
 
     /// <summary>发起更新；校验通过后立即返回，更新在后台执行，进度通过 <see cref="GetStatus"/> 轮询。</summary>
     public LocalUpdateStartResult StartUpdate(string id, LocalUpdateRequest? request, string? requestedBy)
+        => StartUpdateCore(id, request, requestedBy, out _);
+
+    private LocalUpdateStartResult StartUpdateCore(string id, LocalUpdateRequest? request, string? requestedBy, out UpdateJob? accepted)
     {
+        accepted = null;
         request ??= new LocalUpdateRequest();
 
         if (!_manager.Enabled)
@@ -132,7 +138,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         if (_options.SteamAppId <= 0)
             return Fail($"SteamAppId 配置不合法：{_options.SteamAppId}", instance);
 
-        if (!TryReserveInstall(instance, installDir, out var siblings, out var reserveError))
+        if (!TryReserveInstall(instance, installDir, requireStoppedSiblings: false, out var siblings, out var reserveError))
             return Fail(reserveError!, instance);
 
         bool wasRunning = instance.Running;
@@ -157,14 +163,136 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         Log(instance, job, "info", $"更新任务已创建：App {_options.SteamAppId}，分支 {(branch ?? "public（正式版）")}，" +
                                    $"方式 {DescribeMode(mode)}，安装目录 {installDir}{(requestedBy is null ? "" : "，发起人 " + requestedBy)}");
 
-        _ = Task.Run(() => RunJobAsync(instance, job));
+        job.Completion = Task.Run(() => RunJobAsync(instance, job));
+        accepted = job;
 
         string msg = !wasRunning
             ? $"已开始更新 [{instance.Name}]"
             : mode == "now"
                 ? $"已开始更新 [{instance.Name}]：下载完成后立即重启到新版本"
-                : $"已开始更新 [{instance.Name}]：先在后台下载，下载完成后将在当前回合结束时切换到新版本，玩家不受额外影响";
+                : $"已开始更新 [{instance.Name}]：后台下载完成后，在回合结束或空服时重启到新版本";
         return new LocalUpdateStartResult(true, msg, null, BuildStatus(instance, job));
+    }
+
+    public LocalUpdateBatchStatus GetBatchStatus()
+    {
+        lock (_batchGate) return GetBatchStatusLocked();
+    }
+
+    public LocalUpdateBatchResult StartBatch(LocalUpdateBatchRequest request, string? requestedBy)
+        => StartBatchCore(request, requestedBy, out _);
+
+    private LocalUpdateBatchResult StartBatchCore(LocalUpdateBatchRequest request, string? requestedBy, out UpdateBatch? accepted)
+    {
+        accepted = null;
+        if (!_manager.Enabled)
+            return new(false, "LocalAdmin 能力未启用", null);
+
+        var ids = (request.ServerIds ?? []).Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (ids.Length == 0)
+            return new(false, "请至少选择一台服务器", null);
+
+        var items = new List<LocalUpdateBatchItem>(ids.Length);
+        foreach (string id in ids)
+        {
+            var instance = _manager.Find(id);
+            if (instance is null) return new(false, $"服务器不存在：{id}", null);
+            items.Add(new(instance.Id, instance.Name, "batchQueued"));
+        }
+
+        lock (_batchGate)
+        {
+            if (_batch is { Active: true })
+                return new(false, "已有批量更新正在执行", GetBatchStatusLocked());
+
+            var batch = new UpdateBatch(items.ToArray());
+            _batch = batch;
+            batch.Completion = Task.Run(() => RunBatchAsync(batch, request.Update ?? new LocalUpdateRequest(), requestedBy));
+            accepted = batch;
+            return new(true, null, GetBatchStatusLocked());
+        }
+    }
+
+    public LocalUpdateBatchResult CancelBatch(Guid id)
+    {
+        lock (_batchGate)
+        {
+            if (_batch is not { Active: true } batch || batch.Id != id)
+                return new(false, "当前没有对应的批量更新", GetBatchStatusLocked());
+            batch.CancelRequested = true;
+            CancelQueuedLocked(batch);
+            return new(true, null, GetBatchStatusLocked());
+        }
+    }
+
+    private async Task RunBatchAsync(UpdateBatch batch, LocalUpdateRequest request, string? requestedBy)
+    {
+        try
+        {
+            for (int index = 0; index < batch.Items.Length; index++)
+            {
+                UpdateJob? job;
+                lock (_batchGate)
+                {
+                    if (batch.CancelRequested || _shutdown.IsCancellationRequested) break;
+                    var item = batch.Items[index];
+                    var result = StartUpdateCore(item.ServerId, request, requestedBy, out job);
+                    if (job is null)
+                        batch.Items[index] = item with { State = "failed", Message = result.Error };
+                    else
+                    {
+                        batch.Items[index] = item with { State = "queued" };
+                        batch.CurrentIndex = index;
+                        batch.Current = job;
+                    }
+                }
+
+                if (job is null) continue;
+                await job.Completion;
+                lock (_batchGate)
+                {
+                    batch.Items[index] = batch.Items[index] with { State = job.State, Message = job.Error ?? job.Message };
+                    batch.Current = null;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "批量更新队列异常");
+            lock (_batchGate)
+            {
+                if (batch.Current is not null)
+                    batch.Items[batch.CurrentIndex] = batch.Items[batch.CurrentIndex] with { State = "failed", Message = ex.Message };
+            }
+        }
+        finally
+        {
+            lock (_batchGate)
+            {
+                CancelQueuedLocked(batch);
+                batch.Current = null;
+                batch.Active = false;
+            }
+        }
+    }
+
+    private LocalUpdateBatchStatus GetBatchStatusLocked()
+    {
+        if (_batch is not { } batch) return new(null, false, false, []);
+        var items = batch.Items.ToArray();
+        if (batch.Current is { } job)
+            items[batch.CurrentIndex] = items[batch.CurrentIndex] with { State = job.State, Message = job.Error ?? job.Message };
+        return new(batch.Id, batch.Active, batch.CancelRequested, items);
+    }
+
+    private static void CancelQueuedLocked(UpdateBatch batch)
+    {
+        for (int index = 0; index < batch.Items.Length; index++)
+        {
+            if (batch.Items[index].State == "batchQueued")
+                batch.Items[index] = batch.Items[index] with { State = "canceled" };
+        }
     }
 
     /// <summary>取消更新：下载阶段直接中止；等待回合结束阶段撤销 restartnextround。切换文件期间不可取消。</summary>
@@ -237,7 +365,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         if (!Directory.Exists(rollback))
             return Fail($"没有可回滚的旧版本（{rollback} 不存在）", instance);
 
-        if (!TryReserveInstall(instance, installDir, out var siblings, out var reserveError))
+        if (!TryReserveInstall(instance, installDir, requireStoppedSiblings: true, out var siblings, out var reserveError))
             return Fail(reserveError!, instance);
 
         var job = new UpdateJob
@@ -288,7 +416,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         }).ToArray();
     }
 
-    private bool TryReserveInstall(LocalServerInstance instance, string directory,
+    private bool TryReserveInstall(LocalServerInstance instance, string directory, bool requireStoppedSiblings,
         out IReadOnlyList<LocalServerInstance> siblings, out string? error)
     {
         lock (_installGate)
@@ -312,10 +440,13 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
                 }
 
                 reserved.Add(other);
+                if (!requireStoppedSiblings)
+                    continue;
+
                 other.SetStartBlocked(true);
                 if (other.Running)
                 {
-                    error = $"请先停止共用此服务端目录的实例「{other.Name}」，再更新或回滚";
+                    error = $"请先停止共用此服务端目录的实例「{other.Name}」，再回滚";
                     break;
                 }
             }
@@ -381,7 +512,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
                 {
                     StartInfo = CreateSteamCmdStartInfo(steamCmd, new[]
                     {
-                        "+login", "anonymous", "+app_info_update", "0", "+app_info_print",
+                        "+login", "anonymous", "+app_info_update", "1", "+app_info_print",
                         _options.SteamAppId.ToString(), "+quit",
                     }),
                 };
@@ -584,6 +715,12 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
                 return;
             }
 
+            if (job.SharedInstances.Count > 0)
+            {
+                Finish(instance, job, false, null, $"无法为共享目录中的实例暂存更新：{swapProblem}");
+                return;
+            }
+
             if (instance.Running && job.RequestedMode != "now")
             {
                 Finish(instance, job, false, null,
@@ -609,6 +746,13 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         {
             instance.ExitInterceptor = null;
             job.Unsubscribe?.Invoke();
+            if (job.UncommittedInstall is { } uncommitted)
+            {
+                TryDeleteDirectory(instance, job, uncommitted);
+                TryDeleteDirectory(instance, job, RollbackPathFor(uncommitted));
+            }
+            if (job.SharedInstances.Count > 0 && job.Kind == JobKind.Update && job.StagingDirectory is { } staging)
+                TryDeleteDirectory(instance, job, staging);
             instance.SetStartBlocked(false);
 
             // 更新期间被推迟的自动拉起：更新流程自己没把服务器拉起来时，在这里补上
@@ -634,6 +778,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         string live = job.InstallDirectory;
         string staging = StagingPathFor(live);
         string rollback = RollbackPathFor(live);
+        bool isolate = job.SharedInstances.Count > 0;
         job.Mode = "staged";
         job.StagingDirectory = staging;
         job.LiveBuildId = ReadBuildId(live, _options.SteamAppId);
@@ -647,9 +792,15 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         }
 
         long size = await Task.Run(() => DirectorySize(live), ct);
-        string? spaceError = CheckFreeSpace(live, size);
+        string? spaceError = CheckFreeSpace(live, isolate ? checked(size * 2) : size);
         if (spaceError is not null)
         {
+            if (isolate)
+            {
+                Finish(instance, job, false, null, spaceError + "。共享安装需要为选中的实例预留新版本和回滚副本的空间。");
+                return;
+            }
+
             if (instance.Running && job.RequestedMode != "now")
             {
                 Finish(instance, job, false, null, spaceError + "。如可接受立即停服，请选择「立即更新」（原地更新不需要额外空间）");
@@ -682,9 +833,29 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
 
         if (instance.Running && job.StagedBuildId is not null && job.StagedBuildId == job.LiveBuildId)
         {
-            TryDeleteDirectory(instance, job, staging);
-            Finish(instance, job, true, $"已是最新版本（build {job.LiveBuildId}），无需重启服务器", null);
-            return;
+            if (!job.Validate || (skipped == 0 && await Task.Run(() => InstallFilesMatch(live, staging, ct), ct)))
+            {
+                TryDeleteDirectory(instance, job, staging);
+                Finish(instance, job, true, $"已是最新版本（build {job.LiveBuildId}），无需重启服务器", null);
+                return;
+            }
+
+            Log(instance, job, "info", "构建号未变，但无法确认校验后的暂存文件与线上一致，将按所选方式切换");
+        }
+
+        if (isolate)
+        {
+            string separate = $"{live}.qcha-instance-{instance.Id}-{Guid.NewGuid():N}";
+            job.UncommittedInstall = separate;
+            rollback = RollbackPathFor(separate);
+            job.State = "staging";
+            Log(instance, job, "info", "正在为选中的实例保存旧版本，其他实例继续使用共享安装目录");
+            int rollbackSkipped = await Task.Run(() => CopyDirectory(live, rollback, ct), ct);
+            if (rollbackSkipped > 0)
+            {
+                Finish(instance, job, false, null, $"有 {rollbackSkipped} 个文件无法复制到回滚目录，原服务端文件已保留");
+                return;
+            }
         }
 
         // ---- 3. 决定何时切换 ----
@@ -725,7 +896,24 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
 
         try
         {
-            SwapIn(live, staging, rollback);
+            if (job.UncommittedInstall is { } separate)
+            {
+                string configuredExecutable = Path.GetFullPath(instance.Definition.ExecutablePath);
+                string executable = Path.Combine(
+                    MapInstallPath(Path.GetDirectoryName(configuredExecutable)!, live, separate),
+                    Path.GetFileName(configuredExecutable));
+                string workingDirectory = MapInstallPath(instance.Definition.WorkingDirectory, live, separate);
+                Directory.Move(staging, separate);
+                if (!File.Exists(executable))
+                    throw new FileNotFoundException("新版本缺少游戏服务端可执行文件", executable);
+                _manager.PersistUpdatedInstall(instance, separate, executable, workingDirectory);
+                live = separate;
+                job.UncommittedInstall = null;
+            }
+            else
+            {
+                SwapIn(live, staging, rollback);
+            }
         }
         catch (Exception ex)
         {
@@ -750,6 +938,15 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
 
         // ---- 5. 启动并检查，失败自动回滚 ----
         await StartAndVerifyAsync(instance, job, live, rollback, ct);
+    }
+
+    private static string MapInstallPath(string path, string source, string destination)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return path;
+        string resolved = InstallKey(path);
+        string relative = Path.GetRelativePath(source, resolved);
+        return relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            Path.IsPathRooted(relative) ? path : Path.GetFullPath(relative, destination);
     }
 
     /// <summary>等待切换时机，返回原因：roundRestart / exit / userStopped / idle / timeout / forceNow / cancel。</summary>
@@ -832,48 +1029,12 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
     /// </summary>
     private async Task<bool> SetRestartNextRoundAsync(LocalServerInstance instance, UpdateJob job, bool enable, CancellationToken ct)
     {
-        if (!instance.Running)
-            return false;
-
-        for (int attempt = 0; attempt < 2; attempt++)
-        {
-            long after = instance.LastSeq;
-            var send = await instance.SendConsoleAsync("restartnextround", ct);
-            if (!send.Success)
-            {
-                Log(instance, job, "warn", $"下发 restartnextround 失败：{send.Error ?? send.Message}");
-                return false;
-            }
-
-            bool? state = null;
-            for (int i = 0; i < 50 && state is null; i++)
-            {
-                await Task.Delay(100, ct);
-                foreach (var line in instance.ReadLines(after, 500, out _, out _, out _))
-                {
-                    if (line.Text.Contains("WILL restart after next round", StringComparison.OrdinalIgnoreCase))
-                        state = true;
-                    else if (line.Text.Contains("WON'T restart after next round", StringComparison.OrdinalIgnoreCase))
-                        state = false;
-                }
-            }
-
-            if (state is null)
-            {
-                Log(instance, job, "warn", "未收到游戏对 restartnextround 的确认（控制台未连接或版本不支持）" +
-                    (enable ? "，将依赖超时 / 空闲 / 手动「立即更新」兜底" : ""));
-                return false;
-            }
-
-            if (state == enable)
-            {
-                Log(instance, job, "info", enable ? "已设置：本回合结束后重启服务器（restartnextround）" : "已撤销本回合结束后重启");
-                return enable;
-            }
-            // 开关方向不对（例如管理员之前已手动设置过），再切换一次
-        }
-
-        return !enable;
+        var result = await instance.SetRestartNextRoundAsync(enable, ct);
+        if (result.Success)
+            Log(instance, job, "info", enable ? "已设置：本回合结束后重启服务器（restartnextround）" : "已撤销本回合结束后重启");
+        else
+            Log(instance, job, "warn", result.Error + (enable ? "，将依赖超时 / 空闲 / 手动「立即更新」兜底" : ""));
+        return result.Success && enable;
     }
 
     private async Task StartAndVerifyAsync(LocalServerInstance instance, UpdateJob job, string live, string rollback, CancellationToken ct)
@@ -1392,8 +1553,9 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
             dirs.Add("/home/steam/steamcmd");
         }
 
-        dirs.Add(AppContext.BaseDirectory);
-        dirs.Add(Path.Combine(AppContext.BaseDirectory, "steamcmd"));
+        string appDirectory = LocalAdminPaths.ApplicationDirectory;
+        dirs.Add(appDirectory);
+        dirs.Add(Path.Combine(appDirectory, "steamcmd"));
 
         foreach (string dir in dirs)
         {
@@ -1595,6 +1757,67 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         return skipped;
     }
 
+    private static bool InstallFilesMatch(string live, string staging, CancellationToken ct)
+    {
+        var liveBuffer = new byte[64 * 1024];
+        var stagedBuffer = new byte[liveBuffer.Length];
+        var nameComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        try
+        {
+            return DirectoriesMatch(new DirectoryInfo(live), new DirectoryInfo(staging), root: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        bool DirectoriesMatch(DirectoryInfo left, DirectoryInfo right, bool root = false)
+        {
+            // SteamCMD rewrites installation metadata even if the game files are unchanged.
+            var stagedEntries = right.EnumerateFileSystemInfos()
+                .Where(entry => !root || !nameComparer.Equals(entry.Name, "steamapps"))
+                .ToDictionary(entry => entry.Name, nameComparer);
+            foreach (var entry in left.EnumerateFileSystemInfos())
+            {
+                ct.ThrowIfCancellationRequested();
+                if (root && nameComparer.Equals(entry.Name, "steamapps")) continue;
+                if (!stagedEntries.Remove(entry.Name, out var staged) ||
+                    (entry is DirectoryInfo) != (staged is DirectoryInfo) ||
+                    !string.Equals(entry.LinkTarget, staged.LinkTarget, StringComparison.Ordinal))
+                    return false;
+                if (entry.LinkTarget is not null) continue;
+                if (entry is DirectoryInfo directory)
+                {
+                    if (!DirectoriesMatch(directory, (DirectoryInfo)staged)) return false;
+                }
+                else if (!FilesMatch((FileInfo)entry, (FileInfo)staged))
+                {
+                    return false;
+                }
+            }
+            return stagedEntries.Count == 0;
+        }
+
+        bool FilesMatch(FileInfo left, FileInfo right)
+        {
+            if (left.Length != right.Length) return false;
+            if (!OperatingSystem.IsWindows() && File.GetUnixFileMode(left.FullName) != File.GetUnixFileMode(right.FullName))
+                return false;
+            using var original = left.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var updated = right.OpenRead();
+            int read;
+            do
+            {
+                ct.ThrowIfCancellationRequested();
+                read = original.ReadAtLeast(liveBuffer, liveBuffer.Length, false);
+                int updatedRead = updated.ReadAtLeast(stagedBuffer, stagedBuffer.Length, false);
+                if (read != updatedRead || !liveBuffer.AsSpan(0, read).SequenceEqual(stagedBuffer.AsSpan(0, read)))
+                    return false;
+            } while (read != 0);
+            return true;
+        }
+    }
+
     private static long DirectorySize(string dir)
     {
         long total = 0;
@@ -1728,12 +1951,18 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
     //  生命周期
     // ==================================================================
 
-    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        if (_manager.Enabled)
+            _scheduleLoop = Task.Run(() => RunScheduleLoopAsync(_shutdown.Token));
+        return Task.CompletedTask;
+    }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         try { _shutdown.Cancel(); } catch (ObjectDisposedException) { }
-        return Task.CompletedTask;
+        if (_scheduleLoop is { } loop)
+            await loop.WaitAsync(cancellationToken);
     }
 
     public void Dispose()
@@ -1747,6 +1976,17 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
     {
         Update,
         Rollback,
+    }
+
+    private sealed class UpdateBatch(LocalUpdateBatchItem[] items)
+    {
+        public Guid Id { get; } = Guid.NewGuid();
+        public LocalUpdateBatchItem[] Items { get; } = items;
+        public bool Active { get; set; } = true;
+        public bool CancelRequested { get; set; }
+        public int CurrentIndex { get; set; }
+        public UpdateJob? Current { get; set; }
+        public Task Completion { get; set; } = Task.CompletedTask;
     }
 
     private sealed class UpdateJob
@@ -1780,6 +2020,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
 
         public string? Mode { get; set; }
         public string? StagingDirectory { get; set; }
+        public string? UncommittedInstall { get; set; }
         public string? LiveBuildId { get; set; }
         public string? StagedBuildId { get; set; }
         public DateTime? PendingSince { get; set; }
@@ -1790,6 +2031,7 @@ public sealed class ServerUpdateService : IHostedService, IDisposable
         public bool RestartScheduled { get; set; }
         public LocalExitInfo? LastExit { get; set; }
         public Action? Unsubscribe { get; set; }
+        public Task Completion { get; set; } = Task.CompletedTask;
 
         public Task<string> TriggerTask => _trigger.Task;
 

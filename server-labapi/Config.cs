@@ -53,6 +53,12 @@ namespace SocketServer
         [Description("机器人回连本服务器使用的IP地址（跨机部署须手动配置，同机留空即可）")]
         public string ConnectHost { get; set; } = "";
 
+        [Description("与运维面板使用同一 MySQL 数据库；留空关闭玩家统计和数据库封禁")]
+        public string DatabaseConnectionString { get; set; } = "";
+
+        [Description("记录玩家统计；同台服已由其他插件写入同一张表时关闭")]
+        public bool DatabasePlayerStatsEnabled { get; set; } = true;
+
         [Description("输出调试日志（命令收发、心跳明细等）")]
         public bool Debug { get; set; } = false;
     }

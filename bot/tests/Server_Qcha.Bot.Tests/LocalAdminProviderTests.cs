@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Server.Qcat.Configuration;
@@ -82,6 +83,69 @@ public class LocalAdminProviderTests
         Assert.True(def.DisableAnsiColors);
         Assert.True(def.RedirectStandardStreams);
         Assert.Equal("warn", def.ConsoleLevel);
+        Assert.Equal(2048, def.MemoryRestartLimitMb);
+        Assert.Equal(0, (req with { MemoryRestartLimitMb = 0 }).ToDefinition().MemoryRestartLimitMb);
+    }
+
+    [Fact]
+    public async Task EmbeddedLocalAdminProvider_LivePollWakesForNewConsoleLines()
+    {
+        var root = Directory.CreateTempSubdirectory("qcha-console-");
+        var options = Options.Create(new LocalAdminOptions
+        {
+            Enabled = true,
+            WriteLogFiles = false,
+            Servers = [new LocalServerDefinition { Id = "srv1", Name = "主服" }],
+        });
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { ContentRootPath = root.FullName });
+        var manager = new LocalAdminManager(options, NullLoggerFactory.Instance,
+            NullLogger<LocalAdminManager>.Instance, builder.Environment);
+        using var updater = new ServerUpdateService(manager, options, NullLogger<ServerUpdateService>.Instance);
+        try
+        {
+            await manager.StartAsync(CancellationToken.None);
+            var instance = Assert.IsType<LocalServerInstance>(manager.Find("srv1"));
+            var provider = new EmbeddedLocalAdminProvider(manager, options, updater);
+            long after = instance.LastSeq;
+            var pending = provider.PollAsync("srv1", after, limit: 10, waitForLines: true);
+            using var cts = new CancellationTokenSource();
+            var canceled = provider.PollAsync("srv1", after, limit: 10, ct: cts.Token, waitForLines: true);
+            Assert.False(pending.IsCompleted);
+
+            cts.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => canceled);
+            Assert.False(pending.IsCompleted);
+
+            instance.AppendUpdateLine("new console line");
+            var result = Assert.IsType<LocalPollResult>(await pending.WaitAsync(TimeSpan.FromMilliseconds(750)));
+            var line = Assert.Single(result.Lines);
+            Assert.Equal(after + 1, line.Seq);
+            Assert.Contains("new console line", line.Text);
+            Assert.Equal(2048, result.Status.MemoryRestartLimitMb);
+
+            var backlog = provider.PollAsync("srv1", after, limit: 10, waitForLines: true);
+            Assert.True(backlog.IsCompletedSuccessfully);
+            Assert.Equal(line.Seq, Assert.Single((await backlog)!.Lines).Seq);
+        }
+        finally
+        {
+            await manager.StopAsync(CancellationToken.None);
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DaemonLocalAdminProvider_ForwardsLivePollOption()
+    {
+        using var client = new HttpClient(new MockHttpMessageHandler(request =>
+        {
+            Assert.Equal("?after=12&limit=500&waitForLines=true", request.RequestUri!.Query);
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+        var options = Options.Create(new LocalAdminOptions { AutoStartDaemon = false });
+        var provider = new DaemonLocalAdminProvider(client, options, NullLogger<DaemonLocalAdminProvider>.Instance);
+
+        Assert.Null(await provider.PollAsync("srv1", 12, 500, waitForLines: true));
     }
 
     [Fact]

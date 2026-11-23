@@ -35,6 +35,9 @@ catch
 }
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+builder.Configuration.AddEnvironmentVariables();
+builder.Configuration.AddCommandLine(args);
 
 // 确保 data/ 目录存在并完成迁移
 string contentRoot = builder.Environment.ContentRootPath;
@@ -109,7 +112,7 @@ var api = app.MapGroup("/api/daemon");
 api.MapGet("/ping", (LocalAdminManager manager) =>
 {
     int running = manager.Instances.Count(i => i.Running);
-    return Results.Json(new DaemonPingResult("ok", "2.2.0", Environment.ProcessId, manager.Instances.Count, running));
+    return Results.Json(new DaemonPingResult("ok", "2.4.4-beta.1", Environment.ProcessId, manager.Instances.Count, running));
 });
 
 api.MapGet("/status", (LocalAdminManager manager, IOptions<LocalAdminOptions> options) =>
@@ -124,7 +127,7 @@ api.MapGet("/status", (LocalAdminManager manager, IOptions<LocalAdminOptions> op
     return Results.Json(new DaemonStatusResult(
         Online: true,
         Status: "running",
-        Version: "2.2.0",
+        Version: "2.4.4-beta.1",
         Pid: Environment.ProcessId,
         StartTime: proc.StartTime,
         UptimeSeconds: uptime,
@@ -154,9 +157,9 @@ api.MapGet("/servers/{id}/archive", async (string id, string? file, long? offset
     try { var archive = await provider.ReadArchiveAsync(id, file, offset ?? 0, ct); return archive is null ? Results.NotFound() : Results.Json(archive); }
     catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
 });
-api.MapGet("/servers/{id}/poll", async (string id, long? after, int? limit, ILocalAdminProvider provider, CancellationToken ct) =>
+api.MapGet("/servers/{id}/poll", async (string id, long? after, int? limit, bool? waitForLines, ILocalAdminProvider provider, CancellationToken ct) =>
 {
-    var poll = await provider.PollAsync(id, after, limit, ct);
+    var poll = await provider.PollAsync(id, after, limit, ct, waitForLines == true);
     return poll is not null ? Results.Json(poll) : Results.NotFound(new { error = $"服务器不存在：{id}" });
 });
 
@@ -248,6 +251,20 @@ api.MapGet("/servers/{id}/update", async (string id, string? checkBranch, ILocal
     var status = await provider.GetUpdateStatusAsync(id, ct, checkBranch);
     return status is not null ? Results.Json(status) : Results.NotFound(new { error = $"服务器不存在：{id}" });
 });
+
+api.MapGet("/update-batch", async (ILocalAdminProvider provider, CancellationToken ct) =>
+    Results.Json(await provider.GetUpdateBatchAsync(ct)));
+api.MapPost("/update-batch", async (LocalUpdateBatchRequest request, string? by, ILocalAdminProvider provider, CancellationToken ct) =>
+    Results.Json(await provider.StartUpdateBatchAsync(request, by, ct)));
+api.MapPost("/update-batch/{id:guid}/cancel", async (Guid id, ILocalAdminProvider provider, CancellationToken ct) =>
+    Results.Json(await provider.CancelUpdateBatchAsync(id, ct)));
+
+api.MapGet("/update-schedules", async (ILocalAdminProvider provider, CancellationToken ct) =>
+    Results.Json(await provider.GetUpdateSchedulesAsync(ct)));
+api.MapPost("/update-schedules", async (LocalUpdateScheduleRequest request, string? by, ILocalAdminProvider provider, CancellationToken ct) =>
+    Results.Json(await provider.AddUpdateScheduleAsync(request, by, ct)));
+api.MapDelete("/update-schedules/{id:guid}", async (Guid id, ILocalAdminProvider provider, CancellationToken ct) =>
+    Results.Json(await provider.RemoveUpdateScheduleAsync(id, ct)));
 
 api.MapGet("/config", async (ILocalAdminProvider provider, CancellationToken ct) =>
 {

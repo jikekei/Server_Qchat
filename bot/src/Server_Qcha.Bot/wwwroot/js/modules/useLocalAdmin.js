@@ -1,6 +1,6 @@
-import { ref, reactive, computed, nextTick } from '../deps.js';
-import { api, page } from '../api.js';
-import { ElMessage, ElMessageBox } from '../deps.js';
+import { ref, reactive, computed, nextTick, watch } from '../deps.js';
+import { api, page, can, capabilities } from '../api.js';
+import { ElMessage, ElMessageBox, ElNotification } from '../deps.js';
 
 // ---- LocalAdmin：本地服务器进程 ----
 const local = reactive({
@@ -11,9 +11,17 @@ const local = reactive({
 });
 const termRef = ref(null);
 let localTimer = null;
+let consolePoll = null;
 const MAX_LOCAL_LINES = 1500;
+const consoleTimeFormat = new Intl.DateTimeFormat('zh-CN', {
+  hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false,
+});
 
 const localRunning = computed(() => !!(local.status && local.status.running));
+
+watch([termRef, () => local.autoScroll], ([el, autoScroll]) => {
+  if (el && autoScroll) el.scrollTop = el.scrollHeight;
+}, { flush: 'post' });
 
 function localBase() {
   return '/local/servers/' + encodeURIComponent(local.selectedId);
@@ -187,6 +195,7 @@ function defaultServerForm() {
     extraArguments: '', autoStart: false,
     enableHeartbeat: true, heartbeatSpanMaxThreshold: 30, heartbeatRestartInSeconds: 11,
     restartOnCrash: true, restartLimit: 4, restartTimeWindowSeconds: 480,
+    memoryRestartLimitMb: 2048,
     gracefulStopTimeoutSeconds: 30,
     laToSlBufferSize: 25000, slToLaBufferSize: 200000,
     disableAnsiColors: true, redirectStandardStreams: true,
@@ -440,12 +449,10 @@ async function loadLocalServers() {
 
     if (!local.servers.some(s => s.id === local.selectedId)) {
       local.selectedId = local.servers.length ? local.servers[0].id : '';
-      local.lines = [];
-      local.nextSeq = 0;
+      resetLocalConsole();
       local.status = null;
     }
 
-    if (data.nextSeq != null) local.nextSeq = data.nextSeq;
     const match = local.servers.find(s => s.id === local.selectedId);
     if (match) {
       local.status = match;
@@ -460,55 +467,95 @@ async function loadLocalServers() {
   }
 }
 
-async function pollLocal() {
-  if (page.value !== 'local' || !local.selectedId) return;
+async function pollLocal(waitForLines = false) {
+  const id = local.selectedId;
+  if (page.value !== 'local' || !id || consolePoll) return;
+
+  const request = new AbortController();
+  const after = local.nextSeq;
+  consolePoll = request;
   try {
-    const data = await api(localBase() + '/poll?after=' + local.nextSeq + '&limit=500');
+    const wait = waitForLines ? '&waitForLines=true' : '';
+    const data = await api(localBase() + '/poll?after=' + after + '&limit=500' + wait, {
+      cache: 'no-store',
+      signal: request.signal,
+    });
+    if (request.signal.aborted || page.value !== 'local' || id !== local.selectedId) return true;
+
     local.status = data.status;
     local.truncated = !!data.truncated;
     syncHeartbeatSwitch();
 
+    const match = local.servers.find(s => s.id === id);
+    if (match) Object.assign(match, data.status);
+
+    // 守护进程或实例重建后，序号会从头开始。
+    if (data.lastSeq < after) {
+      resetLocalConsole();
+      return true;
+    }
+
+    // 接口返回的是过滤前的位置。整批日志被过滤时也要继续读取。
+    local.nextSeq = data.nextSeq;
     const list = data.lines || [];
     if (list.length) {
-      for (let i = 0; i < list.length; i++) local.lines.push(list[i]);
-      local.nextSeq = list[list.length - 1].seq;
+      const el = termRef.value;
+      const follow = local.autoScroll && el && el.scrollHeight - el.clientHeight - el.scrollTop <= 2;
+      local.lines.push(...list.map(line => ({ ...line, timeText: timeOnly(line.time) })));
       if (local.lines.length > MAX_LOCAL_LINES) {
         local.lines.splice(0, local.lines.length - MAX_LOCAL_LINES);
       }
-      if (local.autoScroll) await scrollTerminal();
+      if (follow) {
+        await nextTick();
+        if (termRef.value === el) el.scrollTop = el.scrollHeight;
+      }
     }
-
-    const match = local.servers.find(s => s.id === local.selectedId);
-    if (match) Object.assign(match, data.status);
+    return data.nextSeq !== after;
   } catch (e) {
-    // 轮询失败静默处理
+    return request.signal.aborted;
+  } finally {
+    if (consolePoll === request) consolePoll = null;
   }
 }
 
-async function scrollTerminal() {
-  await nextTick();
+function cancelConsolePoll() {
+  consolePoll?.abort();
+  consolePoll = null;
+}
+
+function localFollowLatest() {
+  local.autoScroll = true;
   const el = termRef.value;
   if (el) el.scrollTop = el.scrollHeight;
 }
 
-function stopLocalPolling() {
-  if (localTimer) { clearInterval(localTimer); localTimer = null; }
+function resetLocalConsole() {
+  cancelConsolePoll();
+  local.lines = [];
+  local.nextSeq = 0;
+  local.truncated = false;
 }
 
-let daemonPollCount = 0;
+function stopLocalPolling() {
+  if (localTimer) { clearInterval(localTimer); localTimer = null; }
+  cancelConsolePoll();
+}
+
 function startLocalPolling() {
   stopLocalPolling();
-  loadLocalServers().then(() => {
-    fetchDaemonStatus();
-    pollLocal();
-    localTimer = setInterval(async () => {
-      await pollLocal();
-      daemonPollCount++;
-      if (daemonPollCount % 2 === 0) {
-        await fetchDaemonStatus();
-      }
-    }, 1000);
-  });
+  const timer = setInterval(fetchDaemonStatus, 2000);
+  localTimer = timer;
+  loadLocalServers().then(() => followLocalConsole(timer));
+}
+
+async function followLocalConsole(timer) {
+  while (localTimer === timer && page.value === 'local') {
+    const started = performance.now();
+    const advanced = await pollLocal(true);
+    const delay = (advanced ? 50 : 1000) - (performance.now() - started);
+    if (delay > 0)
+      await new Promise(resolve => setTimeout(resolve, delay));
+  }
 }
 
 async function refreshLocal() {
@@ -519,12 +566,10 @@ async function refreshLocal() {
 }
 
 async function onLocalServerChange() {
-  local.lines = [];
-  local.nextSeq = 0;
+  resetLocalConsole();
   local.status = null;
   await pollLocal();
   syncConsoleLevel();
-  await scrollTerminal();
 }
 
 async function localPost(path, body) {
@@ -636,28 +681,34 @@ async function localToggleHeartbeat(value) {
 }
 
 async function localClearConsole() {
+  const id = local.selectedId;
   try {
     await api(localBase() + '/console/clear', { method: 'POST', body: JSON.stringify({}) });
-    local.lines = [];
-    local.nextSeq = 0;
+    if (id === local.selectedId) resetLocalConsole();
     ElMessage.success('控制台已清空');
   } catch (e) {
     ElMessage.error(e.message);
   }
 }
 
-async function localSendCommand() {
-  const cmd = local.command.trim();
+async function localSendCommand(command = local.command) {
+  if (local.sending || !local.selectedId) return;
+
+  const cmd = command.trim();
   if (!cmd) return;
 
+  local.command = command;
   local.sending = true;
   try {
     const res = await api(localBase() + '/console', {
       method: 'POST',
       body: JSON.stringify({ command: cmd })
     });
-    if (res.success) local.command = '';
-    else ElMessage.error(res.error || res.response || '下发失败');
+    if (res.success) {
+      if (local.command === command) local.command = '';
+    } else {
+      ElMessage.error(res.error || res.response || '下发失败');
+    }
   } catch (e) {
     ElMessage.error(e.message);
   } finally {
@@ -668,7 +719,7 @@ async function localSendCommand() {
 
 // ---- 更新服务器（SteamCMD app_update 996560） ----
 const updateDialog = reactive({
-  visible: false, loading: false, submitting: false,
+  loading: false, submitting: false,
   serverId: '', serverName: '',
   form: { betaBranch: '', restartAfter: true, validate: true, mode: 'auto' },
   status: null,
@@ -677,8 +728,31 @@ const updateDialog = reactive({
 });
 let updateTimer = null;
 const updateLogRef = ref(null);
+const updateManagement = reactive({ visible: false, tab: 'single' });
+const batchUpdate = reactive({
+  loading: false, acting: false, status: null, error: '',
+  serverIds: [], mode: 'auto', branch: '', validate: false,
+});
+let batchTimer = null;
+const updatePlans = reactive({
+  loading: false, saving: '', deleting: '', error: '', data: null,
+  forms: {
+    daily: { serverIds: [], dailyAt: '03:00', autoUpdate: false, mode: 'auto', error: '' },
+    appointment: { serverIds: [], updateAt: null, mode: 'auto', error: '' },
+  },
+});
+const UPDATE_PLAN_TABS = [
+  { value: 'daily', label: '自动检查', emptyText: '暂无自动检查计划' },
+  { value: 'appointment', label: '预约更新', emptyText: '暂无预约更新' },
+];
+const updateNoticeStorageKey = 'qcha-steam-update-notices';
+let noticeTimer = null;
+let seenUpdateNotices = {};
+try { seenUpdateNotices = JSON.parse(localStorage.getItem(updateNoticeStorageKey) || '{}') || {}; } catch {}
 
 const UPDATE_STATE_TEXT = {
+  batchQueued: '等待前序实例完成',
+  available: '发现新版本', current: '无需更新',
   idle: '尚未更新', queued: '排队中（等待 SteamCMD 空闲）',
   staging: '正在准备暂存目录（服务器照常运行）',
   updating: '正在通过 SteamCMD 下载 / 校验文件',
@@ -687,6 +761,201 @@ const UPDATE_STATE_TEXT = {
   verifying: '启动检查中', rollingback: '正在回滚',
   succeeded: '更新成功', failed: '更新失败', canceled: '已取消', rolledback: '新版本启动失败，已回滚',
 };
+
+function showUpdateNotices(schedules) {
+  const pending = [];
+  const seen = {};
+  for (const schedule of schedules) {
+    if (seenUpdateNotices[schedule.id]) seen[schedule.id] = seenUpdateNotices[schedule.id];
+    if (!schedule.dailyAt || schedule.autoUpdate || !schedule.lastRunAt || seen[schedule.id] === schedule.lastRunAt) continue;
+    const updates = schedule.results?.filter(item => item.state === 'available') || [];
+    if (!updates.length) continue;
+    pending.push(...updates.map(item => item.name + '：' + item.message));
+    seen[schedule.id] = schedule.lastRunAt;
+  }
+  seenUpdateNotices = seen;
+  if (!pending.length) return;
+  try { localStorage.setItem(updateNoticeStorageKey, JSON.stringify(seen)); } catch {}
+  ElNotification({ title: 'SteamCMD 发现服务器更新', message: pending.join('；'), type: 'warning', duration: 0 });
+}
+
+async function loadUpdatePlans(quiet = false) {
+  if (updatePlans.loading) return;
+  updatePlans.loading = true;
+  try {
+    const result = await api('/local/update-schedules');
+    if (!can('server.control')) return;
+    updatePlans.data = result;
+    updatePlans.error = '';
+    showUpdateNotices(result.schedules);
+  } catch (error) {
+    if (!quiet || (updateManagement.visible && UPDATE_PLAN_TABS.some(tab => tab.value === updateManagement.tab)))
+      updatePlans.error = error.message;
+  } finally {
+    updatePlans.loading = false;
+  }
+}
+
+watch(() => capabilities.localAdmin && can('server.control'), enabled => {
+  clearInterval(noticeTimer);
+  noticeTimer = null;
+  if (!enabled) {
+    updatePlans.data = null;
+    return;
+  }
+  loadUpdatePlans(true);
+  noticeTimer = setInterval(() => loadUpdatePlans(true), 15000);
+}, { immediate: true });
+
+async function onUpdateManagementTab(tab) {
+  if (tab === 'single') {
+    if (updateDialog.loading) return;
+    if (updateDialog.status) await fetchUpdateStatus();
+    else await loadSingleUpdate();
+  } else if (tab === 'batch') {
+    batchUpdate.loading = !batchUpdate.status;
+    try { await loadBatchStatus(); } finally { batchUpdate.loading = false; }
+  } else {
+    await loadUpdatePlans();
+  }
+}
+
+async function saveUpdatePlan(kind) {
+  const form = updatePlans.forms[kind];
+  if (!form || updatePlans.saving || !form.serverIds.length) return;
+  const daily = kind === 'daily';
+  const appointment = form.updateAt;
+  form.error = '';
+  if (daily && !form.dailyAt) {
+    form.error = '请选择每日检查时间';
+    return;
+  }
+  if (!daily && (!appointment || !(appointment.getTime() > Date.now()))) {
+    form.error = '请选择晚于当前时间的预约时间';
+    return;
+  }
+  const autoUpdate = !daily || form.autoUpdate;
+  updatePlans.saving = kind;
+  try {
+    if (autoUpdate && form.mode === 'now') {
+      try {
+        await ElMessageBox.confirm('发现新版时会在下载后逐台立即重启，在线玩家将断开。', '确认立即切换', { type: 'warning' });
+      } catch { return; }
+    }
+    await api('/local/update-schedules', {
+      method: 'POST',
+      body: JSON.stringify({
+        serverIds: form.serverIds,
+        dailyAt: daily ? form.dailyAt : null,
+        updateAt: daily ? null : appointment.toISOString(),
+        autoUpdate,
+        mode: form.mode,
+      }),
+    });
+    ElMessage.success('更新计划已保存');
+    await loadUpdatePlans();
+  } catch (error) {
+    form.error = error.message;
+  } finally {
+    updatePlans.saving = '';
+  }
+}
+
+async function removeUpdatePlan(id) {
+  if (updatePlans.deleting) return;
+  updatePlans.deleting = id;
+  try {
+    await api('/local/update-schedules/' + encodeURIComponent(id), { method: 'DELETE' });
+    await loadUpdatePlans();
+  } catch (error) {
+    updatePlans.error = error.message;
+  } finally {
+    updatePlans.deleting = '';
+  }
+}
+
+function stopBatchPolling() {
+  clearTimeout(batchTimer);
+  batchTimer = null;
+}
+
+function scheduleBatchPolling() {
+  stopBatchPolling();
+  if (updateManagement.visible && batchUpdate.status?.active)
+    batchTimer = setTimeout(loadBatchStatus, 1500);
+}
+
+async function loadBatchStatus() {
+  try {
+    const status = await api('/local/update-batch');
+    if (!batchUpdate.acting) batchUpdate.status = status;
+    batchUpdate.error = '';
+  } catch (error) {
+    batchUpdate.error = error.message;
+  } finally {
+    scheduleBatchPolling();
+  }
+}
+
+async function openUpdateManagement() {
+  stopBatchPolling();
+  updateManagement.tab = 'single';
+  updateManagement.visible = true;
+  batchUpdate.status = null;
+  batchUpdate.error = '';
+  batchUpdate.serverIds = local.selectedId ? [local.selectedId] : [];
+  for (const form of Object.values(updatePlans.forms)) {
+    form.serverIds = [...batchUpdate.serverIds];
+    form.error = '';
+  }
+  await loadSingleUpdate();
+}
+
+function closeUpdateManagement() {
+  stopBatchPolling();
+  if (!updateActive.value) stopUpdatePolling();
+}
+
+async function submitBatchUpdate() {
+  if (batchUpdate.acting || batchUpdate.loading || !batchUpdate.serverIds.length || batchUpdate.status?.active) return;
+  batchUpdate.acting = true;
+  try {
+    if (batchUpdate.mode === 'now') {
+      try {
+        await ElMessageBox.confirm('下载完成后会逐台立即重启，在线玩家将断开。', '确认立即更新', { type: 'warning' });
+      } catch { return; }
+    }
+    const result = await api('/local/update-batch', {
+      method: 'POST',
+      body: JSON.stringify({
+        serverIds: batchUpdate.serverIds,
+        update: { mode: batchUpdate.mode, betaBranch: batchUpdate.branch.trim() || null, validate: batchUpdate.validate },
+      }),
+    });
+    batchUpdate.status = result.status;
+    batchUpdate.error = '';
+    scheduleBatchPolling();
+  } catch (error) {
+    batchUpdate.error = error.message;
+  } finally {
+    batchUpdate.acting = false;
+  }
+}
+
+async function cancelQueuedUpdates() {
+  if (batchUpdate.acting || !batchUpdate.status?.active) return;
+  batchUpdate.acting = true;
+  try {
+    const result = await api('/local/update-batch/' + encodeURIComponent(batchUpdate.status.id) + '/cancel', { method: 'POST' });
+    batchUpdate.status = result.status;
+    batchUpdate.error = '';
+    scheduleBatchPolling();
+  } catch (error) {
+    batchUpdate.error = error.message;
+  } finally {
+    batchUpdate.acting = false;
+  }
+}
 
 const UPDATE_MODE_OPTIONS = [
   { value: 'auto', label: '自动（推荐）', desc: '运行中：先在暂存目录下载，等当前回合结束再切换；服务器空闲（没有玩家）或已停止时立即切换' },
@@ -731,8 +1000,10 @@ function stopUpdatePolling() {
 
 async function fetchUpdateStatus() {
   if (!updateDialog.serverId) return;
+  const id = updateDialog.serverId;
   try {
-    const st = await api('/local/servers/' + encodeURIComponent(updateDialog.serverId) + '/update');
+    const st = await api('/local/servers/' + encodeURIComponent(id) + '/update');
+    if (id !== updateDialog.serverId) return;
     const prevCount = updateDialog.status && updateDialog.status.lines ? updateDialog.status.lines.length : 0;
     const wasActive = updateActive.value;
     updateDialog.status = st;
@@ -742,6 +1013,7 @@ async function fetchUpdateStatus() {
       if (el) el.scrollTop = el.scrollHeight;
     }
     if (!st.active && !st.version?.checking) stopUpdatePolling();
+    else if (!updateTimer) startUpdatePolling();
     if (wasActive && !st.active) {
       if (st.state === 'succeeded') ElMessage.success(st.message || '更新成功');
       else if (st.state === 'failed' || st.state === 'rolledback') ElMessage.error(st.error || '更新失败');
@@ -756,7 +1028,7 @@ async function fetchUpdateStatus() {
 function startUpdatePolling() {
   stopUpdatePolling();
   updateTimer = setInterval(() => {
-    if (!updateDialog.visible && !updateActive.value) { stopUpdatePolling(); return; }
+    if (!updateManagement.visible && !updateActive.value) { stopUpdatePolling(); return; }
     fetchUpdateStatus();
   }, 1500);
 }
@@ -774,7 +1046,7 @@ async function checkUpdateVersion() {
   try {
     const status = await api('/local/servers/' + encodeURIComponent(id)
       + '/update?checkBranch=' + encodeURIComponent(updateVersionBranch.value));
-    if (id === updateDialog.serverId && updateDialog.visible) {
+    if (id === updateDialog.serverId && updateManagement.visible) {
       updateDialog.status = status;
       if (status.active || status.version?.checking) startUpdatePolling();
     }
@@ -785,15 +1057,16 @@ async function checkUpdateVersion() {
   }
 }
 
-async function openUpdateDialog() {
+async function loadSingleUpdate() {
   if (!local.selectedId) { ElMessage.warning('请先选择一个服务器'); return; }
-  updateDialog.serverId = local.selectedId;
+  const id = local.selectedId;
+  updateDialog.serverId = id;
   updateDialog.serverName = (local.status && local.status.name) ? local.status.name : local.selectedId;
   updateDialog.status = null;
-  updateDialog.visible = true;
   updateDialog.loading = true;
   try {
-    const st = await api('/local/servers/' + encodeURIComponent(updateDialog.serverId) + '/update');
+    const st = await api('/local/servers/' + encodeURIComponent(id) + '/update');
+    if (id !== updateDialog.serverId || !updateManagement.visible) return;
     updateDialog.status = st;
     const branch = (st.active && st.betaBranch) || st.defaultBetaBranch;
     updateDialog.form.betaBranch = branch && branch !== 'public' ? branch : '';
@@ -809,12 +1082,6 @@ async function openUpdateDialog() {
   } finally {
     updateDialog.loading = false;
   }
-}
-
-function closeUpdateDialog() {
-  updateDialog.visible = false;
-  // 正在更新时保留后台轮询，以便完成后弹出结果提示
-  if (!updateActive.value) stopUpdatePolling();
 }
 
 function modeConfirmText(mode) {
@@ -956,7 +1223,7 @@ function formatUptime(seconds) {
 function timeOnly(v) {
   if (!v) return '';
   const d = new Date(v);
-  return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('zh-CN', { hour12: false });
+  return isNaN(d.getTime()) ? '' : consoleTimeFormat.format(d);
 }
 
 function lineLabel(kind) {
@@ -986,6 +1253,7 @@ export function useLocalAdmin() {
     localRestart,
     localCancelRestart,
     localToggleHeartbeat,
+    localFollowLatest,
     localClearConsole,
     localSendCommand,
     localSetConsoleLevel,
@@ -1014,11 +1282,21 @@ export function useLocalAdmin() {
     timeOnly,
     lineLabel,
     updateDialog,
+    updateManagement,
+    batchUpdate,
+    updatePlans,
+    onUpdateManagementTab,
+    loadUpdatePlans,
+    saveUpdatePlan,
+    removeUpdatePlan,
+    openUpdateManagement,
+    closeUpdateManagement,
+    UPDATE_PLAN_TABS,
+    submitBatchUpdate,
+    cancelQueuedUpdates,
     updateLogRef,
     updateActive,
     localUpdating,
-    openUpdateDialog,
-    closeUpdateDialog,
     submitUpdate,
     updateAction,
     updateTriggerText,

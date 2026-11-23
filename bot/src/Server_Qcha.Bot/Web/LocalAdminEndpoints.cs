@@ -39,6 +39,12 @@ public static class LocalAdminEndpoints
         api.MapGet("/servers/{id}/update", GetUpdateStatusAsync);
         api.MapPost("/servers/{id}/update", StartUpdateAsync);
         api.MapPost("/servers/{id}/update/{action}", ControlUpdateAsync);
+        api.MapGet("/update-batch", GetUpdateBatchAsync);
+        api.MapPost("/update-batch", StartUpdateBatchAsync);
+        api.MapPost("/update-batch/{id:guid}/cancel", CancelUpdateBatchAsync);
+        api.MapGet("/update-schedules", GetUpdateSchedulesAsync);
+        api.MapPost("/update-schedules", AddUpdateScheduleAsync);
+        api.MapDelete("/update-schedules/{id:guid}", RemoveUpdateScheduleAsync);
         api.MapGet("/daemon/status", GetDaemonStatusAsync);
         api.MapPost("/daemon/start", StartDaemonAsync);
         api.MapPost("/daemon/stop", StopDaemonAsync);
@@ -100,16 +106,17 @@ public static class LocalAdminEndpoints
     }
 
     /// <summary>面板轮询：一次请求同时取回最新状态与增量控制台输出。</summary>
-    private static async Task<IResult> PollAsync(string id, long? after, int? limit, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    private static async Task<IResult> PollAsync(string id, long? after, int? limit, bool? waitForLines, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
     {
         var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
         if (error is not null)
             return error;
 
-        var poll = await provider.PollAsync(id, after, limit, ct);
+        var poll = await provider.PollAsync(id, after, limit, ct, waitForLines == true);
         if (poll is null)
             return NotFound(id);
 
+        ctx.Response.Headers.CacheControl = "no-store";
         return Results.Json(new
         {
             status = poll.Status,
@@ -317,6 +324,69 @@ public static class LocalAdminEndpoints
     }
 
     // ==================== SteamCMD 更新服务端 ====================
+
+    private static async Task<IResult> GetUpdateSchedulesAsync(HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    {
+        var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
+        if (error is not null) return error;
+        var result = await provider.GetUpdateSchedulesAsync(ct);
+        return result is not null ? Results.Json(result) :
+            Results.Json(new { error = "无法读取更新计划，请确认守护进程已更新并在线" }, statusCode: 503);
+    }
+
+    private static async Task<IResult> AddUpdateScheduleAsync(LocalUpdateScheduleRequest request, HttpContext ctx,
+        PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    {
+        var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
+        if (error is not null) return error;
+        var result = await provider.AddUpdateScheduleAsync(request, session!.Username, ct);
+        await AuditAsync(ctx, session.Username, "localadmin.update-schedule-add",
+            request.ServerIds is null ? "" : string.Join("、", request.ServerIds),
+            result.Success ? "创建 SteamCMD 更新计划" : result.Error ?? "", result.Success, ct);
+        return Results.Json(result, statusCode: result.Success ? 200 : 400);
+    }
+
+    private static async Task<IResult> RemoveUpdateScheduleAsync(Guid id, HttpContext ctx,
+        PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    {
+        var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
+        if (error is not null) return error;
+        var result = await provider.RemoveUpdateScheduleAsync(id, ct);
+        await AuditAsync(ctx, session!.Username, "localadmin.update-schedule-remove", id.ToString(),
+            result.Success ? "删除 SteamCMD 更新计划" : result.Error ?? "", result.Success, ct);
+        return Results.Json(result, statusCode: result.Success ? 200 : 400);
+    }
+
+    private static async Task<IResult> GetUpdateBatchAsync(HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    {
+        var (_, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
+        if (error is not null) return error;
+        var status = await provider.GetUpdateBatchAsync(ct);
+        return status is not null ? Results.Json(status) :
+            Results.Json(new { error = "无法读取批量更新，请确认守护进程已更新并在线" }, statusCode: 503);
+    }
+
+    private static async Task<IResult> StartUpdateBatchAsync(LocalUpdateBatchRequest request, HttpContext ctx,
+        PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    {
+        var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
+        if (error is not null) return error;
+        var result = await provider.StartUpdateBatchAsync(request, session!.Username, ct);
+        await AuditAsync(ctx, session.Username, "localadmin.update-batch", result.Status?.Id?.ToString() ?? "",
+            result.Success ? string.Join("、", result.Status!.Items.Select(item => item.ServerId)) : result.Error ?? "", result.Success, ct);
+        return Results.Json(result, statusCode: result.Success ? 200 : 400);
+    }
+
+    private static async Task<IResult> CancelUpdateBatchAsync(Guid id, HttpContext ctx,
+        PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)
+    {
+        var (session, error) = await PanelEndpoints.AuthorizeAsync(ctx, auth, PanelPermission.ServerControl);
+        if (error is not null) return error;
+        var result = await provider.CancelUpdateBatchAsync(id, ct);
+        await AuditAsync(ctx, session!.Username, "localadmin.update-batch-cancel", id.ToString(),
+            result.Success ? "停止后续排队更新" : result.Error ?? "", result.Success, ct);
+        return Results.Json(result, statusCode: result.Success ? 200 : 400);
+    }
 
     /// <summary>查询更新任务状态（含 SteamCMD / 安装目录预检与最近的更新日志）。</summary>
     private static async Task<IResult> GetUpdateStatusAsync(string id, string? checkBranch, HttpContext ctx, PanelAuthService auth, ILocalAdminProvider provider, CancellationToken ct)

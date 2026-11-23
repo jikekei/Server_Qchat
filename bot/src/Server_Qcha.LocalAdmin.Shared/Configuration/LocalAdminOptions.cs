@@ -147,6 +147,9 @@ public sealed class LocalServerDefinition
     /// <summary>优雅停止时等待进程自行退出的秒数，超时后强制结束。</summary>
     public int GracefulStopTimeoutSeconds { get; set; } = 30;
 
+    /// <summary>游戏进程的物理内存上限（MiB）。持续超限后安排回合结束重启，空服立即回收；0 为关闭。</summary>
+    public int MemoryRestartLimitMb { get; set; } = 2048;
+
     // ---------- 协议缓冲 ----------
 
     /// <summary>LocalAdmin → 游戏 方向缓冲区字节数（对应 <c>la_to_sl_buffer_size</c>）。</summary>
@@ -202,6 +205,7 @@ public sealed class LocalServerDefinition
         RestartLimit = Math.Clamp(RestartLimit, 0, 100);
         RestartTimeWindowSeconds = Math.Clamp(RestartTimeWindowSeconds, 10, 86400);
         GracefulStopTimeoutSeconds = Math.Clamp(GracefulStopTimeoutSeconds, 1, 600);
+        MemoryRestartLimitMb = Math.Max(0, MemoryRestartLimitMb);
         LaToSlBufferSize = Math.Clamp(LaToSlBufferSize, 101, 16 * 1024 * 1024);
         SlToLaBufferSize = Math.Clamp(SlToLaBufferSize, 351, 16 * 1024 * 1024);
     }
