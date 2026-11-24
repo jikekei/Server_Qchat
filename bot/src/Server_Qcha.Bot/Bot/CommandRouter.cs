@@ -481,7 +481,7 @@ public sealed class CommandRouter
         var name = asm.GetName();
         var informationalVersion = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? name.Version?.ToString()
-            ?? "2.4.4-beta.1";
+            ?? "2.4.4-beta.2";
 
         // 清理 git commit hash 等附加后缀（如 2.2.0+a1b2c3d -> 2.2.0）
         int plusIdx = informationalVersion.IndexOf('+');

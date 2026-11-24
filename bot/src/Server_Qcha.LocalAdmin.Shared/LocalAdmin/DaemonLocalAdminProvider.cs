@@ -483,7 +483,7 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
                 return new DaemonStatusResult(
                     Online: false,
                     Status: "unresponsive",
-                    Version: "2.4.4-beta.1",
+                    Version: "2.4.4-beta.2",
                     Pid: p.Id,
                     StartTime: p.StartTime,
                     UptimeSeconds: uptime,
@@ -504,7 +504,7 @@ public sealed class DaemonLocalAdminProvider : ILocalAdminProvider
         return new DaemonStatusResult(
             Online: false,
             Status: "offline",
-            Version: "2.4.4-beta.1",
+            Version: "2.4.4-beta.2",
             Pid: null,
             StartTime: null,
             UptimeSeconds: 0,
