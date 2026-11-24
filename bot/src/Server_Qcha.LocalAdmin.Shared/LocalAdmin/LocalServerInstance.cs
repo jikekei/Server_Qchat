@@ -71,10 +71,14 @@ public sealed class LocalServerInstance : IAsyncDisposable
     private static readonly TimeSpan FirstHeartbeatGrace = TimeSpan.FromSeconds(80);
 
     /// <summary>进程退出后、重启前的间隔（避免端口尚未释放）。</summary>
-    private static readonly TimeSpan RestartDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan RestartDelay = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>游戏声明 ExitActionRestart 并断开控制台后，允许其自行退出的最长时间；超时即强制结束以加速重启。</summary>
+    internal static TimeSpan GameRestartExitTimeout { get; set; } = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan MemoryRestartMinUptime = TimeSpan.FromMinutes(10);
     private const int MemorySampleIntervalMs = 15_000;
     private const int MemorySamplesToRestart = 3;
+    private const int MemoryRoundRetryIntervalMs = 60_000;
     private const long BytesPerMiB = 1024 * 1024;
 
     /// <summary>游戏在退出前声明的意图。</summary>
@@ -152,6 +156,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
     private long? _workingSetBytes;
     private int _highMemorySamples;
     private MemoryRoundRestart _memoryRoundRestart;
+    private long _nextMemoryRoundRetryAt;
 
     // ---- 状态机 ----
     private ExitAction _exitAction = ExitAction.Crash;
@@ -477,7 +482,10 @@ public sealed class LocalServerInstance : IAsyncDisposable
             {
                 if (_memoryRoundRestart == MemoryRoundRestart.Scheduled && kind == ConsoleLineKind.Output &&
                     RestartNextRoundConfirmation(piece) == false)
+                {
                     _memoryRoundRestart = MemoryRoundRestart.Unconfirmed;
+                    _nextMemoryRoundRetryAt = Environment.TickCount64 + MemoryRoundRetryIntervalMs;
+                }
 
                 line = new ConsoleLine(_nextSeq++, DateTime.Now, kind, color, piece, hex);
                 WriteLogLine(line);
@@ -706,6 +714,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
         }
         finally
         {
+            Process? restartingProcess = null;
             lock (_sync)
             {
                 _consoleConnected = false;
@@ -713,6 +722,19 @@ public sealed class LocalServerInstance : IAsyncDisposable
                 _connectedAt = null;
                 _stream = null;
                 _client = null;
+
+                if (!_disposed && !_ignoreExitSignals && _exitAction == ExitAction.Restart && _process is not null)
+                {
+                    try
+                    {
+                        if (!_process.HasExited)
+                            restartingProcess = _process;
+                    }
+                    catch (Exception)
+                    {
+                        // 进程已退出或释放
+                    }
+                }
             }
 
             try
@@ -726,6 +748,43 @@ public sealed class LocalServerInstance : IAsyncDisposable
             }
 
             _log.LogInformation("控制台通道断开（实例 {Id}）", _def.Id);
+
+            if (restartingProcess is not null)
+                _ = WatchGameRestartExitAsync(restartingProcess, _lifetimeCts.Token);
+        }
+    }
+
+    private async Task WatchGameRestartExitAsync(Process process, CancellationToken ct)
+    {
+        try
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(GameRestartExitTimeout);
+            await process.WaitForExitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            bool shouldKill = false;
+            lock (_sync)
+            {
+                if (!_disposed && ReferenceEquals(_process, process) &&
+                    !_ignoreExitSignals && _exitAction == ExitAction.Restart && !_consoleConnected)
+                {
+                    _ignoreExitSignals = true;
+                    _pending = PendingAction.RestartUncounted;
+                    shouldKill = true;
+                }
+            }
+
+            if (shouldKill)
+            {
+                Warn($"游戏声明重启并断开控制台已超过 {GameRestartExitTimeout.TotalSeconds:0.#} 秒仍未退出，强制结束以加速重启。");
+                TriggerProcessExit(force: true, expectedProcess: process);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
+        {
+            // 进程已退出或释放
         }
     }
 
@@ -809,6 +868,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
 
     private void HandleHeartbeat()
     {
+        bool becameActive = false;
         lock (_sync)
         {
             if (_heartbeat == HeartbeatState.Disabled)
@@ -823,10 +883,12 @@ public sealed class LocalServerInstance : IAsyncDisposable
             if (_heartbeat == HeartbeatState.AwaitingFirstHeartbeat)
             {
                 _heartbeat = HeartbeatState.Active;
+                becameActive = true;
             }
         }
 
-        Info("收到心跳，静默崩溃检测已生效。");
+        if (becameActive)
+            Info("收到心跳，静默崩溃检测已生效。");
         _log.LogDebug("心跳已刷新（实例 {Id}）", _def.Id);
     }
 
@@ -977,7 +1039,10 @@ public sealed class LocalServerInstance : IAsyncDisposable
             }
             else
             {
-                if (_memoryRoundRestart != MemoryRoundRestart.None)
+                if (_memoryRoundRestart == MemoryRoundRestart.Scheduled)
+                    return;
+                if (_memoryRoundRestart == MemoryRoundRestart.Unconfirmed &&
+                    Environment.TickCount64 < _nextMemoryRoundRetryAt)
                     return;
                 _memoryRoundRestart = MemoryRoundRestart.Scheduling;
             }
@@ -1004,16 +1069,36 @@ public sealed class LocalServerInstance : IAsyncDisposable
                 if (!ReferenceEquals(_process, process))
                     return;
 
-                _memoryRoundRestart = result.Success ? MemoryRoundRestart.Scheduled : MemoryRoundRestart.Unconfirmed;
                 if (result.Success)
+                {
+                    _memoryRoundRestart = MemoryRoundRestart.Scheduled;
+                    _nextMemoryRoundRetryAt = 0;
                     Info("内存回收已安排在本回合结束后执行，游戏会请求客户端重连。");
+                }
                 else
-                    Warn($"未能确认回合结束后回收内存：{result.Error}；等待空服。");
+                {
+                    _memoryRoundRestart = MemoryRoundRestart.Unconfirmed;
+                    _nextMemoryRoundRetryAt = Environment.TickCount64 + MemoryRoundRetryIntervalMs;
+                    Warn($"未能确认回合结束后回收内存：{result.Error}；{MemoryRoundRetryIntervalMs / 1000} 秒后重试，空服时将立即回收。");
+                }
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             // 实例正在释放
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "安排回合结束内存回收异常（实例 {Id}）", _def.Id);
+            lock (_sync)
+            {
+                if (!ReferenceEquals(_process, process))
+                    return;
+
+                _memoryRoundRestart = MemoryRoundRestart.Unconfirmed;
+                _nextMemoryRoundRetryAt = Environment.TickCount64 + MemoryRoundRetryIntervalMs;
+            }
+            Warn($"安排回合结束后回收内存异常：{ex.Message}；{MemoryRoundRetryIntervalMs / 1000} 秒后重试。");
         }
     }
 
@@ -1207,6 +1292,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
             _workingSetBytes = null;
             _highMemorySamples = 0;
             _memoryRoundRestart = MemoryRoundRestart.None;
+            _nextMemoryRoundRetryAt = 0;
             _exitAction = ExitAction.Crash;
             _warningStage = 0;
             _firstHeartbeatWarned = false;
@@ -1231,7 +1317,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
         try
         {
             await process.WaitForExitAsync();
-            await Task.Delay(120);
+            await Task.Delay(50);
         }
         catch (Exception)
         {
@@ -1277,6 +1363,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
             _workingSetBytes = null;
             _highMemorySamples = 0;
             _memoryRoundRestart = MemoryRoundRestart.None;
+            _nextMemoryRoundRetryAt = 0;
             _warningStage = 0;
             _heartbeat = HeartbeatState.Disabled;
             _consoleConnected = false;
@@ -1376,7 +1463,7 @@ public sealed class LocalServerInstance : IAsyncDisposable
         }
 
         _restartBudgetExhausted = false;
-        Info($"{RestartDelay.TotalSeconds:F0} 秒后拉起新进程…");
+        Info($"{RestartDelay.TotalSeconds:0.#} 秒后拉起新进程…");
         await Task.Delay(RestartDelay);
 
         if (_disposed)

@@ -9,7 +9,7 @@
     <Version>2.4.4</Version>
     <AssemblyVersion>2.4.4.0</AssemblyVersion>
     <FileVersion>2.4.4.0</FileVersion>
-    <InformationalVersion>2.4.4-beta.1</InformationalVersion>
+    <InformationalVersion>2.4.4-beta.2</InformationalVersion>
     <Product>Qcha LocalAdmin Daemon</Product>
     <Description>SCPSL Qcha LocalAdmin 独立守护进程</Description>
   </PropertyGroup>

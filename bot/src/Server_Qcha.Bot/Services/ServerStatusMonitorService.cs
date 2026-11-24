@@ -382,7 +382,10 @@ public sealed class ServerStatusMonitorService : BackgroundService
             workingSet = Process.GetCurrentProcess().WorkingSet64;
             foreach (var p in Process.GetProcessesByName("SCPSL"))
             {
-                try { workingSet += p.WorkingSet64; } catch { }
+                using (p)
+                {
+                    try { workingSet += p.WorkingSet64; } catch { }
+                }
             }
         }
         catch { }
